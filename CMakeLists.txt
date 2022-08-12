@@ -4,11 +4,11 @@ project(magic)
 
 add_library(magic
 	src/error.cpp
-	src/token.cpp
+	src/utils.cpp
+	src/lexer.cpp
 	src/ast.cpp
 	src/parser.cpp
 	src/crc64.cpp
-	src/registry.cpp
 )
 
 target_include_directories(magic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")

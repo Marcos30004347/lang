@@ -2,7 +2,7 @@
 
 #include "types.hpp"
 
-enum token_type {
+enum Token_Type {
 	TOKEN_EOF = 0,
 	// IDENTIFIER
 	TOKEN_ID,
@@ -53,43 +53,45 @@ enum token_type {
 };
 
 
-struct token {
-	token_type type;
-	u64 size;
-	u64 file;
-	u64 row;
-	u64 col;
-	u64 pos;
+struct Token {
+	Token_Type type;
+
+	u32 size;
+	u32 file;
+	u32 row;
+	u32 col;
+	u32 pos;
+
 	// 64 bits buffer 
 	u64 buf;
 };
 
-enum lexer_state {
+enum Lexer_State {
 	LEXER_EOF = 0,
 	LEXER_OK = 1,
 };
 
-struct lexer {
-	token curr;
-	token prev;
+struct Lexer {
+	Token curr;
+	Token prev;
 	
 	i8* file_buf;
 	
-	u64 file_pos;
-	u64 file_id;
-	u64 file_col;
-	u64 file_row;
-	u64 file_size;
+	u32 file_pos;
+	u32 file_id;
+	u32 file_col;
+	u32 file_row;
+	u32 file_size;
 };
 
-void lexer_init(lexer* t, u64 id, i8* buffer, u64 size);
+void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size);
 
-void lexer_destroy(lexer*);
+void lexer_destroy(Lexer*);
 
-token lexer_read_token(lexer*);
+Token lexer_read_token(Lexer*);
 
-b8 lexer_is_eof(lexer*);
+b8 lexer_is_eof(Lexer*);
 
-void token_get_id(lexer* t, token tok, i8* buf);
+void token_get_id(Lexer* t, Token tok, i8* buf);
 
-const i8* lexer_get_token_file_buff_ptr(lexer* l, token t);
+const i8* lexer_get_Token_file_buff_ptr(Lexer* l, Token t);

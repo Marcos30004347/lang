@@ -1,90 +1,68 @@
 
 #include "parser.hpp"
 #include "ast.hpp"
-#include "registry.hpp"
-#include "token.hpp"
+#include "lexer.hpp"
 #include "types.hpp"
 
 #include "error.hpp"
 #include "stdio.h"
 
-void _print_ast(parser* p, ast* a, int tabs = 0) {
-	printf(" AST:{ kind: %s", ast_kind_to_cstr(a->kind));
-	if(a->kind == AST_I32_DECL) {
-		printf(",val: %lu", a->tok.buf);
-	}
-	
- 	if(a->kind == AST_SYM_DECL) {
-		i8 buff[256];
-		token_get_id(&p->lex, a->tok, buff);
-		printf(",sym: '%s'", buff);
-	}
+ASTNode *parser_parse_expr(Parser *p);
+ASTNode *parser_parse_statements(Parser *p);
+ASTNode *parser_parse_decl(Parser *p);
 
-	printf(" }\n");
-	if(a->left) {
-		printf("%*c|__", tabs, ' ');
-		_print_ast(p, a->left, tabs + 4);
-	}
-
-	if(a->right) {
-		printf("%*c|__", tabs, ' ');
-		_print_ast(p, a->right, tabs + 4);
-	}
-} 
-
-ast* parser_parse_expr(parser* p);
-ast *parser_parse_statements(parser *p);
-ast *parser_parse_decl(parser *p);
-
-void parser_init(parser *p, u64 id, i8 *buffer, u64 size) {
+void parser_init(Parser *p, u64 id, i8 *buffer, u64 size) {
   lexer_init(&p->lex, id, buffer, size);
+  ast_manager_init(&p->ast_man);
 }
 
-void parser_destroy(parser *p) { lexer_destroy(&p->lex); }
+void parser_destroy(Parser *p) { lexer_destroy(&p->lex); }
 
-token parser_curr_tok(parser *p) { return p->lex.curr; }
+Token parser_curr_tok(Parser *p) { return p->lex.curr; }
 
-token parser_prev_tok(parser *p) { return p->lex.prev; }
+Token parser_prev_tok(Parser *p) { return p->lex.prev; }
 
-token parser_read_token(parser *p, token_type kind) {
+Token parser_read_token(Parser *p, Token_Type kind) {
   if (p->lex.curr.type != kind) {
     char tmp[256];
-    sprintf(tmp, "expecting token %i", kind);
+    sprintf(tmp, "expecting Token %i", kind);
     parser_error(p, parser_curr_tok(p), tmp);
   }
 
   return lexer_read_token(&p->lex);
 }
 
-ast* parser_parse_symbol(parser* p) {
-	token tok = parser_curr_tok(p);
+ASTNode *parser_parse_symbol(Parser *p) {
+  Token tok = parser_curr_tok(p);
 
-	parser_read_token(p, TOKEN_ID);
-	
-	return ast_symbol(tok);
+  parser_read_token(p, TOKEN_ID);
+
+  return ast_symbol(&p->ast_man, tok);
 }
 
-ast *parse_call_args(parser *p) {
+ASTNode *parse_call_args(Parser *p) {
   parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
 
-  ast *root = ast_call_arg_list(parser_curr_tok(p));
+  ASTNode *root = ast_call_arg_list(&p->ast_man, parser_curr_tok(p));
 
   if (parser_curr_tok(p).type != TOKEN_CLOSE_PARENTHESIS) {
 
-    ast *tmp = root;
+    ASTNode *tmp = root;
 
-    tmp->left = parser_parse_expr(p);
+    tmp->left = parser_parse_expr(p)->id;
 
     while (parser_curr_tok(p).type == TOKEN_COMMA) {
       parser_read_token(p, TOKEN_COMMA);
-      ast *next = ast_call_arg_list(parser_curr_tok(p));
 
-      next->left = parser_parse_expr(p);
+      ASTNode *next = ast_call_arg_list(&p->ast_man, parser_curr_tok(p));
+
+      next->left = parser_parse_expr(p)->id;
 
       next->right = 0;
 
-      tmp->right = next;
-      tmp = tmp->right;
+      tmp->right = next->id;
+
+      tmp = next;
     }
   }
 
@@ -92,12 +70,12 @@ ast *parse_call_args(parser *p) {
   return root;
 }
 
-ast *parser_parse_lit(parser *p) {
-  token tok = parser_curr_tok(p);
+ASTNode *parser_parse_lit(Parser *p) {
+  Token tok = parser_curr_tok(p);
 
   if (tok.type == TOKEN_I32_LIT) {
     parser_read_token(p, TOKEN_I32_LIT);
-    return ast_i32_lit(tok);
+    return ast_i32_lit(&p->ast_man, tok);
   }
 
   parser_error(p, parser_curr_tok(p), "invalid literal declaration");
@@ -106,8 +84,8 @@ ast *parser_parse_lit(parser *p) {
 }
 
 // PRIMARY → LITERAL | SYMBOL | '('EXPRESSION')'
-ast *parser_parse_primary(parser *p) {
-  ast *expr = 0;
+ASTNode *parser_parse_primary(Parser *p) {
+  ASTNode *expr = 0;
 
   if (parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
@@ -125,109 +103,110 @@ ast *parser_parse_primary(parser *p) {
 
 // UNARY → ('!' | '-' | '+' | '++' | '--' | '~' )UNARY | UNARY('++' | '--') |
 // CALL
-ast *parser_parse_postfix_suffix_unary(parser *p) {
+ASTNode *parser_parse_postfix_suffix_unary(Parser *p) {
   // TODO
   return parser_parse_primary(p);
 }
 
-ast* parser_parse_call_args(parser* p) {
-	bool effectfull = false;
-	
-	token tok = parser_curr_tok(p);
-	ast *arg = parse_call_args(p);
-	ast *tail = 0;
+ASTNode *parser_parse_call_args(Parser *p) {
+  bool effectfull = false;
 
-	if(parser_curr_tok(p).type == TOKEN_EXCLAMATION ||
-		 parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
+  Token tok = parser_curr_tok(p);
+  ASTNode *arg = parse_call_args(p);
+  ASTNode *tail = 0;
 
-		if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
-			effectfull = true;
-			parser_read_token(p, TOKEN_EXCLAMATION);
-		}
+  if (parser_curr_tok(p).type == TOKEN_EXCLAMATION ||
+      parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
 
-		return ast_call(tok, arg, parser_parse_call_args(p), effectfull);
-	}
-		
-	return arg;
+    if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
+      effectfull = true;
+      parser_read_token(p, TOKEN_EXCLAMATION);
+    }
+
+    return ast_call(&p->ast_man, tok, arg->id, parser_parse_call_args(p)->id,
+                    effectfull);
+  }
+
+  return arg;
 }
 
-ast* parser_parse_call_tail(parser* p, ast* head) {
-	b8 effectfull = false;
-	
-	if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
+ASTNode *parser_parse_call_tail(Parser *p, ASTNode *head) {
+  b8 effectfull = false;
+
+  if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
     effectfull = true;
 
     parser_read_token(p, TOKEN_EXCLAMATION);
   }
 
-	token tok = parser_curr_tok(p);
-	
-	ast* args = parse_call_args(p);
+  Token tok = parser_curr_tok(p);
 
-	ast* call = ast_call(tok, head, args, effectfull);
+  ASTNode *args = parse_call_args(p);
 
-	if(parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
-		return parser_parse_call_tail(p, call);
-	}
-	
-	return call;
-} 
+  ASTNode *call = ast_call(&p->ast_man, tok, head->id, args->id, effectfull);
 
-ast *parser_parse_call(parser *p) {
-  ast *root = parser_parse_postfix_suffix_unary(p);
+  if (parser_curr_tok(p).type == TOKEN_EXCLAMATION ||
+      parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
+    return parser_parse_call_tail(p, call);
+  }
+
+  return call;
+}
+
+ASTNode *parser_parse_call(Parser *p) {
+  ASTNode *root = parser_parse_postfix_suffix_unary(p);
 
   b8 effectfull = false;
 
-	if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
+  if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
     effectfull = true;
 
     parser_read_token(p, TOKEN_EXCLAMATION);
   }
 
-	token tok = parser_curr_tok(p);
-	
-	if(parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
-		ast* args = parse_call_args(p);
-		
-		ast* call = ast_call(tok, root, args, effectfull);
-	
-		if(parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
-			return parser_parse_call_tail(p, call);
-		}
+  Token tok = parser_curr_tok(p);
 
+  if (parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
+    ASTNode *args = parse_call_args(p);
 
-		if(parser_curr_tok(p).type == TOKEN_KEYWORD_WITH) {
-			token tok = parser_curr_tok(p);
+    ASTNode *call = ast_call(&p->ast_man, tok, root->id, args->id, effectfull);
 
-			parser_read_token(p, TOKEN_KEYWORD_WITH);
+    if (parser_curr_tok(p).type == TOKEN_EXCLAMATION ||
+        parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
+      return parser_parse_call_tail(p, call);
+    }
 
-			ast* hnd = parser_parse_decl(p);
-			
-			return ast_with_hnd(tok, call, hnd);
-		}
-		
-		return call;
-		
-	}
+    if (parser_curr_tok(p).type == TOKEN_KEYWORD_WITH) {
+      Token tok = parser_curr_tok(p);
 
-	if(effectfull) {
-		parser_error(p, tok, "effect call expect arguments");
-	}
+      parser_read_token(p, TOKEN_KEYWORD_WITH);
+
+      ASTNode *hnd = parser_parse_decl(p);
+
+      return ast_with_hnd(&p->ast_man, tok, call->id, hnd->id);
+    }
+
+    return call;
+  }
+
+  if (effectfull) {
+    parser_error(p, tok, "effect call expect arguments");
+  }
 
   return root;
 }
 
-ast *parser_parse_array_access(parser *p) {
+ASTNode *parser_parse_array_access(Parser *p) {
   // TODO: here should be parser array access
   return parser_parse_call(p);
 }
 
-ast *parser_parse_member_access(parser *p) {
-  ast *root = parser_parse_array_access(p);
+ASTNode *parser_parse_member_access(Parser *p) {
+  ASTNode *root = parser_parse_array_access(p);
 
   if (parser_curr_tok(p).type == TOKEN_DOT) {
-    return ast_member_access(parser_curr_tok(p), root,
-                             parser_parse_member_access(p));
+    return ast_member_access(&p->ast_man, parser_curr_tok(p), root->id,
+                             parser_parse_member_access(p)->id);
   }
 
   return root;
@@ -235,21 +214,21 @@ ast *parser_parse_member_access(parser *p) {
 
 // UNARY → ('!' | '-' | '+' | '++' | '--' | '~' )UNARY | UNARY('++' | '--') |
 // CALL
-ast *parser_parse_unary(parser *p) {
-  ast *root = 0;
+ASTNode *parser_parse_unary(Parser *p) {
+  ASTNode *root = 0;
 
   if (parser_curr_tok(p).type == TOKEN_MINUS ||
       parser_curr_tok(p).type == TOKEN_PLUS) {
-    token tok = parser_curr_tok(p);
+    Token tok = parser_curr_tok(p);
 
     parser_read_token(p, tok.type);
 
     if (tok.type == TOKEN_MINUS) {
-      return ast_una_sub(tok, root, parser_parse_unary(p));
+      return ast_una_sub(&p->ast_man, tok, root->id, parser_parse_unary(p)->id);
     }
 
     if (tok.type == TOKEN_PLUS) {
-      return ast_una_add(tok, root, parser_parse_unary(p));
+      return ast_una_add(&p->ast_man, tok, root->id, parser_parse_unary(p)->id);
     }
   }
 
@@ -257,21 +236,23 @@ ast *parser_parse_unary(parser *p) {
 }
 
 // FACTOR → UNARY (('/' | '*' | '%' ) FACTOR)*
-ast *parser_parse_factor(parser *p) {
-  ast *root = parser_parse_unary(p);
+ASTNode *parser_parse_factor(Parser *p) {
+  ASTNode *root = parser_parse_unary(p);
 
   if (parser_curr_tok(p).type == TOKEN_SLASH ||
       parser_curr_tok(p).type == TOKEN_ASTERISK) {
-    token tok = parser_curr_tok(p);
+    Token tok = parser_curr_tok(p);
 
     parser_read_token(p, tok.type);
 
     if (tok.type == TOKEN_SLASH) {
-      return ast_bin_div(tok, root, parser_parse_factor(p));
+      return ast_bin_div(&p->ast_man, tok, root->id,
+                         parser_parse_factor(p)->id);
     }
 
     if (tok.type == TOKEN_ASTERISK) {
-      return ast_bin_mul(tok, root, parser_parse_factor(p));
+      return ast_bin_mul(&p->ast_man, tok, root->id,
+                         parser_parse_factor(p)->id);
     }
   }
 
@@ -279,20 +260,20 @@ ast *parser_parse_factor(parser *p) {
 }
 
 // TERM → FACTOR (('+' | '-') TERM)*
-ast *parser_parse_term(parser *p) {
-  ast *root = parser_parse_factor(p);
+ASTNode *parser_parse_term(Parser *p) {
+  ASTNode *root = parser_parse_factor(p);
   if (parser_curr_tok(p).type == TOKEN_PLUS ||
       parser_curr_tok(p).type == TOKEN_MINUS) {
-    token tok = parser_curr_tok(p);
+    Token tok = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_PLUS);
 
     if (tok.type == TOKEN_PLUS) {
-      return ast_bin_add(tok, root, parser_parse_term(p));
+      return ast_bin_add(&p->ast_man, tok, root->id, parser_parse_term(p)->id);
     }
 
     if (tok.type == TOKEN_MINUS) {
-      return ast_bin_sub(tok, root, parser_parse_term(p));
+      return ast_bin_sub(&p->ast_man, tok, root->id, parser_parse_term(p)->id);
     }
   }
 
@@ -300,140 +281,144 @@ ast *parser_parse_term(parser *p) {
 }
 
 // SHIFT → TERM (( '>>' | '<<'  ) COMPARISON)*
-ast *parser_parse_bitwise_shift(parser *p) {
+ASTNode *parser_parse_bitwise_shift(Parser *p) {
   // TODO: bitwise shift should be parsed here
   return parser_parse_term(p);
 }
 
 // COMPARISON → SHIFT (( '>' | '>=' | '<' | '<='  ) COMPARISON)*
-ast *parser_parse_comparison(parser *p) {
+ASTNode *parser_parse_comparison(Parser *p) {
   // TODO: comparison expressions should go here
-  ast *root = parser_parse_bitwise_shift(p);
+  ASTNode *root = parser_parse_bitwise_shift(p);
 
   if (parser_curr_tok(p).type == TOKEN_GREATER) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_GREATER);
 
-    return ast_bin_gt(curr, root, parser_parse_comparison(p));
+    return ast_bin_gt(&p->ast_man, curr, root->id,
+                      parser_parse_comparison(p)->id);
   }
 
   if (parser_curr_tok(p).type == TOKEN_SMALLER) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_SMALLER);
 
-    return ast_bin_lt(curr, root, parser_parse_comparison(p));
+    return ast_bin_lt(&p->ast_man, curr, root->id,
+                      parser_parse_comparison(p)->id);
   }
 
   if (parser_curr_tok(p).type == TOKEN_GREATER_EQUAL) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_GREATER_EQUAL);
 
-    return ast_bin_ge(curr, root, parser_parse_comparison(p));
+    return ast_bin_ge(&p->ast_man, curr, root->id,
+                      parser_parse_comparison(p)->id);
   }
 
   if (parser_curr_tok(p).type == TOKEN_SMALLER_EQUAL) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_SMALLER_EQUAL);
 
-    return ast_bin_le(curr, root, parser_parse_comparison(p));
+    return ast_bin_le(&p->ast_man, curr, root->id,
+                      parser_parse_comparison(p)->id);
   }
 
   return root;
 }
 
 // EQUALITY → COMPARISON (('!=' | '==') EQUALITY)*
-ast *parser_parse_equality(parser *p) {
+ASTNode *parser_parse_equality(Parser *p) {
   // TODO: equality comparisons expressions should go here
-  ast *root = parser_parse_comparison(p);
+  ASTNode *root = parser_parse_comparison(p);
 
   if (parser_curr_tok(p).type == TOKEN_EXCLAMATION_EQUAL) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_EXCLAMATION_EQUAL);
 
-    return ast_bin_ne(curr, root, parser_parse_equality(p));
+    return ast_bin_ne(&p->ast_man, curr, root->id,
+                      parser_parse_equality(p)->id);
   }
 
   if (parser_curr_tok(p).type == TOKEN_EQUAL_EQUAL) {
-    token curr = parser_curr_tok(p);
+    Token curr = parser_curr_tok(p);
 
     parser_read_token(p, TOKEN_EQUAL_EQUAL);
 
-    return ast_bin_eq(curr, root, parser_parse_equality(p));
+    return ast_bin_eq(&p->ast_man, curr, root->id,
+                      parser_parse_equality(p)->id);
   }
 
   return root;
 }
 
 // BITWISE → BOOL (( '&' | '|' | '^'  ) BITWISE)*
-ast *parser_parse_bitwise(parser *p) {
+ASTNode *parser_parse_bitwise(Parser *p) {
   // TODO: bitwise expressions should go here
   return parser_parse_equality(p);
 }
 
 // BOOL → TERM (( '&&' | '^^' | '||') BOOL)*
-ast *parser_parse_booleans(parser *p) {
+ASTNode *parser_parse_booleans(Parser *p) {
   // TODO: booleans expressions should go here
   return parser_parse_bitwise(p);
 }
 
+ASTNode *parser_parse_ternary(Parser *p) {
+  if (parser_curr_tok(p).type == TOKEN_KEYWORD_CONTINUE) {
+    Token tok = parser_curr_tok(p);
+    parser_read_token(p, TOKEN_KEYWORD_CONTINUE);
 
-ast *parser_parse_ternary(parser *p) {
-	if(parser_curr_tok(p).type == TOKEN_KEYWORD_CONTINUE) {
-		token tok = parser_curr_tok(p);
-		parser_read_token(p, TOKEN_KEYWORD_CONTINUE);
+    ASTNode *cont = parser_parse_ternary(p);
+    ASTNode *expr = 0;
 
-		ast* cont = parser_parse_ternary(p);
-		ast* expr = 0;
+    if (parser_curr_tok(p).type == TOKEN_KEYWORD_WITH) {
+      parser_read_token(p, TOKEN_KEYWORD_WITH);
+      expr = parser_parse_decl(p);
+    }
 
-		if(parser_curr_tok(p).type == TOKEN_KEYWORD_WITH) {
-			parser_read_token(p, TOKEN_KEYWORD_WITH);
-			expr = parser_parse_decl(p);
-		}
-
-		return ast_ctrl_flow_continue(tok, cont, expr);
-	}
+    return ast_ctrl_flow_continue(&p->ast_man, tok, cont->id, expr->id);
+  }
 
   return parser_parse_booleans(p);
 }
 
-
-ast *parser_parse_if_statement(parser *p) {
-  token tok = parser_curr_tok(p);
+ASTNode *parser_parse_if_statement(Parser *p) {
+  Token tok = parser_curr_tok(p);
 
   parser_read_token(p, TOKEN_KEYWORD_IF);
 
-  ast *cond = parser_parse_expr(p);
+  ASTNode *cond = parser_parse_expr(p);
 
-  ast *body = parser_parse_statements(p);
+  ASTNode *body = parser_parse_statements(p);
 
-  ast *cont = 0;
+  ASTNode *cont = 0;
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_ELSE) {
     parser_read_token(p, TOKEN_KEYWORD_ELSE);
     cont = parser_parse_if_statement(p);
   }
 
-  return ast_ctrl_flow_if(tok, cond, body, cont);
+  return ast_ctrl_flow_if(&p->ast_man, tok, cond->id, body->id, cont->id);
 }
 
-ast *parser_parse_ret_statement(parser *p) {
-  token tok = parser_curr_tok(p);
+ASTNode *parser_parse_ret_statement(Parser *p) {
+  Token tok = parser_curr_tok(p);
   parser_read_token(p, TOKEN_KEYWORD_RETURN);
-  ast *ret = ast_ctrl_flow_ret(tok, parser_parse_expr(p));
+  ASTNode *ret = ast_ctrl_flow_ret(&p->ast_man, tok, parser_parse_expr(p)->id);
 
-	if(parser_prev_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
-		parser_read_token(p, TOKEN_SEMI_COLON);
-	}
+  if (parser_prev_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
+    parser_read_token(p, TOKEN_SEMI_COLON);
+  }
 
-	return ret;
+  return ret;
 }
 
-ast *parser_parse_statement(parser *p) {
+ASTNode *parser_parse_statement(Parser *p) {
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_IF) {
     return parser_parse_if_statement(p);
   }
@@ -442,28 +427,29 @@ ast *parser_parse_statement(parser *p) {
     return parser_parse_ret_statement(p);
   }
 
-  ast *expr = parser_parse_expr(p);
+  ASTNode *expr = parser_parse_expr(p);
 
   parser_read_token(p, TOKEN_SEMI_COLON);
 
   return expr;
 }
 
-ast *parser_parse_statements(parser *p) {
+ASTNode *parser_parse_statements(Parser *p) {
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
-  ast *stmt = ast_statement_list(parser_curr_tok(p));
+  ASTNode *stmt = ast_statement_list(&p->ast_man, parser_curr_tok(p));
 
-  ast *tmp = stmt;
+  ASTNode *tmp = stmt;
 
   while (parser_curr_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
-    tmp->left = parser_parse_statement(p);
+    tmp->left = parser_parse_statement(p)->id;
 
     if (parser_curr_tok(p).type == TOKEN_CLOSE_CURLY_BRACE) {
       break;
     }
 
-    tmp->right = ast_statement_list(parser_curr_tok(p));
-    tmp = tmp->right;
+    ASTNode *r = ast_statement_list(&p->ast_man, parser_curr_tok(p));
+    tmp->right = r->id;
+    tmp = r;
   }
 
   parser_read_token(p, TOKEN_CLOSE_CURLY_BRACE);
@@ -471,35 +457,38 @@ ast *parser_parse_statements(parser *p) {
   return stmt;
 }
 
-ast *parser_parse_decl_args(parser *p) {
+ASTNode *parser_parse_decl_args(Parser *p) {
   parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
 
-  ast *args = ast_decl_arg_list(parser_curr_tok(p));
-  ast *tmp = args;
+  ASTNode *args = ast_decl_arg_list(&p->ast_man, parser_curr_tok(p));
+  ASTNode *tmp = args;
 
   while (parser_curr_tok(p).type != TOKEN_CLOSE_PARENTHESIS) {
-    token tok = parser_curr_tok(p);
-		
-    ast *id = parser_parse_symbol(p);
-		ast* ty = 0;
+    Token tok = parser_curr_tok(p);
 
-		if(parser_curr_tok(p).type == TOKEN_COLON) {
-			parser_read_token(p, TOKEN_COLON);
+    ASTNode *id = parser_parse_symbol(p);
+    ASTNode *type = 0;
 
-			// TODO: use proper type parsing function
-			ast *ty = parser_parse_ternary(p);
-		}
+    if (parser_curr_tok(p).type == TOKEN_COLON) {
+      parser_read_token(p, TOKEN_COLON);
 
-    tmp->left = ast_const_bind(tok, ty, id, 0);
+      // TODO: use proper type parsing function
+      type = parser_parse_ternary(p);
+    }
+
+    AST_Id ty = type ? type->id : 0;
+
+    tmp->left = ast_const_bind(&p->ast_man, tok, ty, id->id, 0)->id;
 
     if (parser_curr_tok(p).type != TOKEN_COMMA) {
       break;
     }
 
-		parser_read_token(p, TOKEN_COMMA);
-		
-    tmp->right = ast_decl_arg_list(parser_curr_tok(p));
-		tmp = tmp->right;
+    parser_read_token(p, TOKEN_COMMA);
+
+    ASTNode *r = ast_decl_arg_list(&p->ast_man, parser_curr_tok(p));
+    tmp->right = r->id;
+    tmp = r;
   }
 
   parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
@@ -507,63 +496,71 @@ ast *parser_parse_decl_args(parser *p) {
   return args;
 }
 
-ast *parser_parse_eff_args(parser *p) {
-	token tok = parser_curr_tok(p);
-	
+ASTNode *parser_parse_eff_args(Parser *p) {
+  Token tok = parser_curr_tok(p);
+
   parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
 
-  ast *args = ast_decl_arg_list(parser_curr_tok(p));
-  ast *tmp = args;
+  ASTNode *args = ast_decl_arg_list(&p->ast_man, parser_curr_tok(p));
+  ASTNode *tmp = args;
 
   while (parser_curr_tok(p).type == TOKEN_ID) {
-    ast *id = parser_parse_symbol(p);
-		ast* ty = 0;
+    ASTNode *id = parser_parse_symbol(p);
 
-		if(parser_curr_tok(p).type == TOKEN_COLON) {
-			parser_read_token(p, TOKEN_COLON);
+    ASTNode *type = NULL;
 
-			// TODO: use proper type parsing function
-			ast *ty = parser_parse_ternary(p);
-		}
+    if (parser_curr_tok(p).type == TOKEN_COLON) {
+      parser_read_token(p, TOKEN_COLON);
 
-    tmp->left = ast_const_bind(tok, ty, id, 0);
+      // TODO: use proper type parsing function
+      type = parser_parse_ternary(p);
+    }
+
+    AST_Id ty = type ? type->id : 0;
+
+    tmp->left = ast_const_bind(&p->ast_man, tok, ty, id->id, 0)->id;
 
     if (parser_curr_tok(p).type != TOKEN_COMMA) {
       break;
     }
 
-		parser_read_token(p, TOKEN_COMMA);
-		
-    tmp->right = ast_decl_arg_list(parser_curr_tok(p));
-		tmp = tmp->right;
+    parser_read_token(p, TOKEN_COMMA);
+
+    ASTNode *r = ast_decl_arg_list(&p->ast_man, parser_curr_tok(p));
+
+    tmp->right = r->id;
+
+    tmp = r;
   }
-	
-	if(parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
-		parser_read_token(p, TOKEN_SEMI_COLON);
-		
-		// TODO: parse continuation properly including types 
-		ast* cont = parser_parse_symbol(p);
-		
-		args = ast_hnd_eff_decl_args(tok, args, cont);
-	}
-	
+
+  if (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+    parser_read_token(p, TOKEN_SEMI_COLON);
+
+    // TODO: parse continuation properly including types
+    ASTNode *cont = parser_parse_symbol(p);
+
+    args = ast_hnd_eff_decl_args(&p->ast_man, tok, args->id, cont->id);
+  }
+
   parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
   return args;
 }
 
-
-ast *parser_parse_fun_decl(parser *p) {
-  token tok = parser_curr_tok(p);
+ASTNode *parser_parse_fun_decl(Parser *p) {
+  Token tok = parser_curr_tok(p);
 
   parser_read_token(p, TOKEN_KEYWORD_FN);
 
-  ast *args = parser_parse_decl_args(p);
+  ASTNode *args = parser_parse_decl_args(p);
 
-	if(args->kind != AST_DECL_ARGS_LIST) {
-		parser_error(p, tok, "function arguments cannot receive continuations in the same way as effects");
-	}
-	
-  ast *type = 0;
+  if (args->kind != AST_DECL_ARGS_LIST) {
+    parser_error(p, tok,
+                 "function arguments cannot receive continuations in the same "
+                 "way as effects");
+  }
+
+  ASTNode *type = 0;
+
   if (parser_curr_tok(p).type == TOKEN_ARROW) {
     parser_read_token(p, TOKEN_ARROW);
 
@@ -571,76 +568,80 @@ ast *parser_parse_fun_decl(parser *p) {
     type = parser_parse_ternary(p);
   }
 
-  ast *body = parser_parse_statements(p);
+  AST_Id ty = type ? type->id : 0;
 
-  return ast_fun_decl(tok, type, args, body);
+  ASTNode *body = parser_parse_statements(p);
+
+  return ast_fun_decl(&p->ast_man, tok, ty, args->id, body->id);
 }
 
-ast *parser_parse_eff_decl(parser *p) {
-  token tok = parser_curr_tok(p);
-	
+ASTNode *parser_parse_eff_decl(Parser *p) {
+  Token tok = parser_curr_tok(p);
+
   parser_read_token(p, TOKEN_KEYWORD_EF);
-	ast *args = parser_parse_eff_args(p);
-	ast *type = 0;
+  ASTNode *args = parser_parse_eff_args(p);
 
-	if(parser_curr_tok(p).type == TOKEN_ARROW) {
-		
-		parser_read_token(p, TOKEN_ARROW);
-		// TODO: use proper type parsing function
-		type = parser_parse_ternary(p);
-	}
-	
-	if(parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
-		return ast_handler_eff_decl(tok, type, args,  parser_parse_statements(p));
-	}
-	if(args->kind == AST_HND_EFF_ARGS) {
-		parser_error(p, tok, "effect declaration outside a handler cannot have continuations");
-	}
-	parser_read_token(p, TOKEN_SEMI_COLON);
-  return ast_eff_decl(tok, type, args, 0);
+  ASTNode *type = 0;
+
+  if (parser_curr_tok(p).type == TOKEN_ARROW) {
+
+    parser_read_token(p, TOKEN_ARROW);
+    // TODO: use proper type parsing function
+    type = parser_parse_ternary(p);
+  }
+
+  AST_Id ty = type ? type->id : 0;
+
+  if (parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
+    ASTNode *b = parser_parse_statements(p);
+    return ast_handler_eff_decl(&p->ast_man, tok, ty, args->id, b->id);
+  }
+  if (args->kind == AST_HND_EFF_ARGS) {
+    parser_error(
+        p, tok,
+        "effect declaration outside a handler cannot have continuations");
+  }
+
+  parser_read_token(p, TOKEN_SEMI_COLON);
+  return ast_eff_decl(&p->ast_man, tok, ty, args->id, 0);
 }
 
-ast *parser_parse_handler_decl(parser *p) {
+ASTNode *parser_parse_handler_decl(Parser *p) {
 
-  token tok = parser_curr_tok(p);
+  Token tok = parser_curr_tok(p);
 
   parser_read_token(p, TOKEN_KEYWORD_HANDLER);
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
 
-  ast *eff_list = ast_handler_eff_list(parser_curr_tok(p));
+  ASTNode *eff_list = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
 
-  ast *tmp = eff_list;
-	
-	// i8 buf[256];
-	// token_get_id(&p->lex, parser_curr_tok(p), buf);
-	// printf("-- curr = '%s'\n", buf);
+  ASTNode *tmp = eff_list;
+
   while (parser_curr_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
-		token eff_tok = parser_curr_tok(p);
-    tmp->left = parser_parse_expr(p);
- 
-		if(tmp->left->right->kind != AST_HND_EFF_DECL) {
-			parser_error(p, eff_tok, "expecting an handler effect declaration");
-		}
+    Token eff_tok = parser_curr_tok(p);
 
-		if (parser_curr_tok(p).type == TOKEN_CLOSE_CURLY_BRACE) {
+    tmp->left = parser_parse_expr(p)->id;
+
+    if (parser_curr_tok(p).type == TOKEN_CLOSE_CURLY_BRACE) {
       break;
     }
-    tmp->right = ast_handler_eff_list(parser_curr_tok(p));
-    tmp = tmp->right;
+
+    ASTNode *r = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
+    tmp->right = r->id;
+    tmp = r;
   }
 
   parser_read_token(p, TOKEN_CLOSE_CURLY_BRACE);
-	return ast_handler_decl(tok, eff_list, 0);
+  return ast_handler_decl(&p->ast_man, tok, eff_list->id, 0);
 }
 
-ast *parser_parse_decl(parser *p) {
+ASTNode *parser_parse_decl(Parser *p) {
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_FN) {
     return parser_parse_fun_decl(p);
   }
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_EF) {
-			ast* t = parser_parse_eff_decl(p);
-			return t;
+    return parser_parse_eff_decl(p);
   }
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_HANDLER) {
@@ -652,13 +653,9 @@ ast *parser_parse_decl(parser *p) {
 
 // EXPRESSION → IDENTIFIER ('=' | '|=' | '&=' | '+=' | '-=' ) ASSIGNMENT |
 // EQUALITY | EXPRESSION ? EXPRESSION : EXPRESSION
-ast *parser_parse_expr(parser *p) {
-  ast *root = parser_parse_decl(p);
+ASTNode *parser_parse_expr(Parser *p) {
+  ASTNode *root = parser_parse_decl(p);
 
-	// i8 buf[256];
-	// token_get_id(&p->lex, root->tok, buf);
-	// printf("curr = '%s'\n", buf);
-	
   // assignment a = b
   if (parser_curr_tok(p).type == TOKEN_EQUAL) {
     if (root->kind != AST_SYM_DECL) {
@@ -667,8 +664,9 @@ ast *parser_parse_expr(parser *p) {
     }
 
     parser_read_token(p, TOKEN_EQUAL);
-		
-    return ast_assignment(parser_curr_tok(p), root, parser_parse_decl(p));
+
+    return ast_assignment(&p->ast_man, parser_curr_tok(p), root->id,
+                          parser_parse_decl(p)->id);
   }
 
   // binding a := b, a :: b
@@ -679,7 +677,7 @@ ast *parser_parse_expr(parser *p) {
 
     parser_read_token(p, TOKEN_COLON);
 
-    ast *type = NULL;
+    ASTNode *type = NULL;
 
     if (parser_curr_tok(p).type != TOKEN_COLON &&
         parser_curr_tok(p).type != TOKEN_EQUAL) {
@@ -687,15 +685,18 @@ ast *parser_parse_expr(parser *p) {
       type = parser_parse_ternary(p);
     }
 
+    AST_Id ty = type ? type->id : 0;
+
     if (parser_curr_tok(p).type == TOKEN_COLON) {
       parser_read_token(p, TOKEN_COLON);
-       ast* t = ast_const_bind(parser_curr_tok(p), type, root, parser_parse_decl(p));
-			 return t;
+      return ast_const_bind(&p->ast_man, parser_curr_tok(p), ty, root->id,
+                            parser_parse_decl(p)->id);
     }
 
     if (parser_curr_tok(p).type == TOKEN_EQUAL) {
       parser_read_token(p, TOKEN_EQUAL);
-      return ast_mut_bind(parser_curr_tok(p), type, root, parser_parse_decl(p));
+      return ast_mut_bind(&p->ast_man, parser_curr_tok(p), type->id, root->id,
+                          parser_parse_decl(p)->id);
     }
 
     parser_error(p, parser_curr_tok(p), "expecting '=' or ':'");
@@ -704,16 +705,18 @@ ast *parser_parse_expr(parser *p) {
   return root;
 }
 
-
-ast *parser_parse(parser *p) {
-	if (parser_curr_tok(p).type == TOKEN_EOF) {
+ASTNode *parser_parse(Parser *p) {
+  if (parser_curr_tok(p).type == TOKEN_EOF) {
     return 0;
   }
 
-  ast *root = ast_decl_list(parser_curr_tok(p));
+  ASTNode *root = ast_decl_list(&p->ast_man, parser_curr_tok(p));
 
-  root->left = parser_parse_expr(p);
-  root->right = parser_parse(p);
+  root->left = parser_parse_expr(p)->id;
+
+  ASTNode *tail = parser_parse(p);
+
+  root->right = tail ? tail->id : 0;
 
   return root;
 }

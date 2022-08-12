@@ -1,4 +1,4 @@
-#include "token.hpp"
+#include "lexer.hpp"
 #include "crc64.hpp"
 
 #include "stdlib.h"
@@ -11,15 +11,15 @@ b8 is_alphanumeric(i8 c) {
 	return is_numeric(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-i8 lexer_current(lexer* t) {
+i8 lexer_current(Lexer* t) {
 	return t->file_buf[t->file_pos];
 }
 
-b8 lexer_is_eof(lexer* t) {
+b8 lexer_is_eof(Lexer* t) {
 	return t->file_pos == t->file_size || lexer_current(t) == '\0';
 }
 
-u8 lexer_eat(lexer* t) {
+u8 lexer_eat(Lexer* t) {
 	t->file_pos += 1;
 	t->file_col += 1;
 
@@ -27,7 +27,7 @@ u8 lexer_eat(lexer* t) {
 	return LEXER_OK;
 }
 
-u8 lexer_move_next_line(lexer* t) {
+u8 lexer_move_next_line(Lexer* t) {
 	if(lexer_current(t) != '\n') {
 		return LEXER_OK;
 	}
@@ -40,7 +40,7 @@ u8 lexer_move_next_line(lexer* t) {
 	return LEXER_OK;
 }
 
-i8 lexer_look_ahead(lexer* t) {
+i8 lexer_look_ahead(Lexer* t) {
 	if(t->file_pos + 1 != t->file_size) {
 		return t->file_buf[t->file_pos + 1];
 	}
@@ -48,7 +48,7 @@ i8 lexer_look_ahead(lexer* t) {
 	return '\0';
 }
 
-u8 lexer_skip_whitespaces(lexer* t) {
+u8 lexer_skip_whitespaces(Lexer* t) {
 	while(!lexer_is_eof(t) && (lexer_current(t) == ' ' || lexer_current(t) == '\t')) {
 		lexer_eat(t);
 	}
@@ -64,7 +64,7 @@ u8 lexer_skip_whitespaces(lexer* t) {
 }
 
 
-u8 lexer_skip_comments(lexer* t) {
+u8 lexer_skip_comments(Lexer* t) {
 	while(lexer_current(t) == '/' && lexer_look_ahead(t) == '/') {
 		while(!lexer_is_eof(t) && lexer_current(t) != '\n') {
 			lexer_eat(t);
@@ -83,8 +83,8 @@ u8 lexer_skip_comments(lexer* t) {
 	return LEXER_OK;
 }
 
-token token_create(token_type ty, u64 pos, u64 col, u64 row, u64 file, u64 size, u64 buf = 0) {
-	token tok;
+Token token_create(Token_Type ty, u64 pos, u64 col, u64 row, u64 file, u64 size, u64 buf = 0) {
+	Token tok;
 	
 	tok.pos = pos;
 	tok.file = file;
@@ -97,7 +97,7 @@ token token_create(token_type ty, u64 pos, u64 col, u64 row, u64 file, u64 size,
 	return tok;
 }
 
-token lexer_read_i32lit(lexer* t) {
+Token lexer_read_i32lit(Lexer* t) {
 	u64 col = t->file_col;
 	u64 row = t->file_row;
 	u64 pos = t->file_pos;
@@ -110,14 +110,14 @@ token lexer_read_i32lit(lexer* t) {
 		lexer_eat(t);
 	}
 
-	token tok = token_create(TOKEN_I32_LIT, pos, col, row, t->file_id, t->file_pos - s);
+	Token tok = token_create(TOKEN_I32_LIT, pos, col, row, t->file_id, t->file_pos - s);
 
 	tok.buf = n;
 	
 	return tok;
 }
 
-b8 lexer_can_read_word(lexer* t, const char* word, u64* size = 0) {
+b8 lexer_can_read_word(Lexer* t, const char* word, u64* size = 0) {
 	if(word == 0) return false;
 	
 	u64 i = 0;
@@ -135,7 +135,7 @@ b8 lexer_can_read_word(lexer* t, const char* word, u64* size = 0) {
 	return false;
 }
 
-u8 lexer_eat_next_n(lexer* t, u64 n) {
+u8 lexer_eat_next_n(Lexer* t, u64 n) {
 	for(u64 i = 0; i < n; i++) {
 		if(lexer_is_eof(t)) return LEXER_EOF;
 		lexer_eat(t);
@@ -144,7 +144,7 @@ u8 lexer_eat_next_n(lexer* t, u64 n) {
 	return LEXER_OK;
 }
 
-token lexer_read_id(lexer* t) {
+Token lexer_read_id(Lexer* t) {
 	u64 col = t->file_col;
 	u64 row = t->file_row;
 	u64 pos = t->file_pos;
@@ -159,7 +159,7 @@ token lexer_read_id(lexer* t) {
 	return token_create(TOKEN_ID, pos, col, row, t->file_id, len, buf);
 }
 
-void lexer_init(lexer* t, u64 id, i8* buffer, u64 size) {
+void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size) {
 	t->file_buf = buffer;
 	t->file_col = 1;
 	t->file_row = 1;
@@ -173,22 +173,22 @@ void lexer_init(lexer* t, u64 id, i8* buffer, u64 size) {
 	lexer_read_token(t);
 }
 
-void lexer_destroy(lexer* t) {
+void lexer_destroy(Lexer* t) {
 	free(t->file_buf);
 }
 
-token lexer_set_curr(lexer* lex, token tok) {
+Token lexer_set_curr(Lexer* lex, Token tok) {
 	lex->prev = lex->curr;
 	lex->curr = tok;
 	return tok;
 }
 
-token eof(lexer* lex) {
+Token eof(Lexer* lex) {
 	return token_create(TOKEN_EOF, lex->file_pos, lex->file_col, lex->file_row, lex->file_id, 0);
 }
 
 
-token lexer_read_token(lexer* t) {
+Token lexer_read_token(Lexer* t) {
 	lexer_skip_whitespaces(t);
 	lexer_skip_comments(t);
 
@@ -299,7 +299,7 @@ token lexer_read_token(lexer* t) {
 	return lexer_set_curr(t, lexer_read_id(t));
 }
 
-void token_get_id(lexer*t, token tok, i8* buf) {
+void token_get_id(Lexer*t, Token tok, i8* buf) {
 	u64 i = 0;
 
 	for(; i < tok.size; i++) {
@@ -310,6 +310,6 @@ void token_get_id(lexer*t, token tok, i8* buf) {
 }
 
 
-const i8* lexer_get_token_file_buff_ptr(lexer* l, token t) {
+const i8* lexer_get_token_file_buff_ptr(Lexer* l, Token t) {
 	return l->file_buf + t.pos;
 }

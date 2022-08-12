@@ -1,12 +1,11 @@
-#include "ast.hpp"
+#include "error.hpp"
 #include "tests.hpp"
 #include "parser.hpp"
-#include "token.hpp"
 #include "utils.hpp"
-#include <cstring>
 
-void print_ast(parser* p, ast* a, int tabs = 0) {
+void print_ast(Parser* p, ASTNode* a, int tabs = 0) {
 	printf(" AST:{ kind: %s", ast_kind_to_cstr(a->kind));
+
 	if(a->kind == AST_I32_DECL) {
 		printf(",val: %lu", a->tok.buf);
 	}
@@ -20,31 +19,32 @@ void print_ast(parser* p, ast* a, int tabs = 0) {
 	printf(" }\n");
 	if(a->left) {
 		printf("%*c|__", tabs, ' ');
-		print_ast(p, a->left, tabs + 4);
+		print_ast(p, ast_manager_get_relative(&p->ast_man, a, a->left), tabs + 4);
 	}
 
 	if(a->right) {
 		printf("%*c|__", tabs, ' ');
-		print_ast(p, a->right, tabs + 4);
+		print_ast(p, ast_manager_get_relative(&p->ast_man, a, a->right), tabs + 4);
 	}
 } 
 
+	i8* buf;
 void should_parse_expressions() {
-	i8* buf = read_from_file("../examples/state.magic");
 
-	printf("%s\n", buf);
+	// printf("%s\n", buf);
 
-	parser p;
+	Parser p;
+
 	parser_init(&p, 0, buf, strlen(buf));
-
-	ast* root = parser_parse(&p);
-	print_ast(&p, root);
-
+	ASTNode* root = parser_parse(&p);
+	// printf("%lu\n", p.ast_man.size);
+	// print_ast(&p, root);
 	parser_destroy(&p);
-	ast_destroy(root);
 }
 
 int main() {
+	buf = read_from_file("../examples/state.magic");
+
 	TEST(should_parse_expressions);
 	return 0;
 }

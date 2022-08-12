@@ -1,24 +1,24 @@
 #pragma once
 
-#include "token.hpp"
+#include "lexer.hpp"
 
-enum ast_kind {
+enum AST_Kind {
   // Compounds
   AST_STATEMENT_LIST = 0,
   AST_CALL_ARGS_LIST,
   AST_DECL_ARGS_LIST,
   AST_HND_EFF_LIST,
   AST_DECL_LIST,
-	AST_IF_DECL,
-	// left element is the effect arguments, right is continuation info
-	AST_HND_EFF_ARGS,
-	AST_WITH_HND,
-	
-	// Flow
-	AST_CTRL_FLOW_IF,
-	AST_CTRL_FLOW_ELSE, // TODO: remove
-	AST_CTRL_FLOW_RETURN,
-	AST_CTRL_FLOW_CONTINUE,
+  AST_IF_DECL,
+  // left element is the effect arguments, right is continuation info
+  AST_HND_EFF_ARGS,
+  AST_WITH_HND,
+
+  // Flow
+  AST_CTRL_FLOW_IF,
+  AST_CTRL_FLOW_ELSE, // TODO: remove
+  AST_CTRL_FLOW_RETURN,
+  AST_CTRL_FLOW_CONTINUE,
 
   // Bindings
   AST_CONST_BIND, // constant
@@ -58,65 +58,84 @@ enum ast_kind {
   AST_EFF_CALL,
 };
 
-struct ast {
-  ast_kind kind;
-  token tok;
-  ast *type;
-  ast *left;
-  ast *right;
+typedef u32 AST_Id;
+
+typedef struct AST_Bucket AST_Bucket;
+
+struct ASTNode {
+  // This AST Node Id
+  AST_Id id;
+  // The token that resulted on this Node
+  Token tok;
+  AST_Id type;
+  AST_Id left;
+  AST_Id right;
+  AST_Kind kind;
+  AST_Bucket *bucket;
 };
 
 #define AST_BUCKET_SIZE 128
 
 struct AST_Bucket {
-	ast data[AST_BUCKET_SIZE];
-	AST_Bucket* next;
+  u64 id;
+  ASTNode data[AST_BUCKET_SIZE];
+  AST_Bucket *prev;
+  AST_Bucket *next;
 };
 
 struct AST_Manager {
-	u64 size;
-	AST_Bucket* root;
-	AST_Bucket* tail;
+  u64 size;
+  AST_Bucket *root;
+  AST_Bucket *tail;
 };
 
-void ast_destroy(ast *);
+void ast_manager_init(AST_Manager *m);
+void ast_manager_free(AST_Manager *m);
 
-ast *ast_symbol(token tok);
-ast *ast_i32_lit(token tok);
+ASTNode *ast_manager_get(AST_Manager *m, AST_Id id);
+ASTNode *ast_manager_get_relative(AST_Manager *m, ASTNode *from, AST_Id id);
 
-ast *ast_const_bind(token tok, ast *ty, ast *l, ast *r);
-ast *ast_mut_bind(token tok, ast *ty, ast *l, ast *r);
-ast *ast_bin_gt(token tok, ast *l, ast *r);
-ast *ast_bin_lt(token tok, ast *l, ast *r);
-ast *ast_bin_ge(token tok, ast *l, ast *r);
-ast *ast_bin_le(token tok, ast *l, ast *r);
-ast *ast_bin_ne(token tok, ast *l, ast *r);
-ast *ast_bin_eq(token tok, ast *l, ast *r);
-ast *ast_bin_add(token tok, ast *l, ast *r);
-ast *ast_bin_sub(token tok, ast *l, ast *r);
-ast *ast_bin_mul(token tok, ast *l, ast *r);
-ast *ast_bin_div(token tok, ast *l, ast *r);
-ast *ast_una_add(token tok, ast *l, ast *r);
-ast *ast_una_sub(token tok, ast *l, ast *r);
-ast *ast_assignment(token tok, ast *l, ast *r);
-ast *ast_member_access(token tok, ast *l, ast *r);
-ast *ast_call(token tok, ast *sym, ast *params, bool effectfull);
+ASTNode *ast_symbol(AST_Manager *m, Token tok);
+ASTNode *ast_i32_lit(AST_Manager *m, Token tok);
 
-ast *ast_fun_decl(token tok, ast *ty, ast *l, ast *r);
-ast *ast_eff_decl(token tok, ast *ty, ast *l, ast *r);
-ast *ast_handler_eff_decl(token tok, ast *ty, ast *l, ast *r);
-ast *ast_handler_decl(token tok, ast *l, ast *r);
+ASTNode *ast_const_bind(AST_Manager *m, Token tok, AST_Id ty, AST_Id l,
+                        AST_Id r);
+ASTNode *ast_mut_bind(AST_Manager *m, Token tok, AST_Id ty, AST_Id l, AST_Id r);
+ASTNode *ast_bin_gt(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_lt(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_ge(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_le(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_ne(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_eq(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_add(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_sub(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_mul(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_bin_div(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_una_add(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_una_sub(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_assignment(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_member_access(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
+ASTNode *ast_call(AST_Manager *m, Token tok, AST_Id sym, AST_Id params,
+                  bool effectfull);
 
-ast *ast_decl_list(token tok);
-ast *ast_statement_list(token tok);
-ast *ast_decl_arg_list(token tok);
-ast *ast_call_arg_list(token tok);
-ast *ast_handler_eff_list(token tok);
-ast* ast_ctrl_flow_if(token tok, ast* cond, ast* body, ast* elif);
-ast* ast_ctrl_flow_ret(token tok, ast* expr);
-ast* ast_ctrl_flow_continue(token tok, ast* cont, ast* expr);
-ast *ast_bind_get_sym(ast* a);
-ast* ast_hnd_eff_decl_args(token tok, ast* args, ast* cont);
-ast* ast_with_hnd(token tok, ast* call, ast* hnd);
+ASTNode *ast_fun_decl(AST_Manager *m, Token tok, AST_Id ty, AST_Id l, AST_Id r);
+ASTNode *ast_eff_decl(AST_Manager *m, Token tok, AST_Id ty, AST_Id l, AST_Id r);
+ASTNode *ast_handler_eff_decl(AST_Manager *m, Token tok, AST_Id ty, AST_Id l,
+                              AST_Id r);
+ASTNode *ast_handler_decl(AST_Manager *m, Token tok, AST_Id l, AST_Id r);
 
-const char *ast_kind_to_cstr(ast_kind k);
+ASTNode *ast_decl_list(AST_Manager *m, Token tok);
+ASTNode *ast_statement_list(AST_Manager *m, Token tok);
+ASTNode *ast_decl_arg_list(AST_Manager *m, Token tok);
+ASTNode *ast_call_arg_list(AST_Manager *m, Token tok);
+ASTNode *ast_handler_eff_list(AST_Manager *m, Token tok);
+ASTNode *ast_ctrl_flow_if(AST_Manager *m, Token tok, AST_Id cond, AST_Id body,
+                          AST_Id elif);
+ASTNode *ast_ctrl_flow_ret(AST_Manager *m, Token tok, AST_Id expr);
+ASTNode *ast_ctrl_flow_continue(AST_Manager *m, Token tok, AST_Id cont,
+                                AST_Id expr);
+ASTNode *ast_hnd_eff_decl_args(AST_Manager *m, Token tok, AST_Id args,
+                               AST_Id cont);
+ASTNode *ast_with_hnd(AST_Manager *m, Token tok, AST_Id call, AST_Id hnd);
+
+const char *ast_kind_to_cstr(AST_Kind k);
