@@ -1,0 +1,478 @@
+#+title: Magic Effects Notes
+#+author: Marcos Vinicius Moreira Santos
+
+#+begin_abstract
+This are notes about the implementation of algebraic effects on the magic language, it aims to use only the native stack for handling continuations. By using this aproach we can achieve better performance at the cost of a greater use of the stack memory, what can lead to stack overflow.
+#+end_abstract
+
+perform()
+
+#+begin_example
+
+handler h_log {
+  x = (x, '')
+  print(s, k) = (x, acc) <- k (); (x, append s acc)
+}
+
+f(x) = if x = 3 then 0 else perform print("a"); f(x + 1)
+
+handle f(0) with h_log
+
+
+@log_h.return:
+  x := pop
+  resume (x, "")
+
+@log_h.print.0:
+  s := arg.0
+  k := arg.1
+  c := arg.2
+  cont = #build_cont
+  resume k c cont
+
+@log_h.print.1:
+  cont = #magic
+  x := pop
+  f := pop
+  t := append s f
+  cont := #build_cont
+  perform return ((x, t), cont, nil)
+
+@f.0:
+  x = pop
+  c = eq x 3
+  br c f.1 f.2
+
+@f.1:
+  cont := #build_cont
+  perform return (0, cont, nil)
+
+@f.2:
+  cont := #build_cont
+  perform print ("a", cont, f.3)
+
+@f.3:
+  y = x + 1
+  push y
+  call f.0
+
+@main:
+  #register h_log
+  push 0
+  call f
+
+recursive call stack:
+-- lf.0 ----------------------------------------------------------------------------
+1. prompt   id.1   h_log
+------------------------------------------------------------------------------------
+   arg x := 0
+2. call f.0
+------------------------------------------------------------------------------------
+   @k.0 = perform.frame { refcount: (0, 1), pc: @pc.0, ptr: 3, args: (s: "a", k: @k.0, f: @f.3) }
+3. perform print @k0
+--- lf.1 ---------------------------------------------------------------------------
+  4. arg s := "a" 
+------------------------------------------------------------------------------------
+  5. arg k := @k.0
+------------------------------------------------------------------------------------
+  6. arg c := @f.3
+------------------------------------------------------------------------------------
+     @k.1 = resume.frame { refcount: (0, 0), pc: @pc.1, ptr: 7, args: (k: @k.0, c: @k.1) }
+  7. resume @k.0 @f.3 @k.1
+--- lf.2 ---------------------------------------------------------------------------
+    8.  arg.count := @k.1
+        arg.yield := @k.0
+        call f.3
+------------------------------------------------------------------------------------
+    9.  local_vars arg.resume
+        x := 0
+        c := false
+------------------------------------------------------------------------------------
+    10. y = 1
+------------------------------------------------------------------------------------
+        arg x = y
+    11. call f.0
+------------------------------------------------------------------------------------
+     @k.2 = perform.frame { refcount: (0, 1), pc: @pc.2, ptr: 12, args: (s: "a", k: @k.2, f: @f.3) }
+    12. perform print @k2
+--- lf.3 ---------------------------------------------------------------------------
+      13. arg s := "a" 
+------------------------------------------------------------------------------------
+      14. arg k := @k.2
+------------------------------------------------------------------------------------
+      15. arg c := @f.3
+------------------------------------------------------------------------------------
+          @k.3 = resume.frame { refcount: (0, 0), pc: @pc.3, ptr: 16, args: (k: @k.2, c: @k.3) }
+      16. resume @k.2 @f.3 @k.3
+--- lf.4 ---------------------------------------------------------------------------
+        17. arg.count := @k.3
+            arg.yield := @k.2
+            call f.3
+------------------------------------------------------------------------------------
+        18. local_vars arg.resume
+            x := 1
+            c := false
+------------------------------------------------------------------------------------
+        19. y = 2
+------------------------------------------------------------------------------------
+            arg x = y
+        20. call f.0
+--- lf.5 ---------------------------------------------------------------------------
+          21. x = 2
+------------------------------------------------------------------------------------
+              @k.4 = perform.frame { refcount: (0, 0), pc: @pc.2, ptr: 22, args: (s: "a", k: @k.4, f: nil) }
+          22. perform return @k4
+--- lf.6 ---------------------------------------------------------------------------
+            23. arg x = 0
+------------------------------------------------------------------------------------
+            24. ret (x, "") to 22
+
+
+
+
+
+
+return call stack:
+-- lf.0 ----------------------------------------------------------------------------
+1. prompt   id.1   h_log
+------------------------------------------------------------------------------------
+   arg x := 0
+2. call f.0
+------------------------------------------------------------------------------------
+   @k.0 = perform.frame { refcount: (0, 1), pc: @pc.0, ptr: 3, args: (s: "a", k: @k.0, f: @f.3) }
+3. perform print @k0
+--- lf.1 ---------------------------------------------------------------------------
+  4. arg s := "a" 
+------------------------------------------------------------------------------------
+  5. arg k := @k.0
+------------------------------------------------------------------------------------
+  6. arg c := @f.3
+------------------------------------------------------------------------------------
+     @k.1 = resume.frame { refcount: (0, 0), pc: @pc.1, ptr: 7, args: (k: @k.0, c: @k.1) }
+  7. resume @k.0 @f.3 @k.1
+--- lf.2 ---------------------------------------------------------------------------
+    8.  arg.count := @k.1
+        arg.yield := @k.0
+        call f.3
+------------------------------------------------------------------------------------
+    9.  local_vars arg.resume
+        x := 0
+        c := false
+------------------------------------------------------------------------------------
+    10. y = 1
+------------------------------------------------------------------------------------
+        arg x = y
+    11. call f.0
+------------------------------------------------------------------------------------
+     @k.2 = perform.frame { refcount: (0, 1), pc: @pc.2, ptr: 12, args: (s: "a", k: @k.2, f: @f.3) }
+    12. perform print @k2
+--- lf.3 ---------------------------------------------------------------------------
+      13. arg s := "a" 
+------------------------------------------------------------------------------------
+      14. arg k := @k.2
+------------------------------------------------------------------------------------
+      15. arg c := @f.3
+------------------------------------------------------------------------------------
+          @k.3 = resume.frame { refcount: (0, 0), pc: @pc.3, ptr: 16, args: (k: @k.2, c: @k.3) }
+      16. resume @k.2 @f.3 @k.3
+--- lf.4 ---------------------------------------------------------------------------
+        17. arg.count := @k.3
+            arg.yield := @k.2
+            call f.3
+------------------------------------------------------------------------------------
+        18. local_vars arg.resume
+            x := 1
+            c := false
+------------------------------------------------------------------------------------
+        19. y = 2
+------------------------------------------------------------------------------------
+            arg x = y
+        20. call f.0
+--- lf.5 ---------------------------------------------------------------------------
+          21. x = 2
+------------------------------------------------------------------------------------
+              @k.4 = perform.frame { refcount: (0, 0), pc: @pc.2, ptr: 22, args: (s: "a", k: @k.4, f: nil) }
+          22. perform return @k.4
+--- lf.6 ---------------------------------------------------------------------------
+            23. arg x = 0
+------------------------------------------------------------------------------------
+            24. ret (x, "") to 22
+            
+#+end_example
+
+#+begin_example
+
+handler backtrack { decide(x, k) = handler restart { fail(y, s) = k false }; k true with restart }
+
+g(x) = not(x)
+
+f(x) = if x = 1 then true else s <- perform decide (); if and(g(s), f(x + 1)) then true else perform fail(); false
+
+handle f(0) with backtrack
+
+
+@backtrack.decide.restart.fail y s w a:
+  a.???.ref_cnt.scnd += 1
+  resume (a.???, false, w, a)
+
+@backtrack.decide x k w.0 a:
+  w.1 = call @prompt(restart, w.0, a)
+  resume (k, true, w.1, a)
+
+@f.0 x w a:
+  c = eq x 1
+  br c @f.1(x, c, w, a) @f.2(x, c, w, a)
+
+@f.1 x c w a:
+  k = call @build_continuation(w, a)
+  r = perform return(true, k, a)  
+  ret r
+ 
+@f.2 x c w:
+  y = x + 1
+  k = call @build_continuation(w, a)
+  r = perform decide(unit, k, w, a)
+  u = call @f.0(y, w, a)
+  call @f.3(x, c, u, r, w, a)
+
+@f.3 x c.0 u r w a:
+  q = call @g(r)
+  f = call @and(q, u)
+  c.1 = eq f 1
+  br c.1 @f.4(x, c.0, c.1, u, r, q, f, c.1, w, a) @f.5(x, c.0, c.1, u, r, q, f, c.1, w, a)
+
+@f.4 x c.0 c.1 u r q f c.1 w, a:
+  k = call @build_continuation(w, a)
+  r = perform fail(unit, k, w, a)
+  ret r
+
+@f.5 x c.0 c.1 u r q f c.1 w:
+  ret false
+
+@main:
+  w.0 = call @build_evidence_vector()
+  a.0 = call @build_frames()
+  w.1 = call @prompt(backtrack, w.0, a.0)
+  x.0 = call @f.0(0, w.1, a.0)
+  ret x.0
+#+end_example
+
+
+#+begin_example
+
+handler h0 {
+  effect e1 (_; k) = do handler h1 { e2 } in
+}
+
+
+f(x) = if x == 2 then
+        do perf e1 () in
+        ret 0 
+       else
+        if x == 1 then
+          do perf e2 () in
+          do s <- perf e0 () in
+          f(x + 1)
+
+f (x, w0):
+  c = eq x 2
+  br c f1(w0) f2(x, w0) [w0]
+
+f1 (w1):
+  yield e1 (sp, f6, [w1], w1)
+
+f6 (w8):
+  ret 0 [w8]
+
+f2 (x, w3):
+  y = eq x 1
+  br y f4(x, w3) f3(x, w3) [w3]
+
+f4 (x, w4):
+  yield e2 (sp, f3, [x, w4], w4)
+
+f3 (x, w6):
+  yield e0 (sp, f5, [x, w6], w6)
+
+f5 (x, w7):
+  ret f(x + 1, w7) [w7]
+
+
+  
+#+end_example
+
+#+begin_example
+
+han backtrack { decide (_; k) = k 1 with han try { fail (_; s) = k 0 } }
+
+f b x = if eq x 2 then fail! () else s <- decide! (); f s (x+1);
+
+f 0 0 with backtrack
+
+prompt m1 backtrack · (s <- ?; f s 1) · yield m1 (lambda k = decide _ k) id
+
+yield m1 (lambda k = decide () k) (lambda x. (lambda s. f s 1) (id x))
+
+
+
+f(b, x) = if eq(x,2) then fail! else do s <- decide! in a(s, x)
+a(s, x) = f(s, x+1)
+
+
+teste f(int s, int x, context_t* ctx) {
+  if(x == 2) {
+    await ctx->w[1]();
+  }
+  
+  t = ctx->w[0]();
+
+  if(ctx->is_yielding) {
+    return await ctx->w[0](a, t, x);
+  }
+
+  return f(t, x, ctx);
+}
+
+
+#+end_example
+
+#+begin_example
+amb { flip: () -> bool }
+
+h_amb = {flip |-> lambda _ k. xs <- k 1; ys <- k 0; xs ++ ys }
+
+handler h_amb (lambda _. x <- perform flip (); y <- perform flip (); [x && y])
+
+
+handle h_amb (x <- perform flip(); y <- perform flip (); [x && y])                                       ==>
+prompt m1 h_amb · (x <- []; y <- perform flip (); [x && y]) · perform flip ()                            ==>
+prompt m1 h_amb · (x <- []; y <- perform flip (); [x && y]) · yield m1 (lambda k. flip () k) id               ==>
+prompt m1 h_amb · yield m1 (lambda k. flip () k) (lambda z. (lambda s. x <- s; y <- perform flip (); [x && y]) (id z))  ==>
+prompt m1 h_amb · yield m1 (lambda k. flip () k) (lambda z. (lambda s. x <- s; y <- perform flip (); [x && y]) (id z))  ==>
+
+flip () (lambda w. prompt m1 h_amb (lambda z. (lambda s. x <- s; y <- perform flip (); [x && y]) (id z)) w)
+
+xs <- (lambda w. prompt m1 h_amb (lambda z. (lambda s. x <- s; y <- perform flip (); [x && y]) (id z)) w) 1;
+ys <- (lambda w. prompt m1 h_amb (lambda z. (lambda s. x <- s; y <- perform flip (); [x && y]) (id z)) w) 0;
+[xs ++ ys]
+
+xs := (prompt m1 h_amb (lambda s. x := s; y := perform flip (); [x && y]) 1));
+xs := (prompt m1 h_amb (x := 1; y <- perform flip (); [x && y]));
+xs := (prompt m1 h_amb · (x := 1; y := []; [x && y]) · perform flip());
+xs := (prompt m1 h_amb · (x := 1; y := []; [x && y]) · yield m1 (lambda k. flip () k) id);
+xs := (prompt m1 h_amb · yield m1 (lambda k. flip () k) (lambda z. (lambda s. x := 1; y := s; [x && y]) (id z)));
+
+
+handler h_amp (lambda _. perform flip () |> (lambda w. x := w; perform ask () |> lambda z. y := z; Pure([x ++ y])))
+
+handler h_amp (
+  lambda/ _. case perform flip () of
+          Yield m f k -> Yield m f (lambda z. k z |> (lambda a. x := a; perform flip () |> lambda z. y := z; Pure([x ++ y])))
+          Pure a -> x := a; case perform flip() of
+            Yielf m f k -> Yield m f (lambda z. k z |> (lambda z. y := z; Pure(x + y)))
+            Pure z -> y := z; Pure([x ++ y])
+)
+
+// each continuation after a |> is considered a join_point
+
+join_1 = lambda x y. Pure([x ++ y])
+join_2 = lambda x. perform flip () |> (lambda z. y := z; join_1 x y)
+
+handler h_amp (
+  lambda/ _. case perform flip () of
+          Yield m f k -> Yield m f (lambda z. k z |> join_2)
+          Pure a -> x := a; case perform flip() of
+            Yielf m f k -> Yield m f (lambda z. k z |> join_1 x)
+            Pure z -> y := z; Pure([x ++ y])
+)
+
+#+end_example
+
+#+begin_src c
+
+int perform_flip(fn f, unit_t u, context_t* ctx) {
+  ctx->is_yielding = 1;
+}
+
+list join_1(list x, list y, ctx) {
+  return append(x, y);
+}
+
+list join_2(list x) {
+  int b = perform_flip(ctx->w[0], unit, ctx);
+  if (ctx->is_yielding) { yield_extend(closure(join1, x, ctx), ctx); return {}; }
+
+  int y = a;
+  
+  return join_1(x, y);
+}
+
+list expr(unit_t u, context_t* ctx) {
+  int a = perform_flip(ctx->w[0], unit, ctx);
+
+  if (ctx->is_yielding) { yield_extend(&join2, ctx); return null_list_t(); }
+
+  int x = a;
+
+  int b = perform_flip(ctx->w[0], unit, ctx);
+
+  if (ctx->is_yielding) { yield_extend(closure(join1, x, ctx), ctx); return null_list_t(); }
+
+  int y = a;
+
+  return append_list_t(create_list_t(x), create_list_t(y));
+}
+
+list prompt_h_amp(handler* h, list(*expr)(unit_t, context_t*), unit_t u, context_t* ctx) {
+  list t = expr(u, ctx);
+
+  if(ctx->is_yielding) {
+    ctx->is_yielding = false;
+
+    continuation* k0 = ctx->continuation;
+    continuation* k1 = fork(k0);
+
+    list xs = resume_with_int(k0, 1, ctx);
+    list ys = resume_with_int(k1, 0, ctx);
+
+    return append_list_t(xs, ys, ctx);
+  }
+
+  return t;
+}
+
+list main(unit_t u, context_t* ctx) {
+  return prompt_h_amp(&h_amp, expr, u, ctx);
+}
+
+#+end_src
+
+
+
+#+begin_src c
+
+h_read  = { ask = lambda/x.lambda/k.k 1}
+h_read2 = { ask = lambda/x.lambda/k.k 2}
+h_evil = { evil = lambda/x.lambda/k.k }
+
+f = (lambda/k. handler h_read2 (lambda/_. k ()))
+
+f (handler h_read (
+  lambda/_. handler h_evil (
+    lambda/_. perform ask ();
+        perform evil ();
+        perform ask ())))
+
+f · prompt m1 h_read · prompt m2 h_evil · (? ; perform evil (); perform ask ()) · perform ask ()
+f · prompt m1 h_read · prompt m2 h_evil · (? ; perform evil (); perform ask ()) · 1
+f · prompt m1 h_read · prompt m2 h_evil · (? ; perform ask ()) · perform evil ()
+f · prompt m1 h_read · (lambda/x. prompt m2 h_evil · (? ; perform ask ()) · x)
+f · (lambda/x. prompt m2 h_evil · (? ; perform ask ()) · x)
+handler h_read2 (lambda/_. (lambda/x. prompt m2 h_evil · (? ; perform ask ()) · x) ())
+prompt m0 h_read2 · prompt m2 h_evil · (? ; perform ask ()) · ()
+prompt m0 h_read2 · prompt m2 h_evil · perform ask ()
+prompt m0 h_read2 · prompt m2 h_evil · 2
+prompt m0 h_read2 · 2
+2
+
+#+end_src

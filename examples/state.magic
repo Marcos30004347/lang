@@ -1,0 +1,33 @@
+get :: ef();
+set :: ef();
+
+state :: handler {
+	get :: ef (;k) {
+		return fn (s) {
+			return k(s)(s);
+		}
+	}
+	set :: ef (s;k) {
+		return fn () {
+			return k()(s);
+		}
+	}
+}
+
+f :: fn () {
+	set!(3);
+
+	x :: get!();
+
+	set!(4);
+
+	y :: get!();
+
+	return x + y;
+}
+
+main :: fn () -> i32 {
+	g :: f() with state;
+
+	return g(0);
+}

@@ -1,0 +1,104 @@
+Vec2 :: struct {
+	x: i32,
+	y: i32
+}
+
+Vec3 :: struct (T: type) {
+	x: T,
+	y: T,
+	z: T
+}
+
+Vec :: struct (T: type, n: n32) { data: T[n] }
+
+List :: struct (T: type, size: n32) { data: T, tail: List(T, size - 1) }
+			| struct (T: type, size: : 0) { }
+
+fact :: fn (n : n32) -> n32 { return fact(n - 1); }
+		  | fn (n :: 0) -> n32 { return 0; }
+
+Zero :: struct {}
+Succ :: struct (n: Nat) { prev :: n }
+
+Nat  :: Zero | Succ(n) where n: Nat;
+
+fib :: fn (n : n32 : _) -> n32 { return fib(n - 1) + fib(n - 2); }
+		 | fn (n : n32 : 0) -> n32 { return 1; }
+		 | fn (n : n32 : 1) -> n32 { return 1; }
+
+g:: fn (n: n32) = n * g(n - 1)
+	 | fn (n :: 1) = 1
+	 | fn (n :: 2) = 3
+	 | fn (n :: 3) = 3;
+
+
+add_v2 :: fn (a : Vec2, b: Vec2) -> Vec2 {	
+	return .{ x = a.x + b.x, y = a.y + b.y } as Vec2;
+}
+
+add_v3 :: fn (T: type, a: Vec3(T), b: Vec3(T)) -> Vec3(T) {
+	return .{
+		x = a.x + b.x,
+		y = a.y + b.y,
+		z = a.z + b.z,
+	}	as Vec3(T);
+}
+
+
+t :: fn (i: n32 for T: type, k in 0..10) {
+	for j in 0..i {
+		printf("%i", k);
+	}
+
+	t = k + 10;
+
+	printf("%i", t);
+}
+
+
+f :: fn () -> Unit {
+	x := g(i) for i := 0;
+
+	for i in 0..100 {
+		printf("%i\n", i);
+	}
+
+	r := match x {
+		30 .. 10 => 10;
+		11 .. 20 => 11;
+		x        => 12;
+	}
+
+	if y in 0..10 {
+		r = r + y; 
+	}
+
+	k := match r {
+		10..100 => 30,
+		_       => 1;
+	}
+
+	i := input_n32();
+	j := input_n32();
+
+	if t : Less(i, j) = i < j {
+		x: n32, l: Equal(i + j + 3, x) = some(i, j for t);
+	}
+
+	printf("%i", i) for i in 0..100; 
+}
+
+error :: effect fn (x:n32) -> n32;
+async :: control fn (x:n32) -> n32;
+
+f :: fn () -> n32 | error {
+	// implementation ...
+}
+
+g :: fn () -> n32 {
+	k :: handler {
+		error :: fn (x:n32) => 0;
+	}
+
+	return f() under k;
+}
