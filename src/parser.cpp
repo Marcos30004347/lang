@@ -880,8 +880,10 @@ void print_ast_rec(i8* prefix, Parser* p, AST_Node* a, b8 is_left, b8 f = 1) {
 	}
 	
  	if(a->kind == AST_SYM_DECL) {
-		i8 buff[256];
+		i8 buff[a->tok.size + 1];
+		
 		token_get_id(&p->lex, a->tok, buff);
+
 		printf(",sym: '%s'", buff);
 	}
 
