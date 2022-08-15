@@ -12,5 +12,7 @@ struct Parser {
 void parser_init(Parser *p, u64 id, i8 *buffer, u64 size);
 void parser_destroy(Parser *p);
 
-ASTNode *parser_parse(Parser *p);
+void print_ast(Parser* p, AST_Node* n);
+
+AST_Node *parser_parse(Parser *p);
 

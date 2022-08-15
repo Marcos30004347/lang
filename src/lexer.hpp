@@ -4,6 +4,7 @@
 
 enum Token_Type {
 	TOKEN_EOF = 0,
+	UNDEF_TOKEN,
 	// IDENTIFIER
 	TOKEN_ID,
 	
@@ -46,7 +47,9 @@ enum Token_Type {
 	TOKEN_KEYWORD_CONTINUE, // continue 
 
 	// Types
+	TOKEN_UNIT, // type
 	TOKEN_I32, // i32
+	TOKEN_TYPE, // type
 
 	// Literals
 	TOKEN_I32_LIT // 1234
@@ -89,6 +92,8 @@ void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size);
 void lexer_destroy(Lexer*);
 
 Token lexer_read_token(Lexer*);
+
+Token lexer_undef_token(); 
 
 b8 lexer_is_eof(Lexer*);
 

@@ -272,6 +272,16 @@ Token lexer_read_token(Lexer* t) {
 	if(is_numeric(lexer_current(t))) return lexer_set_curr(t, lexer_read_i32lit(t));
 
 	u64 size = 0;
+
+	if(lexer_can_read_word(t, "i32", &size) && lexer_eat_next_n(t, size)) 
+		return lexer_set_curr(t, token_create(TOKEN_I32, pos, col, row, t->file_id, size));
+
+	if(lexer_can_read_word(t, "unit", &size) && lexer_eat_next_n(t, size)) 
+		return lexer_set_curr(t, token_create(TOKEN_UNIT, pos, col, row, t->file_id, size));
+
+	if(lexer_can_read_word(t, "type", &size) && lexer_eat_next_n(t, size)) 
+		return lexer_set_curr(t, token_create(TOKEN_TYPE, pos, col, row, t->file_id, size));
+	
 	if(lexer_can_read_word(t, "continue", &size) && lexer_eat_next_n(t, size)) 
 		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_CONTINUE, pos, col, row, t->file_id, size));
 
@@ -312,4 +322,8 @@ void token_get_id(Lexer*t, Token tok, i8* buf) {
 
 const i8* lexer_get_token_file_buff_ptr(Lexer* l, Token t) {
 	return l->file_buf + t.pos;
+}
+
+Token lexer_undef_token() {
+	return token_create(UNDEF_TOKEN, -1, -1, -1, -1, 0);
 }

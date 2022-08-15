@@ -1,13 +1,28 @@
-get :: ef();
-set :: ef();
+get :: ef() -> i32;
+set :: ef() -> unit;
+
+somefunc :: fn (f: (i32, i32) -> i32, t: i32) -> (i32, i32) -> i32 {
+	b :: (i32, i32) -> i32;
+
+	(t, x) : (i32, i32) : (3, 4);
+
+	add : b : fn (x:i32, y:i32) {
+		return x + y;
+	}
+
+	a : b : add;
+
+	return a;
+}
 
 state :: handler {
-	get :: ef (;k) {
-		return fn (s) {
+	get :: ef (; k: i32 -> i32 -> i32) -> i32 {
+		return fn (s:i32) {
 			return k(s)(s);
 		}
 	}
-	set :: ef (s;k) {
+
+	set :: ef (s: i32; k: unit -> i32 -> i32) -> unit {
 		return fn () {
 			return k()(s);
 		}
