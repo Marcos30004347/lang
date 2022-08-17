@@ -259,7 +259,7 @@ AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_FUN_DECL, l->id, r->id);
 }
 AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
-  return ast_manager_alloc(m, tok, AST_FUN_DECL, l->id, r->id);
+  return ast_manager_alloc(m, tok, AST_FUN_SIGN, l->id, r->id);
 }
 
 AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
