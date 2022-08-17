@@ -28,8 +28,10 @@ const char *ast_kind_strs[AST_EFF_CALL + 1] = {
     "AST_SYM_DECL",
     "AST_I32_DECL",
     "AST_FUN_DECL",
+    "AST_FUN_SIGN",
     "AST_CLOS_DECL",
-    "AST_EFF_DECL",
+    "AST_EFF_TYPE_DECL",
+    "AST_RESUME_TYPE_DECL",
     "AST_HND_DECL",
     "AST_HND_EFF_DECL",
     "AST_TYPE_I32",
@@ -37,6 +39,8 @@ const char *ast_kind_strs[AST_EFF_CALL + 1] = {
     "AST_TYPE_ARROW",
     "AST_TYPE_TUPLE",
     "AST_TYPE_TYPE",
+    "AST_TYPE_UNION",
+		"AST_TYPE_YIELD",
     "AST_OP_BIN_ASSIGN",
     "AST_OP_BIN_ADD",
     "AST_OP_BIN_SUB",
@@ -150,6 +154,9 @@ AST_Node *ast_manager_alloc(AST_Manager *m, Token tok, AST_Kind kind, AST_Id l,
   return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r));
 }
 
+void ast_change_kind(AST_Node* m, AST_Kind kind) {
+	m->kind = kind;
+}
 AST_Node *ast_symbol(AST_Manager *m, Token tok) {
   return ast_manager_alloc(m, tok, AST_SYM_DECL, 0, 0);
 }
@@ -251,9 +258,12 @@ AST_Node *ast_mut_bind(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
 AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_FUN_DECL, l->id, r->id);
 }
+AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
+  return ast_manager_alloc(m, tok, AST_FUN_DECL, l->id, r->id);
+}
 
 AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
-  return ast_manager_alloc(m, tok, AST_EFF_DECL, l->id, r->id);
+  return ast_manager_alloc(m, tok, AST_EFF_TYPE_DECL, l->id, r->id);
 }
 
 AST_Node *ast_handler_eff_decl(AST_Manager *m, Token tok, AST_Node *l,
@@ -309,26 +319,42 @@ AST_Node *ast_type_arrow(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id);
 }
 
-AST_Node *ast_type_tuple_arg(AST_Manager *m, Token tok, AST_Node *mem,
-                             AST_Node *tail) {
-  return ast_manager_alloc(m, tok, AST_TYPE_TUPLE_MEM_LIST, mem->id, tail->id);
-}
+// AST_Node *ast_type_tuple_arg(AST_Manager *m, Token tok, AST_Node *mem,
+//                              AST_Node *tail) {
+//   return ast_manager_alloc(m, tok, AST_TYPE_TUPLE_MEM_LIST, mem->id, tail->id);
+// }
 
-AST_Node *ast_type_tuple(AST_Manager *m, Token tok, AST_Node *members) {
-  assert(members->kind == AST_TYPE_TUPLE_MEM_LIST);
-  return ast_manager_alloc(m, tok, AST_TYPE_I32, members->id, 0);
-}
+// AST_Node *ast_type_tuple(AST_Manager *m, Token tok, AST_Node *members) {
+//   assert(members->kind == AST_TYPE_TUPLE_MEM_LIST);
+//   return ast_manager_alloc(m, tok, AST_TYPE_I32, members->id, 0);
+// }
 
 AST_Node *ast_node_null(AST_Manager *m) { return &m->root->data[0]; }
 
-AST_Node *ast_tuple_list(AST_Manager *m, Token tok, AST_Node *l,
-                         AST_Node *tail) {
-  return ast_manager_alloc(m, tok, AST_TUPLE_LIST, l->id, tail->id);
-}
+// AST_Node *ast_type_tuple(AST_Manager *m, Token tok, AST_Node *l,
+//                          AST_Node *tail) {
+//   return ast_manager_alloc(m, tok, AST_TYPE_TUPLE, l->id, tail->id);
+// }
+
+// AST_Node *ast_tuple_list(AST_Manager *m, Token tok, AST_Node *l,
+//                          AST_Node *tail) {
+//   return ast_manager_alloc(m, tok, AST_TYPE_TUPLE, l->id, tail->id);
+// }
 
 AST_Node *ast_type_bind(AST_Manager *m, Token tok, AST_Node *sym,
                         AST_Node *type) {
   return ast_manager_alloc(m, tok, AST_TYPE_BIND, sym->id, type->id);
 }
 
+AST_Node *ast_type_union(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail) {
+  return ast_manager_alloc(m, tok, AST_TYPE_UNION, l->id, tail->id);
+}
 
+AST_Node *ast_decl_args(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail) {
+  return ast_manager_alloc(m, tok, AST_DECL_ARGS_LIST, l->id, tail->id);
+}
+
+
+AST_Node *ast_type_yield(AST_Manager *m, Token tok, AST_Node *eff) {
+  return ast_manager_alloc(m, tok, AST_TYPE_YIELD, eff->id, ast_node_null(m)->id);
+}

@@ -3,6 +3,10 @@
 #include "registry.hpp"
 
 #include <vector>
+#include <unordered_map>
+
+typedef u64 Symbol_Id;
+typedef u64 Type_Id;
 
 enum Op_Code {
 	OP_ADD,
@@ -14,7 +18,7 @@ enum Op_Code {
 };
 
 enum Literal_Kind {
-	LIT_VAR,
+	LIT_SYM,
 	LIT_NAT,
 };
 
@@ -30,14 +34,15 @@ enum Type_Kind {
 };
 
 struct Type {
+	Symbol_Id id;
 	Type_Kind kind;
-	u64 id;
+	std::unordered_map<Symbol_Id, Type_Id> members;
 };
 
 struct Literal {
+	Symbol_Id id;
+	Type_Id type;
 	Literal_Kind kind;
-	Type type;
-	u64 id;
 };
 
 struct Instruction {
@@ -50,33 +55,31 @@ struct Instruction {
 
 struct Basic_Block {
 	u64 id;
-	u64 size;
-	Instruction* instructions;
+	std::vector<Instruction> instructions;
 };
 
 struct Block_Arg {
-	Literal symbol;
-	Type type;
+	Symbol_Id symbol;
+	Type_Id type_id;
 };
 
 struct Function_Block {
-	Block_Arg* arg;
-	Basic_Block* bb;
+	std::vector<Block_Arg> arg;
+	std::vector<Basic_Block> bb;
 };
 
 struct Effect_Block {
-	Block_Arg* arg;
-	Basic_Block* bb;
+	std::vector<Block_Arg> arg;
+	std::vector<Basic_Block> bb;
 };
 
 struct Handler_Block {
-	Block_Arg* arg;
-	Effect_Block* bb;
+	std::vector<Block_Arg> arg;
+	std::vector<Effect_Block> bb;
 };
 
 struct Program {
-	registry* symbol_table;
-
-	Handler_Block* hand;
-	Function_Block* decl;
+	std::vector<Type> types;
+	std::vector<Handler_Block> handlers;
+	std::vector<Function_Block> declarations;
 };

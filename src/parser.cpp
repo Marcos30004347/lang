@@ -102,6 +102,10 @@ AST_Node *parser_parse_lit(Parser *p) {
     return ast_type_type(&p->ast_man, tok);
   }
 
+	if (tok.type == TOKEN_CLOSE_PARENTHESIS) {
+		return ast_node_null(&p->ast_man);
+	}
+	
   parser_error(p, parser_curr_tok(p), "invalid literal declaration");
 
   return 0;
@@ -109,13 +113,35 @@ AST_Node *parser_parse_lit(Parser *p) {
 
 // PRIMARY → LITERAL | SYMBOL | '('EXPRESSION')'
 AST_Node *parser_parse_primary(Parser *p) {
-  AST_Node *expr = 0;
-
   if (parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
+		Token tok = parser_curr_tok(p);
+
     parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
-    expr = parser_parse_expr(p);
-    parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
-    return expr;
+
+		AST_Node* root = parser_parse_expr(p);
+
+		parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
+
+		if(root->kind == AST_DECL_ARGS_LIST || root->kind == AST_NULL_NODE || root->kind == AST_TYPE_BIND) {
+			if(root->kind == AST_TYPE_BIND || root->kind == AST_NULL_NODE) {
+				root = ast_decl_args(&p->ast_man, tok, root, ast_node_null(&p->ast_man));
+			}
+			
+			AST_Node* type = ast_node_null(&p->ast_man);
+			
+			if(parser_curr_tok(p).type == TOKEN_ARROW) {
+				parser_read_token(p, TOKEN_ARROW);
+				type = parser_parse_arrow(p);
+			}
+			
+			AST_Node* body = parser_parse_statements(p);
+			
+			AST_Node* decl = ast_fun_sign(&p->ast_man, tok, root, type);
+
+			return ast_fun_decl(&p->ast_man, tok, decl, body);
+		}
+		
+    return root;
   }
 
   if (parser_curr_tok(p).type == TOKEN_ID) {
@@ -214,7 +240,7 @@ AST_Node *parser_parse_call(Parser *p) {
   }
 
   if (effectfull) {
-    parser_error(p, tok, "effect call expect arguments");
+    return ast_type_yield(&p->ast_man, tok, root);
   }
 
   return root;
@@ -375,57 +401,63 @@ AST_Node *parser_parse_equality(Parser *p) {
 // BITWISE → BOOL (( '&' | '|' | '^'  ) BITWISE)*
 AST_Node *parser_parse_bitwise(Parser *p) {
   // TODO: bitwise expressions should go here
-  return parser_parse_equality(p);
+  AST_Node* root = parser_parse_equality(p);
+
+ if(parser_curr_tok(p).type == TOKEN_PIPE) {
+	 Token tok = parser_curr_tok(p);
+
+	 parser_read_token(p, TOKEN_PIPE);
+
+	 return ast_type_union(&p->ast_man, tok, root, parser_parse_bitwise(p));
+ }
+ 
+ return root;
+}
+
+AST_Node *parser_parse_eff_type(Parser *p) {
+  Token tok = parser_curr_tok(p);
+
+  parser_read_token(p, TOKEN_KEYWORD_EFFECT);
+
+  AST_Node *type = parser_parse_arrow(p);
+
+  parser_read_token(p, TOKEN_SEMI_COLON);
+
+	ast_change_kind(type, AST_EFF_TYPE_DECL);
+
+	return type;
 }
 
 // BOOL → TERM (( '&&' | '^^' | '||') BOOL)*
 AST_Node *parser_parse_booleans(Parser *p) {
-  // TODO: booleans expressions should go here
-  return parser_parse_bitwise(p);
+ if (parser_curr_tok(p).type == TOKEN_KEYWORD_EFFECT) {
+   return parser_parse_eff_type(p);
+ }
+
+ AST_Node* root = parser_parse_bitwise(p);
+ // TODO
+ return root;
 }
 
-// AST_Node *parser_parse_type_bind(Parser *p) {
-// 	printf("kkkk\n");
-
-// 	debug_print_token(p, parser_curr_tok(p));
-
-// 	AST_Node *root = parser_parse_booleans(p);
-
-// 	printf("---kkkk\n");
-// 	debug_print_token(p, parser_curr_tok(p));
-
-// 	if (parser_curr_tok(p).type == TOKEN_COLON) {
-
-// 		if (root->kind != AST_SYM_DECL) {
-//       parser_error(p, root->tok, "type bind expects symbol on the left side");
-//     }
-
-//     Token tok = parser_curr_tok(p);
-
-// 		parser_read_token(p, TOKEN_COLON);
-		
-//     if (parser_curr_tok(p).type == TOKEN_COLON ||
-//         parser_curr_tok(p).type == TOKEN_EQUAL) {
-//       return ast_type_bind(&p->ast_man, tok, root, ast_node_null(&p->ast_man));
-//     }
-
-//     AST_Node *type = parser_parse_arrow(p);
-
-//     return ast_type_bind(&p->ast_man, tok, root, type);
-//   }
-
-//   return root;
-// }
-
-
 AST_Node *parser_parse_arrow(Parser *p) {
+	b8 resume = false;
+ 
+	Token tok = parser_curr_tok(p);
+ 
+	if(parser_curr_tok(p).type == TOKEN_KEYWORD_RESUME) {
+		parser_read_token(p, TOKEN_KEYWORD_RESUME);
+		resume = true;
+	}
+
 	AST_Node *root = parser_parse_booleans(p);
 
 	AST_Node* tmp = root;
 
 	AST_Node * head = NULL;
+	// printf("asdas %i\n", resume);
+	// print_ast(p, root);
 	
-	if (parser_curr_tok(p).type == TOKEN_ARROW) {
+	if (resume || parser_curr_tok(p).type == TOKEN_ARROW) {
     Token tok = parser_curr_tok(p);
 
 		parser_read_token(p, TOKEN_ARROW);
@@ -439,7 +471,14 @@ AST_Node *parser_parse_arrow(Parser *p) {
 		}
 	}
 	
-  return head ? head : root;
+  root =  head ? head : root;
+
+	if(resume == true) {
+		ast_change_kind(root, AST_RESUME_TYPE_DECL);
+	// 	parser_error(p, tok, "resume expects arrow type");
+	}
+	
+	return root;
 }
 
 
@@ -593,21 +632,20 @@ AST_Node *parser_parse_eff_args(Parser *p) {
 		parser_read_token(p, TOKEN_COMMA);
 	}
 
-  if (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
     parser_read_token(p, TOKEN_SEMI_COLON);
 
 		AST_Node* sym = parser_parse_symbol(p);
 
-		Token tok = parser_curr_tok(p);
+		Token tok1 = parser_curr_tok(p);
 
 		parser_read_token(p, TOKEN_COLON);
 		
 		AST_Node* typ = parser_parse_arrow(p);
 
-		AST_Node* cont = ast_type_bind(&p->ast_man, tok, sym, typ);
+		AST_Node* cont = ast_type_bind(&p->ast_man, tok1, sym, typ);
 		
-    args = ast_hnd_eff_decl_args(&p->ast_man, tok, args, cont);
-  }
+    args = ast_hnd_eff_decl_args(&p->ast_man, tok1, args, cont);
+  
 
   parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
 
@@ -646,98 +684,63 @@ AST_Node *parser_parse_fun_decl(Parser *p) {
   return ast_fun_decl(&p->ast_man, tok, ty, body);
 }
 
-AST_Node *parser_parse_eff_decl(Parser *p) {
-	
-  Token tok = parser_curr_tok(p);
 
-  parser_read_token(p, TOKEN_KEYWORD_EF);
+// AST_Node *parser_parse_eff_decl(Parser *p) {
+//   Token tok = parser_curr_tok(p);
 
-  AST_Node *args = parser_parse_eff_args(p);
+//   AST_Node *args = parser_parse_eff_args(p);
 
-  AST_Node *type = ast_node_null(&p->ast_man);
+//   AST_Node *type = ast_node_null(&p->ast_man);
 
-  Token arr = lexer_undef_token();
+//   Token arr = lexer_undef_token();
 
-  if (parser_curr_tok(p).type == TOKEN_ARROW) {
-    arr = parser_curr_tok(p);
+//   if (parser_curr_tok(p).type == TOKEN_ARROW) {
+//     arr = parser_curr_tok(p);
 
-    parser_read_token(p, TOKEN_ARROW);
+//     parser_read_token(p, TOKEN_ARROW);
 
-    type = parser_parse_arrow(p);
-  }
+//     type = parser_parse_arrow(p);
+//   }
 
-  AST_Node *ty = ast_type_arrow(&p->ast_man, arr, args, type);
+//   AST_Node *ty = ast_type_arrow(&p->ast_man, arr, args, type);
 
-  if (parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
-    AST_Node *b = parser_parse_statements(p);
+// 	AST_Node *b = parser_parse_statements(p);
 
-    return ast_handler_eff_decl(&p->ast_man, tok, type, b);
-  }
-
-  if (args->kind == AST_HND_EFF_ARGS) {
-    parser_error(
-        p, tok,
-        "effect declaration outside a handler cannot have continuations");
-  }
-
-  parser_read_token(p, TOKEN_SEMI_COLON);
-
-  return ast_eff_decl(&p->ast_man, tok, ty, ast_node_null(&p->ast_man));
-}
+//   return ast_handler_eff_decl(&p->ast_man, tok, type, b);
+// }
 
 AST_Node *parser_parse_handler_decl(Parser *p) {
-
   Token tok = parser_curr_tok(p);
 
   parser_read_token(p, TOKEN_KEYWORD_HANDLER);
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
 
-  AST_Node *eff_list = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
+  AST_Node *effs = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
 
-  AST_Node *tmp = eff_list;
+  AST_Node *list = effs;
 
   while (parser_curr_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
     Token eff_tok = parser_curr_tok(p);
 
-    tmp->left = parser_parse_expr(p)->id;
+		AST_Node* eff = parser_parse_expr(p); //parser_parse_eff_decl(p)->id;
+
+		list->left = eff->id;
 
     if (parser_curr_tok(p).type == TOKEN_CLOSE_CURLY_BRACE) {
       break;
     }
 
-    AST_Node *r = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
-    tmp->right = r->id;
-    tmp = r;
+    AST_Node *tail = ast_handler_eff_list(&p->ast_man, parser_curr_tok(p));
+
+		list->right = tail->id;
+
+		list = tail;
   }
 
   parser_read_token(p, TOKEN_CLOSE_CURLY_BRACE);
-  return ast_handler_decl(&p->ast_man, tok, eff_list,
-                          ast_node_null(&p->ast_man));
+  return ast_handler_decl(&p->ast_man, tok, effs, ast_node_null(&p->ast_man));
 }
 
-AST_Node *parser_parse_tuple(Parser *p) {
-  AST_Node *root = parser_parse_arrow(p);
-	
-	AST_Node *tmp = root;
-	
-	AST_Node *head = NULL;
-
-	if (parser_curr_tok(p).type == TOKEN_COMMA) {
-    Token tok = parser_curr_tok(p);
-
-    parser_read_token(p, TOKEN_COMMA);
-
-    AST_Node *tail = parser_parse_tuple(p);
-
-		if(tail->kind != AST_TUPLE_LIST) {
-			tail = ast_tuple_list(&p->ast_man, tail->tok, tail, ast_node_null(&p->ast_man));
-		}
-		
-    return ast_tuple_list(&p->ast_man, tok, tmp, tail);
-  }
-
-  return root;
-}
 
 AST_Node *parser_parse_decl(Parser *p) {
 	
@@ -745,21 +748,22 @@ AST_Node *parser_parse_decl(Parser *p) {
     return parser_parse_fun_decl(p);
   }
 
-  if (parser_curr_tok(p).type == TOKEN_KEYWORD_EF) {
-    return parser_parse_eff_decl(p);
-  }
+  // if (parser_curr_tok(p).type == TOKEN_KEYWORD_EFFECT) {
+  //   return parser_parse_eff_type(p);
+  // }
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_HANDLER) {
     return parser_parse_handler_decl(p);
   }
 	
 	// TODO: here here here
-  return parser_parse_tuple(p);
+  return parser_parse_arrow(p);
 }
 
 
 AST_Node* parser_parse_type_bind(Parser* p) {
 	AST_Node* a = parser_parse_decl(p);
+	
 	if(parser_curr_tok(p).type == TOKEN_COLON) {
 		Token tok = parser_curr_tok(p);
 
@@ -769,7 +773,7 @@ AST_Node* parser_parse_type_bind(Parser* p) {
 			return ast_type_bind(&p->ast_man, tok, a, ast_node_null(&p->ast_man));
 		}
 		
-		AST_Node* b = parser_parse_tuple(p);
+		AST_Node* b = parser_parse_arrow(p);
 
 		return ast_type_bind(&p->ast_man, tok, a, b);
 	}
@@ -777,11 +781,27 @@ AST_Node* parser_parse_type_bind(Parser* p) {
 	return a;
 }
 
+AST_Node *parser_parse_bind_declarations(Parser *p) {
+  AST_Node *root = parser_parse_type_bind(p);
+	
+	if (parser_curr_tok(p).type == TOKEN_COMMA) {
+    Token tok = parser_curr_tok(p);
+
+    parser_read_token(p, TOKEN_COMMA);
+
+    AST_Node *tail = parser_parse_bind_declarations(p);
+
+    return ast_decl_args(&p->ast_man, tok, root, tail);
+  }
+
+  return root;
+}
 
 // EXPRESSION → IDENTIFIER ('=' | '|=' | '&=' | '+=' | '-=' ) ASSIGNMENT |
 // EQUALITY | EXPRESSION ? EXPRESSION : EXPRESSION
 AST_Node *parser_parse_expr(Parser *p) {
-  AST_Node *root = parser_parse_type_bind(p);
+  AST_Node *root = parser_parse_bind_declarations(p);
+
   // assignment a = b
   if (parser_curr_tok(p).type == TOKEN_EQUAL) {
     Token tok = parser_curr_tok(p);
@@ -790,11 +810,11 @@ AST_Node *parser_parse_expr(Parser *p) {
 
     if (root->kind == AST_TYPE_BIND) {
       return ast_mut_bind(&p->ast_man, parser_curr_tok(p), root,
-                          parser_parse_decl(p));
+                          parser_parse_bind_declarations(p));
     }
 
     return ast_assignment(&p->ast_man, parser_curr_tok(p), root,
-                          parser_parse_decl(p));
+                          parser_parse_bind_declarations(p));
   }
 
   // assignment a : b
@@ -807,7 +827,7 @@ AST_Node *parser_parse_expr(Parser *p) {
 
     parser_read_token(p, TOKEN_COLON);
 
-    return ast_const_bind(&p->ast_man, tok, root, parser_parse_decl(p));
+    return ast_const_bind(&p->ast_man, tok, root, parser_parse_bind_declarations(p));
   }
 
   // // binding a := b, a :: b

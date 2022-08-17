@@ -21,6 +21,7 @@ enum Token_Type {
 
 
 	// OPERATORS
+	TOKEN_PIPE, // |
 	TOKEN_ASTERISK, // *
 	TOKEN_PLUS,  // +
 	TOKEN_MINUS, // -
@@ -38,16 +39,17 @@ enum Token_Type {
 
 	// Keywords
 	TOKEN_KEYWORD_FN, // fn
-	TOKEN_KEYWORD_EF, // ef
+	TOKEN_KEYWORD_EFFECT, // effect
 	TOKEN_KEYWORD_HANDLER, // handler
 	TOKEN_KEYWORD_RETURN, // RETURN
 	TOKEN_KEYWORD_IF, // if
 	TOKEN_KEYWORD_ELSE, // else 
 	TOKEN_KEYWORD_WITH, // with 
 	TOKEN_KEYWORD_CONTINUE, // continue 
+	TOKEN_KEYWORD_RESUME, // resume
 
 	// Types
-	TOKEN_UNIT, // type
+	TOKEN_UNIT, // unit
 	TOKEN_I32, // i32
 	TOKEN_TYPE, // type
 

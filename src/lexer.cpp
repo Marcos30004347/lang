@@ -230,8 +230,12 @@ Token lexer_read_token(Lexer* t) {
 		return lexer_set_curr(t, token_create(TOKEN_MINUS, pos, col, row, t->file_id, 1));
 	}
 
+	if(lexer_current(t) == '|' && lexer_eat(t))
+		return lexer_set_curr(t, token_create(TOKEN_PIPE, pos, col, row, t->file_id, 1));
+	
 	if(lexer_current(t) == '*' && lexer_eat(t))
 		return lexer_set_curr(t, token_create(TOKEN_ASTERISK, pos, col, row, t->file_id, 1));
+
 	if(lexer_current(t) == '/' && lexer_eat(t))
 		return lexer_set_curr(t, token_create(TOKEN_SLASH, pos, col, row, t->file_id, 1));
 
@@ -272,6 +276,9 @@ Token lexer_read_token(Lexer* t) {
 	if(is_numeric(lexer_current(t))) return lexer_set_curr(t, lexer_read_i32lit(t));
 
 	u64 size = 0;
+ 
+	if(lexer_can_read_word(t, "resume", &size) && lexer_eat_next_n(t, size)) 
+		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_RESUME, pos, col, row, t->file_id, size));
 
 	if(lexer_can_read_word(t, "i32", &size) && lexer_eat_next_n(t, size)) 
 		return lexer_set_curr(t, token_create(TOKEN_I32, pos, col, row, t->file_id, size));
@@ -300,8 +307,8 @@ Token lexer_read_token(Lexer* t) {
 	if(lexer_can_read_word(t, "fn", &size) && lexer_eat_next_n(t, size)) 
 		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_FN, pos, col, row, t->file_id, size));
 
-	if(lexer_can_read_word(t, "ef", &size) && lexer_eat_next_n(t, size)) 
-		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_EF, pos, col, row, t->file_id, size));
+	if(lexer_can_read_word(t, "effect", &size) && lexer_eat_next_n(t, size)) 
+		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_EFFECT, pos, col, row, t->file_id, size));
 
 	if(lexer_can_read_word(t, "handler", &size) && lexer_eat_next_n(t, size)) 
 		return lexer_set_curr(t, token_create(TOKEN_KEYWORD_HANDLER, pos, col, row, t->file_id, size));

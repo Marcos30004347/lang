@@ -32,8 +32,10 @@ enum AST_Kind {
   AST_SYM_DECL,
   AST_I32_DECL,
   AST_FUN_DECL,
+	AST_FUN_SIGN,
   AST_CLOS_DECL,
-  AST_EFF_DECL,
+  AST_EFF_TYPE_DECL,
+  AST_RESUME_TYPE_DECL,
   AST_HND_DECL,
   AST_HND_EFF_DECL,
 
@@ -43,6 +45,8 @@ enum AST_Kind {
 	AST_TYPE_ARROW,
 	AST_TYPE_TUPLE,
 	AST_TYPE_TYPE,
+	AST_TYPE_UNION,
+	AST_TYPE_YIELD,
 
   // Binary operators
   AST_OP_BIN_ASSIGN,
@@ -103,6 +107,8 @@ void ast_manager_free(AST_Manager *m);
 AST_Node *ast_manager_get(AST_Manager *m, AST_Id id);
 AST_Node *ast_manager_get_relative(AST_Manager *m, AST_Node *from, AST_Id id);
 
+void ast_change_kind(AST_Node* m, AST_Kind kind);
+
 AST_Node *ast_symbol(AST_Manager *m, Token tok);
 AST_Node *ast_i32_lit(AST_Manager *m, Token tok);
 
@@ -127,6 +133,7 @@ AST_Node *ast_call(AST_Manager *m, Token tok, AST_Node* sym, AST_Node* params,
                   bool effectfull);
 
 AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
+AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
 AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
 AST_Node *ast_handler_eff_decl(AST_Manager *m, Token tok,  AST_Node* l,
                               AST_Node* r);
@@ -155,11 +162,18 @@ AST_Node* ast_type_unit(AST_Manager* m, Token tok);
 
 AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r);
 
-AST_Node* ast_type_tuple_arg(AST_Manager* m, Token tok, AST_Node* mem, AST_Node* tail);
+// AST_Node* ast_type_tuple(AST_Manager* m, Token tok, AST_Node* mem, AST_Node* tail);
 
-AST_Node* ast_type_tuple(AST_Manager* m, Token tok, AST_Node* members);
+// AST_Node* ast_type_tuple(AST_Manager* m, Token tok, AST_Node* members);
 
 AST_Node* ast_node_null(AST_Manager* m);
 
-AST_Node* ast_tuple_list(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail);
-AST_Node *ast_type_bind(AST_Manager *m, Token tok, AST_Node* sym, AST_Node* type); 
+// AST_Node* ast_tuple_list(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail);
+AST_Node *ast_type_bind(AST_Manager *m, Token tok, AST_Node* sym, AST_Node* type);
+
+AST_Node *ast_type_union(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail);
+
+AST_Node *ast_decl_args(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail);
+
+
+AST_Node *ast_type_yield(AST_Manager *m, Token tok, AST_Node *eff);

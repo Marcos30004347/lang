@@ -1,35 +1,30 @@
-get :: ef() -> i32;
-set :: ef() -> unit;
+get: effect unit * (resume i32 -> i32 -> i32) -> i32;
 
-somefunc :: fn (f: (i32, i32) -> i32, t: i32) -> (i32, i32) -> i32 {
-	b :: (i32, i32) -> i32;
+set: effect i32 * (resume unit -> i32 -> i32) -> unit;
 
-	(t, x) : (i32, i32) : (3, 4);
+fun :: (f: i32 * i32 * i32 -> i32) -> i32 | alloc! {
+	a : i32 : alloc!(i32, 3);
+	b : i32 : alloc!(i32, 4);
+	c : i32 : alloc!(i32, 5);
 
-	add : b : fn (x:i32, y:i32) {
-		return x + y;
-	}
-
-	a : b : add;
-
-	return a;
+	return f(a, b, c);
 }
 
 state :: handler {
-	get :: ef (; k: i32 -> i32 -> i32) -> i32 {
-		return fn (s:i32) {
-			return k(s)(s);
+	get :: (u: unit, f: resume i32 -> i32 -> i32) -> i32 -> i32 {
+		return (s: i32) {
+			return f(s)(s);
 		}
 	}
 
-	set :: ef (s: i32; k: unit -> i32 -> i32) -> unit {
-		return fn () {
-			return k()(s);
+	set :: (s: i32, f: resume unit -> i32 -> i32) -> unit -> i32 {
+		return () {
+			return f()(s);
 		}
 	}
 }
 
-f :: fn () {
+f :: () -> i32 | set! | get! {
 	set!(3);
 
 	x :: get!();
@@ -41,8 +36,9 @@ f :: fn () {
 	return x + y;
 }
 
-main :: fn () -> i32 {
+main :: () -> i32 {
 	g :: f() with state;
+	x :: g(0);
 
-	return g(0);
+	return x;
 }
