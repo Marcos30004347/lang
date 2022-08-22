@@ -18,6 +18,7 @@ enum Token_Type {
 	TOKEN_CLOSE_CURLY_BRACE, // }
 	TOKEN_OPEN_PARENTHESIS, // (
 	TOKEN_CLOSE_PARENTHESIS, // )
+	TOKEN_APHOSTROPHE, // '
 
 
 	// OPERATORS
@@ -47,6 +48,8 @@ enum Token_Type {
 	TOKEN_KEYWORD_WITH, // with 
 	TOKEN_KEYWORD_CONTINUE, // continue 
 	TOKEN_KEYWORD_RESUME, // resume
+	TOKEN_KEYWORD_STRUCT, // resume
+	TOKEN_KEYWORD_THEN, // then
 
 	// Types
 	TOKEN_UNIT, // unit

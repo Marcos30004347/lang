@@ -2,14 +2,6 @@ get: effect unit * (resume i32 -> i32 -> i32) -> i32;
 
 set: effect i32 * (resume unit -> i32 -> i32) -> unit;
 
-fun :: (f: i32 * i32 * i32 -> i32) -> i32 | alloc! {
-	a : i32 : alloc!(i32, 3);
-	b : i32 : alloc!(i32, 4);
-	c : i32 : alloc!(i32, 5);
-
-	return f(a, b, c);
-}
-
 state :: handler {
 	get :: (u: unit, f: resume i32 -> i32 -> i32) -> i32 -> i32 {
 		return (s: i32) {
@@ -23,6 +15,7 @@ state :: handler {
 		}
 	}
 }
+
 
 f :: () -> i32 | set! | get! {
 	set!(3);

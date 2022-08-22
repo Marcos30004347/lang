@@ -61,3 +61,16 @@ u32 round_up(u32 num, u32 factor)
 u32 round_down(u32 num, u32 factor) {
 	return (num / factor) * factor;
 }
+
+i8* copy_str(const i8* str) {
+	u64 l = strlen(str);
+	i8* b = (i8*)malloc(sizeof(i8)*(l + 1));
+
+	for(u64 i = 0; i < l; i++) {
+		b[i] = str[i];
+	}
+
+	b[l] = '\0';
+	
+	return b;
+}

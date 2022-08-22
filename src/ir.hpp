@@ -1,81 +1,82 @@
 #pragma once
 
-#include "registry.hpp"
+#include "types.hpp"
 
 #include <vector>
 #include <unordered_map>
 
-typedef u64 Symbol_Id;
-typedef u64 Type_Id;
+typedef u32 Symbol_Id;
+typedef u32 Type_Id;
+typedef u32 Members_Id;
+typedef u32 Operand_Id;
 
-enum Op_Code {
-	OP_ADD,
-	OP_SUB,
-	OP_MUL,
-	OP_DIV,
-	OP_CALL,
-	OP_PERFORM,
-};
+struct StructMembers {
+	Symbol_Id symbol_id;
+	Type_Id   type_id;
 
-enum Literal_Kind {
-	LIT_SYM,
-	LIT_NAT,
-};
-
-enum Instruction_Kind {
-	THREE_ADDRESS_CODE,
-	BRANCH,
-	RETURN,
-};
-
-enum Type_Kind {
-	I32,
-	// TODO
+	Members_Id next_id;
 };
 
 struct Type {
-	Symbol_Id id;
-	Type_Kind kind;
-	std::unordered_map<Symbol_Id, Type_Id> members;
+  enum Kind {
+    UNIT_TYPE = 0,
+    INT32_TYPE,
+    ARROW_TYPE,
+    UNION_TYPE,
+    YIELD_TYPE,
+  };
+
+  Kind kind;
+  u64 buffer_64x1;
 };
 
-struct Literal {
-	Symbol_Id id;
-	Type_Id type;
-	Literal_Kind kind;
+struct Operand {
+  enum Kind {
+    VAR,
+    TEMP,
+    CONST,
+  };
+
+  Kind kind;
+  u64 buffer_64x2[2];
 };
 
 struct Instruction {
-	Instruction_Kind kind;
+  enum Kind {
+    THREE_ADDRESS_CODE,
+    PROMPT_HANDLER,
+    YIELD,
+    BRANCH,
+    RETURN,
+    PUSH_ARG,
+    POP_ARG,
+  };
 
-	Literal op[3];
+  enum Code {
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_CALL,
+    OP_PERFORM,
+  };
 
-	Op_Code code;
+  Kind kind;
+  Code code;
+
+	Operand_Id op[3];
 };
 
 struct Basic_Block {
-	u64 id;
-	std::vector<Instruction> instructions;
-};
-
-struct Block_Arg {
-	Symbol_Id symbol;
-	Type_Id type_id;
+	std::vector<Instruction> inst;
 };
 
 struct Function_Block {
-	std::vector<Block_Arg> arg;
-	std::vector<Basic_Block> bb;
-};
-
-struct Effect_Block {
-	std::vector<Block_Arg> arg;
-	std::vector<Basic_Block> bb;
+	std::vector<Basic_Block> block;
 };
 
 struct Handler_Block {
-	std::vector<Block_Arg> arg;
-	std::vector<Effect_Block> bb;
+	std::vector<Function_Block> block;
 };
 
 struct Program {

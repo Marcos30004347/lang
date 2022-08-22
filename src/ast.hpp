@@ -4,51 +4,53 @@
 
 enum AST_Kind {
   // Compounds
-	AST_NULL_NODE = 0,
-  AST_STATEMENT_LIST,
+  AST_NULL_NODE = 0,
+
+	__AST_KIND_BEGIN,
+	
+  AST_PROGRAM_POINT,
+
   AST_CALL_ARGS_LIST,
   AST_DECL_ARGS_LIST,
-  AST_HND_EFF_LIST,
-  AST_DECL_LIST,
-	AST_TYPE_TUPLE_MEM_LIST,
-  AST_IF_DECL,
-	AST_TUPLE_LIST,
-  // left element is the effect arguments, right is continuation info
-  AST_HND_EFF_ARGS,
-  AST_WITH_HND,
 
-  // Flow
+  AST_STRUCT_MEMBERS_LIST,
+  AST_WITH_HANDLER,
+
+  // Control Flow
   AST_CTRL_FLOW_IF,
-  AST_CTRL_FLOW_ELSE, // TODO: remove
   AST_CTRL_FLOW_RETURN,
-  AST_CTRL_FLOW_CONTINUE,
 
   // Bindings
-  AST_CONST_BIND, // constant
-  AST_MUT_BIND,   // mutable
-	AST_TYPE_BIND, // unnitialized value
-	
+  AST_BIND_CONSTANT,
+  AST_BIND_VARIABLE,
+  AST_BIND_TYPE,
+
   // Declarations
-  AST_SYM_DECL,
-  AST_I32_DECL,
-  AST_FUN_DECL,
-	AST_FUN_SIGN,
-  AST_CLOS_DECL,
-  AST_EFF_TYPE_DECL,
-  AST_RESUME_TYPE_DECL,
-  AST_HND_DECL,
-  AST_HND_EFF_DECL,
+  __AST_LITERAL_START,
+  AST_SYMBOL_LITERAL,
+  AST_NATURAL_LITERAL,
+  AST_FUNCTION_LITERAL,
+  AST_HANDLER_LITERAL,
+  __AST_LITERAL_END,
+
+  AST_FUN_SIGNATURE,
 
   // Types
+  __AST_TYPE_KIND_START,
   AST_TYPE_I32,
   AST_TYPE_UNIT,
-	AST_TYPE_ARROW,
-	AST_TYPE_TUPLE,
-	AST_TYPE_TYPE,
-	AST_TYPE_UNION,
-	AST_TYPE_YIELD,
+  AST_TYPE_ARROW,
+  AST_TYPE_EFFECT,
+  AST_TYPE_TUPLE,
+  AST_TYPE_TYPE,
+  AST_TYPE_UNION,
+  AST_TYPE_YIELD,
+  AST_TYPE_STRUCT,
+  AST_TYPE_VARIABLE,
+  __AST_TYPE_KIND_END,
 
   // Binary operators
+  __AST_BINARY_OPERATOR_START,
   AST_OP_BIN_ASSIGN,
   AST_OP_BIN_ADD,
   AST_OP_BIN_SUB,
@@ -61,14 +63,21 @@ enum AST_Kind {
   AST_OP_BIN_NE,
   AST_OP_BIN_EQ,
   AST_OP_MEMBER_ACCESS,
+  __AST_BINARY_OPERATOR_END,
 
   // Unary operators
+  __AST_UNARY_OPERATOR_START,
   AST_OP_UNA_SUB,
   AST_OP_UNA_ADD,
+  __AST_UNARY_OPERATOR_END,
 
   // Applications
-  AST_FUN_CALL,
-  AST_EFF_CALL,
+  __AST_CALL_OPERATION_START,
+  AST_FUNCTION_CALL,
+  AST_EFFECT_CALL,
+  __AST_CALL_OPERATION_END,
+
+  __AST_KIND_END,
 };
 
 typedef u32 AST_Id;
@@ -82,7 +91,12 @@ struct AST_Node {
   Token tok;
   AST_Id left;
   AST_Id right;
-  AST_Kind kind;
+
+  // internally, any kind greater than the maximum value inside AST_Kind is
+  // a temp variable, identified by the stored number on kind, read
+  // transformations.hpp. for more info.
+  u64 kind;
+
   AST_Bucket *bucket;
 };
 
@@ -97,9 +111,18 @@ struct AST_Bucket {
 
 struct AST_Manager {
   u64 size;
+  u64 temp;
+
+  AST_Id statements_list_root_id;
+  AST_Id statements_list_tail_id;
+
+  AST_Node *statement_list_tail_ptr;
+
   AST_Bucket *root;
   AST_Bucket *tail;
 };
+
+AST_Node *ast_manager_push_decl(AST_Manager *m, AST_Node *decl);
 
 void ast_manager_init(AST_Manager *m);
 void ast_manager_free(AST_Manager *m);
@@ -107,73 +130,105 @@ void ast_manager_free(AST_Manager *m);
 AST_Node *ast_manager_get(AST_Manager *m, AST_Id id);
 AST_Node *ast_manager_get_relative(AST_Manager *m, AST_Node *from, AST_Id id);
 
-void ast_change_kind(AST_Node* m, AST_Kind kind);
+void ast_change_kind(AST_Node *m, AST_Kind kind);
+
+b8 ast_is_null_node(AST_Node *m);
 
 AST_Node *ast_symbol(AST_Manager *m, Token tok);
 AST_Node *ast_i32_lit(AST_Manager *m, Token tok);
 
-AST_Node *ast_const_bind(AST_Manager *m, Token tok, AST_Node* l,
-                        AST_Node* r);
-AST_Node *ast_mut_bind(AST_Manager *m, Token tok,  AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_gt(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_lt(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_ge(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_le(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_ne(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_eq(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_add(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_sub(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_mul(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_bin_div(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_una_add(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_una_sub(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_assignment(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_member_access(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_call(AST_Manager *m, Token tok, AST_Node* sym, AST_Node* params,
-                  bool effectfull);
+AST_Node *ast_type_bind(AST_Manager *m, Token tok, AST_Node *sym,
+                        AST_Node *type);
+AST_Node *ast_constant_bind(AST_Manager *m, Token tok, AST_Node *l,
+                            AST_Node *r);
+AST_Node *ast_variable_bind(AST_Manager *m, Token tok, AST_Node *l,
+                            AST_Node *r);
+AST_Node *ast_bin_gt(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_lt(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_ge(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_le(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_ne(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_eq(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_add(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_sub(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_mul(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_bin_div(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_una_add(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_una_sub(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_assignment(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_member_access(AST_Manager *m, Token tok, AST_Node *l,
+                            AST_Node *r);
+AST_Node *ast_call(AST_Manager *m, Token tok, AST_Node *sym, AST_Node *params,
+                   bool effectfull);
 
-AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
-AST_Node *ast_handler_eff_decl(AST_Manager *m, Token tok,  AST_Node* l,
-                              AST_Node* r);
-AST_Node *ast_handler_decl(AST_Manager *m, Token tok, AST_Node* l, AST_Node* r);
+AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_handler_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
 
 AST_Node *ast_decl_list(AST_Manager *m, Token tok);
-AST_Node *ast_statement_list(AST_Manager *m, Token tok);
+AST_Node *ast_program_point(AST_Manager *m, Token tok);
 AST_Node *ast_decl_arg_list(AST_Manager *m, Token tok);
 AST_Node *ast_call_arg_list(AST_Manager *m, Token tok);
-AST_Node *ast_handler_eff_list(AST_Manager *m, Token tok);
-AST_Node *ast_ctrl_flow_if(AST_Manager *m, Token tok, AST_Node* cond, AST_Node* body,
-                          AST_Node* elif);
-AST_Node *ast_ctrl_flow_ret(AST_Manager *m, Token tok, AST_Node* expr);
-AST_Node *ast_ctrl_flow_continue(AST_Manager *m, Token tok, AST_Node* cont,
-                                AST_Node* expr);
-AST_Node *ast_hnd_eff_decl_args(AST_Manager *m, Token tok, AST_Node* args,
-                               AST_Node* cont);
-AST_Node *ast_with_hnd(AST_Manager *m, Token tok, AST_Node* call, AST_Node* hnd);
+// AST_Node *ast_handler_eff_list(AST_Manager *m, Token tok);
+AST_Node *ast_ctrl_flow_if(AST_Manager *m, Token tok, AST_Node *cond,
+                           AST_Node *body, AST_Node *elif);
+AST_Node *ast_ctrl_flow_ret(AST_Manager *m, Token tok, AST_Node *expr);
+AST_Node *ast_with_handler(AST_Manager *m, Token tok, AST_Node *call,
+                           AST_Node *hnd);
 
-const char *ast_kind_to_cstr(AST_Kind k);
+i8 *ast_kind_to_cstr(u64 k);
 
-AST_Node* ast_type_type(AST_Manager* m, Token tok);
+AST_Node *ast_type_type(AST_Manager *m, Token tok);
 
-AST_Node* ast_type_i32(AST_Manager* m, Token tok);
-AST_Node* ast_type_unit(AST_Manager* m, Token tok);
+AST_Node *ast_type_i32(AST_Manager *m, Token tok);
+AST_Node *ast_type_unit(AST_Manager *m, Token tok);
 
-AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r);
+AST_Node *ast_type_arrow(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
 
-// AST_Node* ast_type_tuple(AST_Manager* m, Token tok, AST_Node* mem, AST_Node* tail);
+AST_Node *ast_node_null(AST_Manager *m);
 
-// AST_Node* ast_type_tuple(AST_Manager* m, Token tok, AST_Node* members);
+AST_Node *ast_type_union(AST_Manager *m, Token tok, AST_Node *l,
+                         AST_Node *tail);
 
-AST_Node* ast_node_null(AST_Manager* m);
-
-// AST_Node* ast_tuple_list(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail);
-AST_Node *ast_type_bind(AST_Manager *m, Token tok, AST_Node* sym, AST_Node* type);
-
-AST_Node *ast_type_union(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail);
+AST_Node *ast_teamplate_type_variable(AST_Manager *m, Token tok, AST_Node *l);
 
 AST_Node *ast_decl_args(AST_Manager *m, Token tok, AST_Node *l, AST_Node *tail);
 
-
 AST_Node *ast_type_yield(AST_Manager *m, Token tok, AST_Node *eff);
+
+AST_Node *ast_struct_member(AST_Manager *m, Token tok, AST_Node *mem,
+                            AST_Node *tail);
+AST_Node *ast_type_struct(AST_Manager *m, Token tok, AST_Node *members);
+
+AST_Node *ast_temp_node(AST_Manager *m);
+
+AST_Node *ast_type_bind_get_type(AST_Manager *m, AST_Node *n);
+AST_Node *ast_type_bind_get_symbol(AST_Manager *m, AST_Node *n);
+AST_Node *ast_program_point_get_tail(AST_Manager *m, AST_Node *n);
+AST_Node *ast_program_point_get_decl(AST_Manager *m, AST_Node *n);
+AST_Node *ast_bind_get_type_bind(AST_Manager *m, AST_Node *n);
+AST_Node *ast_bind_get_expr(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_decl_get_signature(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_decl_get_body(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_signature_get_args(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_signature_get_return(AST_Manager *m, AST_Node *n);
+AST_Node *ast_decl_list_get_elem(AST_Manager *m, AST_Node *n);
+AST_Node *ast_decl_list_get_tail(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_call_get_call_sym(AST_Manager *m, AST_Node *n);
+AST_Node *ast_fun_call_get_call_args(AST_Manager *m, AST_Node *n);
+
+AST_Node *ast_fun_decl_add_argument(AST_Manager *m, Token tok,
+                                    AST_Node *fun_decl, AST_Node *arg);
+
+inline b8 ast_is_binary_operation(AST_Node *n) {
+  return n->kind >= __AST_BINARY_OPERATOR_START ||
+         n->kind <= __AST_BINARY_OPERATOR_END;
+}
+
+inline b8 ast_is_unary_operation(AST_Node *n) {
+  return n->kind > __AST_UNARY_OPERATOR_START &&
+         n->kind < __AST_UNARY_OPERATOR_END;
+}
+
+b8 ast_is_temporary(AST_Manager *m, AST_Node *n);
