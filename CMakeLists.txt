@@ -9,6 +9,7 @@ add_library(magic
 	src/ast.cpp
 	src/parser.cpp
 	src/crc64.cpp
+	src/context.cpp
 )
 
 target_include_directories(magic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")

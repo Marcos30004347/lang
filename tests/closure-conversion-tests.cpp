@@ -4,6 +4,7 @@
 #include "parser.hpp"
 #include "utils.hpp"
 #include "transformations.hpp"
+#include "cps.hpp"
 
 #include <cstring>
 
@@ -16,9 +17,14 @@ void should_closure_convert_ast() {
 
 	AST_Node* root = parser_parse(&p);
 
+	CPS_Analysis analysis;
+	init_cps_analysis(&analysis);
+	
+	ast_to_cps(&analysis, &p, root);
 	// closure_convert(&p, root);
-
 	print_ast(&p, root);
+	
+	print_ast_to_program(&p, root);
 	
 	parser_destroy(&p);
 }

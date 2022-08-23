@@ -13,7 +13,6 @@ enum AST_Kind {
   AST_CALL_ARGS_LIST,
   AST_DECL_ARGS_LIST,
 
-  AST_STRUCT_MEMBERS_LIST,
   AST_WITH_HANDLER,
 
   // Control Flow
@@ -39,6 +38,7 @@ enum AST_Kind {
   __AST_TYPE_KIND_START,
   AST_TYPE_I32,
   AST_TYPE_UNIT,
+	AST_TYPE_ANY,
   AST_TYPE_ARROW,
   AST_TYPE_EFFECT,
   AST_TYPE_TUPLE,
@@ -159,16 +159,16 @@ AST_Node *ast_assignment(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
 AST_Node *ast_member_access(AST_Manager *m, Token tok, AST_Node *l,
                             AST_Node *r);
 AST_Node *ast_call(AST_Manager *m, Token tok, AST_Node *sym, AST_Node *params,
-                   bool effectfull);
+                   bool effectfull = false);
 
-AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
-AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
-AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
-AST_Node *ast_handler_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_function_literal(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_function_signature(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_type_effect(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
+AST_Node *ast_handler_literal(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r);
 
 AST_Node *ast_decl_list(AST_Manager *m, Token tok);
 AST_Node *ast_program_point(AST_Manager *m, Token tok);
-AST_Node *ast_decl_arg_list(AST_Manager *m, Token tok);
+// AST_Node *ast_decl_arg_list(AST_Manager *m, Token tok);
 AST_Node *ast_call_arg_list(AST_Manager *m, Token tok);
 // AST_Node *ast_handler_eff_list(AST_Manager *m, Token tok);
 AST_Node *ast_ctrl_flow_if(AST_Manager *m, Token tok, AST_Node *cond,
@@ -203,26 +203,30 @@ AST_Node *ast_type_struct(AST_Manager *m, Token tok, AST_Node *members);
 
 AST_Node *ast_temp_node(AST_Manager *m);
 
+AST_Node *ast_type_any(AST_Manager *m, Token tok);
+
 AST_Node *ast_type_bind_get_type(AST_Manager *m, AST_Node *n);
 AST_Node *ast_type_bind_get_symbol(AST_Manager *m, AST_Node *n);
 AST_Node *ast_program_point_get_tail(AST_Manager *m, AST_Node *n);
 AST_Node *ast_program_point_get_decl(AST_Manager *m, AST_Node *n);
 AST_Node *ast_bind_get_type_bind(AST_Manager *m, AST_Node *n);
 AST_Node *ast_bind_get_expr(AST_Manager *m, AST_Node *n);
-AST_Node *ast_fun_decl_get_signature(AST_Manager *m, AST_Node *n);
-AST_Node *ast_fun_decl_get_body(AST_Manager *m, AST_Node *n);
-AST_Node *ast_fun_signature_get_args(AST_Manager *m, AST_Node *n);
-AST_Node *ast_fun_signature_get_return(AST_Manager *m, AST_Node *n);
+AST_Node *ast_function_literal_get_signature(AST_Manager *m, AST_Node *n);
+AST_Node *ast_function_literal_get_body(AST_Manager *m, AST_Node *n);
+AST_Node *ast_function_signature_get_args(AST_Manager *m, AST_Node *n);
+AST_Node *ast_function_signature_get_return_type(AST_Manager *m, AST_Node *n);
 AST_Node *ast_decl_list_get_elem(AST_Manager *m, AST_Node *n);
 AST_Node *ast_decl_list_get_tail(AST_Manager *m, AST_Node *n);
 AST_Node *ast_fun_call_get_call_sym(AST_Manager *m, AST_Node *n);
 AST_Node *ast_fun_call_get_call_args(AST_Manager *m, AST_Node *n);
+AST_Node *ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret);
 
-AST_Node *ast_fun_decl_add_argument(AST_Manager *m, Token tok,
+AST_Node *ast_function_literal_push_argument(AST_Manager *m, Token tok,
                                     AST_Node *fun_decl, AST_Node *arg);
+AST_Node* ast_call_push_argument(AST_Manager* m, Token tok, AST_Node* call, AST_Node* arg);
 
 inline b8 ast_is_binary_operation(AST_Node *n) {
-  return n->kind >= __AST_BINARY_OPERATOR_START ||
+  return n->kind >= __AST_BINARY_OPERATOR_START &&
          n->kind <= __AST_BINARY_OPERATOR_END;
 }
 

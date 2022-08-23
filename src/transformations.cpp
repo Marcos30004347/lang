@@ -9,10 +9,10 @@
 #include "transformations.hpp"
 
 AST_Node *get_type_from_fun_decl(AST_Manager *m, AST_Node *n) {
-  AST_Node *s = ast_fun_decl_get_signature(m, n);
+  AST_Node *s = ast_function_literal_get_signature(m, n);
 
-  AST_Node *a = ast_fun_signature_get_args(m, s);
-  AST_Node *r = ast_fun_signature_get_return(m, s);
+  AST_Node *a = ast_function_signature_get_args(m, s);
+  AST_Node *r = ast_function_signature_get_return(m, s);
 
   AST_Node *type = ast_node_null(m);
 
@@ -37,8 +37,8 @@ AST_Node *build_closure_environment_struct(ClosureConverter *conv, Scope *parent
                              AST_Node *node);
 
 Context *context_push(Context *r, AST_Node *n) {
-  assert(n->kind == AST_TYPE_BIND || n->kind == AST_CONST_BIND ||
-         n->kind == AST_MUT_BIND);
+  assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONST ||
+         n->kind == AST_BIND_VARIABLE);
 
   Context *c = (Context *)malloc(sizeof(Context));
 
@@ -69,12 +69,12 @@ AST_Node *context_find(Context *env, Parser *p, AST_Node *sym) {
 
   AST_Node *node = ast_manager_get(m, env->decl);
 
-  assert(node->kind == AST_TYPE_BIND || node->kind == AST_CONST_BIND ||
-         node->kind == AST_MUT_BIND);
+  assert(node->kind == AST_BIND_TYPE || node->kind == AST_BIND_CONST ||
+         node->kind == AST_BIND_VARIABLE);
 
   AST_Node *root = node;
 
-  if (root->kind == AST_CONST_BIND || root->kind == AST_MUT_BIND) {
+  if (root->kind == AST_BIND_CONST || root->kind == AST_BIND_VARIABLE) {
     root = ast_bind_get_type_bind(m, root);
   }
 
@@ -175,7 +175,7 @@ AST_Node *scope_find_local(Scope *s, Parser *p, AST_Node *sym) {
 }
 
 void scope_push(Scope *s, AST_Node *n) {
-  assert(n->kind == AST_TYPE_BIND || n->kind == AST_CONST_BIND ||
+  assert(n->kind == AST_TYPE_BIND || n->kind == AST_BIND_CONST ||
          n->kind == AST_MUT_BIND);
   s->ctx = context_push(s->ctx, n);
 }
@@ -219,7 +219,7 @@ void decl_list_to_scope_rec(Parser *p, AST_Node *decl_list, Scope *local) {
   AST_Node *elem = ast_decl_list_get_elem(m, decl_list);
   AST_Node *tail = ast_decl_list_get_tail(m, decl_list);
 
-	assert(elem->kind == AST_TYPE_BIND || ast_is_null_node(elem));
+	assert(elem->kind == AST_BIND_TYPE || ast_is_null_node(elem));
 
   if (!ast_is_null_node(elem)) {
     scope_push(local, elem);
@@ -249,32 +249,18 @@ Scope *decl_list_to_scope(Parser *p, Scope *parent, AST_Node *decl_list) {
 
 Scope *build_func_decl_scope(ClosureConverter *conv, Scope *parent,
                              AST_Node *decl) {
-  assert(decl->kind == AST_FUN_DECL);
+  assert(decl->kind == AST_FUNCTION_LITERAL);
 
   AST_Manager *m = &conv->parser->ast_man;
 
-  AST_Node *sign = ast_fun_decl_get_signature(m, decl);
-  AST_Node *args = ast_fun_signature_get_args(m, sign);
+  AST_Node *sign = ast_function_literal_get_signature(m, decl);
+  AST_Node *args = ast_function_signature_get_args(m, sign);
 
   return decl_list_to_scope(conv->parser, parent, args);
 }
 
-
-AST_Node *closure_use_environment(ClosureConverter* conv, Scope* local, AST_Node* func, AST_Node* env_symb, AST_Node* env_struct) {
-	
-}
-
-AST_Node *closure_add_environment(ClosureConverter* conv, Scope* local, AST_Node* func, AST_Node* env_symb, AST_Node* env_struct) {
-	assert(func->kind == AST_FUN_DECL);
-
-	
-}
-
-AST_Node *convert_anonymous_closure(
-	ClosureConverter *conv,
-	Scope *local,
-	AST_Node *func
-) {
+AST_Node *convert_anonymous_closure(ClosureConverter *conv, Scope *local,
+                                    AST_Node *func) {
   AST_Manager *m = &conv->parser->ast_man;
 
   AST_Node *cenv = build_closure_environment_struct(conv, local, func);
@@ -285,17 +271,17 @@ AST_Node *convert_anonymous_closure(
 	
 	AST_Node* etmp = ast_temp_node(m);
 	// TODO: use pointer
-	AST_Node* ebnd = ast_type_bind(m, lexer_undef_token(), etmp, cenv);
-	AST_Node *earg = ast_fun_decl_add_argument(m, lexer_undef_token(), func, ebnd);
+	AST_Node* ebnd = ast_bind_type(m, lexer_undef_token(), etmp, cenv);
+	AST_Node *earg = ast_function_literal_push_argument(m, lexer_undef_token(), func, ebnd);
 
   AST_Node *type = get_type_from_fun_decl(m, func);
 
   AST_Node *temp = ast_temp_node(m);
   // AST_Node *type = ast_type_closure(m, lexer_undef_token(), ty);
-  AST_Node *bind = ast_type_bind(m, lexer_undef_token(), temp, type);
+  AST_Node *bind = ast_bind_type(m, lexer_undef_token(), temp, type);
 
   // AST_Node *clos = ast_closure(m, lexer_undef_token(), fun, cenv);
-  AST_Node *decl = ast_const_bind(m, lexer_undef_token(), bind, func);
+  AST_Node *decl = ast_bind_constant(m, lexer_undef_token(), bind, func);
 
   ast_manager_push_decl(m, decl);
 
@@ -335,7 +321,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
   if (ast_is_null_node(n))
     return ast_node_null(m);
 
-  if (n->kind == AST_I32_DECL || n->kind == AST_TYPE_BIND ||
+  if (n->kind == AST_I32_LITERAL || n->kind == AST_TYPE_BIND ||
       n->kind == AST_CLOS_DECL) {
     return ast_node_null(m);
   }
@@ -354,7 +340,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
     return ast_node_null(m);
   }
 
-  if (n->kind == AST_SYM_DECL) {
+  if (n->kind == AST_SYMBOL_LITERAL) {
 
 		printf("========\n");
 		scope_print(local, conv->parser);
@@ -385,7 +371,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
     return ast_node_null(m);
   }
 
-  if (n->kind == AST_CONST_BIND || n->kind == AST_MUT_BIND) {
+  if (n->kind == AST_BIND_CONST || n->kind == AST_MUT_BIND) {
     AST_Node *l = ast_manager_get_relative(m, n, n->left);
     AST_Node *r = ast_manager_get_relative(m, n, n->right);
 
@@ -417,7 +403,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
       return ast_node_null(m);
     }
 
-    if (expr->kind == AST_FUN_DECL) {
+    if (expr->kind == AST_FUNCTION_LITERAL) {
       AST_Node *bind = convert_anonymous_closure(conv, local, expr);
 
       // TODO: update function return type
@@ -426,7 +412,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
       return ast_node_null(m);
     }
 
-    if (expr->kind == AST_SYM_DECL) {
+    if (expr->kind == AST_SYMBOL_LITERAL) {
       // TODO: convert to return a closure if symbol is function
 
       return ast_node_null(m);
@@ -435,7 +421,7 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
     return fill_local_scope_expr(conv, local, exterior, expr);
   }
 
-  if (n->kind == AST_FUN_DECL) {
+  if (n->kind == AST_FUNCTION_LITERAL) {
     AST_Node *bind = convert_anonymous_closure(conv, local, n);
 		
     if (ast_is_null_node(bind)) {
@@ -445,13 +431,13 @@ AST_Node *fill_local_scope_expr(ClosureConverter *conv, Scope *local,
     return ast_type_bind_get_symbol(m, bind);
   }
 
-  if (n->kind == AST_FUN_CALL) {
+  if (n->kind == AST_FUNCTION_CALL) {
     // TODO
     // is call to closure ??
     return ast_node_null(m);
   }
 
-  if (n->kind == AST_EFF_CALL) {
+  if (n->kind == AST_EFFECT_CALL) {
     // TODO
     return ast_node_null(m);
   }
@@ -475,15 +461,15 @@ void fill_local_scope_statment_list(ClosureConverter *conv, Scope *local,
   if (ast_is_null_node(node))
     return;
 
-  assert(node->kind == AST_STATEMENT_LIST);
+  assert(node->kind == AST_PROGRAM_POINT);
 
   AST_Manager *m = &conv->parser->ast_man;
 
-  AST_Node *statement = ast_stmt_list_get_decl(m, node);
+  AST_Node *statement = ast_program_point_get_decl(m, node);
 
   fill_local_scope_expr(conv, local, exterior, statement);
 
-  AST_Node *tail = ast_stmt_list_get_tail(m, node);
+  AST_Node *tail = ast_program_point_get_tail(m, node);
 
   fill_local_scope_statment_list(conv, local, exterior, tail);
 }
@@ -491,7 +477,7 @@ void fill_local_scope_statment_list(ClosureConverter *conv, Scope *local,
 AST_Node *build_closure_environment_struct(ClosureConverter *conv, Scope *parent,
                              AST_Node *node) {
   AST_Manager *m = &conv->parser->ast_man;
-  assert(node->kind == AST_FUN_DECL);
+  assert(node->kind == AST_FUNCTION_LITERAL);
 
   Scope *local = build_func_decl_scope(conv, parent, node);
 
@@ -501,7 +487,7 @@ AST_Node *build_closure_environment_struct(ClosureConverter *conv, Scope *parent
 
   Scope *exterior = scope_create(NULL);
 
-  AST_Node *body = ast_fun_decl_get_body(m, node);
+  AST_Node *body = ast_function_literal_get_body(m, node);
 
   fill_local_scope_statment_list(conv, local, exterior, body);
 
@@ -513,15 +499,15 @@ void closure_convert_statment_list(ClosureConverter *c, Scope *local,
   if (ast_is_null_node(n))
     return;
 
-  assert(n->kind == AST_STATEMENT_LIST);
+  assert(n->kind == AST_PROGRAM_POINT);
 
   AST_Manager *m = &c->parser->ast_man;
 
-  AST_Node *l = ast_stmt_list_get_decl(m, n);
+  AST_Node *l = ast_program_point_get_decl(m, n);
 
   fill_local_scope_expr(c, local, exterior, l);
 
-  AST_Node *r = ast_stmt_list_get_tail(m, n);
+  AST_Node *r = ast_program_point_get_tail(m, n);
 
   closure_convert_statment_list(c, local, exterior, r);
 }

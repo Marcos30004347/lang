@@ -1,4 +1,5 @@
 #include "context.hpp"
+#include "ast.hpp"
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -11,8 +12,8 @@ struct Context {
 };
 
 Context *context_push(Context *r, AST_Node *n) {
-  assert(n->kind == AST_TYPE_BIND || n->kind == AST_CONST_BIND ||
-         n->kind == AST_MUT_BIND);
+  assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONSTANT ||
+         n->kind == AST_BIND_VARIABLE);
 
   Context *c = (Context *)malloc(sizeof(Context));
 
@@ -43,12 +44,12 @@ AST_Node *context_find(Context *env, Parser *p, AST_Node *sym) {
 
   AST_Node *node = ast_manager_get(m, env->decl);
 
-  assert(node->kind == AST_TYPE_BIND || node->kind == AST_CONST_BIND ||
-         node->kind == AST_MUT_BIND);
+  assert(node->kind == AST_BIND_TYPE || node->kind == AST_BIND_CONSTANT ||
+         node->kind == AST_BIND_VARIABLE);
 
   AST_Node *root = node;
 
-  if (root->kind == AST_CONST_BIND || root->kind == AST_MUT_BIND) {
+  if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
     root = ast_bind_get_type_bind(m, root);
   }
 
@@ -134,8 +135,8 @@ AST_Node *scope_find_local(Scope *s, Parser *p, AST_Node *sym) {
 }
 
 void scope_push(Scope *s, AST_Node *n) {
-  assert(n->kind == AST_TYPE_BIND || n->kind == AST_CONST_BIND ||
-         n->kind == AST_MUT_BIND);
+  assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONSTANT||
+         n->kind == AST_BIND_VARIABLE);
   s->ctx = context_push(s->ctx, n);
 }
 

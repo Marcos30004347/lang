@@ -20,7 +20,6 @@ const char *ast_kind_strs[] = {
   "AST_CALL_ARGS_LIST",
   "AST_DECL_ARGS_LIST",
 
-  "AST_STRUCT_MEMBERS_LIST",
   "AST_WITH_HANDLER",
 
   // Control Flow
@@ -46,6 +45,7 @@ const char *ast_kind_strs[] = {
   "__AST_TYPE_KIND_START",
   "AST_TYPE_I32",
   "AST_TYPE_UNIT",
+	"AST_TYPE_ANY",
   "AST_TYPE_ARROW",
   "AST_TYPE_EFFECT",
   "AST_TYPE_TUPLE",
@@ -124,7 +124,7 @@ void ast_manager_free(AST_Manager *m) {
 }
 
 void ast_init(AST_Bucket *b, AST_Node *a, Token tok, u64 kind, AST_Id id,
-              AST_Id l, AST_Id r) {
+              AST_Id l = 0, AST_Id r = 0) {
   a->left = l;
   a->right = r;
   a->id = id;
@@ -164,7 +164,6 @@ AST_Node *ast_manager_get(AST_Manager *m, AST_Id id) {
 AST_Node *ast_manager_get_relative(AST_Manager *m, AST_Node *root,
                                    AST_Id child_id) {
   assert(root);
-
   AST_Bucket *b = root->bucket;
 
   u32 w = round_down(root->id, AST_BUCKET_SIZE);
@@ -269,9 +268,9 @@ AST_Node *ast_call_arg_list(AST_Manager *m, Token tok) {
   return ast_manager_alloc(m, tok, AST_CALL_ARGS_LIST, 0, 0);
 }
 
-AST_Node *ast_decl_arg_list(AST_Manager *m, Token tok) {
-  return ast_manager_alloc(m, tok, AST_DECL_ARGS_LIST, 0, 0);
-}
+// AST_Node *ast_decl_arg_list(AST_Manager *m, Token tok) {
+//   return ast_manager_alloc(m, tok, AST_DECL_ARGS_LIST, 0, 0);
+// }
 
 AST_Node *ast_program_point(AST_Manager *m, Token tok) {
   return ast_manager_alloc(m, tok, AST_PROGRAM_POINT, 0, 0);
@@ -293,18 +292,18 @@ AST_Node *ast_variable_bind(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r)
   return ast_manager_alloc(m, tok, AST_BIND_VARIABLE, l->id, r->id);
 }
 
-AST_Node *ast_fun_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
+AST_Node *ast_function_literal(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_FUNCTION_LITERAL, l->id, r->id);
 }
-AST_Node *ast_fun_sign(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
+AST_Node *ast_function_signature(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_FUN_SIGNATURE, l->id, r->id);
 }
 
-AST_Node *ast_eff_decl(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
+AST_Node *ast_type_effect(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_TYPE_EFFECT, l->id, r->id);
 }
 
-AST_Node *ast_handler_decl(AST_Manager *m, Token tok, AST_Node *l,
+AST_Node *ast_handler_literal(AST_Manager *m, Token tok, AST_Node *l,
                            AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_HANDLER_LITERAL, l->id, r->id);
 }
@@ -355,6 +354,10 @@ AST_Node *ast_type_unit(AST_Manager *m, Token tok) {
   return ast_manager_alloc(m, tok, AST_TYPE_UNIT, 0, 0);
 }
 
+AST_Node *ast_type_any(AST_Manager *m, Token tok) {
+  return ast_manager_alloc(m, tok, AST_TYPE_ANY, 0, 0);
+}
+
 AST_Node *ast_type_arrow(AST_Manager *m, Token tok, AST_Node *l, AST_Node *r) {
   return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id);
 }
@@ -392,7 +395,7 @@ AST_Node *ast_type_struct(AST_Manager *m, Token tok, AST_Node *mems) {
 }
 
 AST_Node *ast_struct_member(AST_Manager *m, Token tok, AST_Node *mem, AST_Node* tail) {
-  return ast_manager_alloc(m, tok, AST_STRUCT_MEMBERS_LIST, mem->id, tail->id);
+  return ast_manager_alloc(m, tok, AST_PROGRAM_POINT, mem->id, tail->id);
 }
 
 AST_Node* ast_type_bind_get_type(AST_Manager* m, AST_Node* n) {
@@ -419,19 +422,19 @@ AST_Node* ast_bind_get_expr(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->right);
 }
 
-AST_Node* ast_fun_decl_get_signature(AST_Manager* m, AST_Node* n) {
+AST_Node* ast_function_literal_get_signature(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->left);
 }
 
-AST_Node* ast_fun_decl_get_body(AST_Manager* m, AST_Node* n) {
+AST_Node* ast_function_literal_get_body(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->right);
 }
 
-AST_Node* ast_fun_signature_get_args(AST_Manager* m, AST_Node* n) {
+AST_Node* ast_function_signature_get_args(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->left);
 }
 
-AST_Node* ast_fun_signature_get_return(AST_Manager* m, AST_Node* n) {
+AST_Node* ast_function_signature_get_return_type(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->right);
 }
 
@@ -449,6 +452,10 @@ AST_Node* ast_fun_call_get_call_sym(AST_Manager* m, AST_Node* n) {
 
 AST_Node* ast_fun_call_get_call_args(AST_Manager* m, AST_Node* n) {
 	return ast_manager_get_relative(m, n, n->right);
+}
+
+AST_Node *ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret) {
+	return ast_manager_get_relative(m, ret, ret->left);
 }
 
 AST_Node* ast_manager_push_decl(AST_Manager* m, AST_Node* decl) {
@@ -472,9 +479,23 @@ AST_Node* ast_manager_push_decl(AST_Manager* m, AST_Node* decl) {
 	return root;
 }
 
-AST_Node* ast_fun_decl_add_argument(AST_Manager* m, Token tok, AST_Node* func, AST_Node* arg) {
-	AST_Node* sign = ast_fun_decl_get_signature(m, func);
-	AST_Node* args = ast_fun_signature_get_args(m, sign);
+AST_Node* ast_function_literal_push_argument(AST_Manager* m, Token tok, AST_Node* func, AST_Node* arg) {
+	AST_Node* sign = ast_function_literal_get_signature(m, func);
+	AST_Node* args = ast_function_signature_get_args(m, sign);
+
+	while(args->right != 0) {
+		args = ast_manager_get_relative(m, args, args->right);
+	}
+
+	AST_Node* narg = ast_decl_args(m, tok, arg, ast_node_null(m));
+
+	args->right = narg->id;
+	
+	return narg;
+}
+
+AST_Node* ast_call_push_argument(AST_Manager* m, Token tok, AST_Node* call, AST_Node* arg) {
+	AST_Node* args = ast_manager_get_relative(m, call, call->right);
 
 	while(args->right != 0) {
 		args = ast_manager_get_relative(m, args, args->right);
