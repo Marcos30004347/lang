@@ -1,26 +1,40 @@
 #pragma once
 
-/*
-        Continuation Passing Style Analysis
-*/
+// Continuation Passing Style Analysis.
+// brief: the analysis transform a program into CPS style.
+// The analysis expects :
+// 1. The program is using three adress instructions.
+// 2. calls are only made on simple assignment.
+// 3. All variable types are know and the program typechecks.
 
 #include "ast.hpp"
 #include "context.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
+
+#include "stdio.h"
 #include <assert.h>
+#include <cstdio>
 
+void scope_add_function_literal_arguments(Scope *scope, Parser *p,
+                                          AST_Node *lit) {
+  AST_Node *sign = ast_function_literal_get_signature(&p->ast_man, lit);
+  AST_Node *args = ast_function_signature_get_args(&p->ast_man, sign);
 
-struct CPS_Analysis {
-	Scope* scope;
-};
+  while (!ast_is_null_node(args)) {
+    AST_Node *bind = ast_manager_get_relative(&p->ast_man, args, args->left);
 
-void init_cps_analysis(CPS_Analysis* anaylisis) {
-	anaylisis->scope = scope_create(NULL);
+    scope_push(scope, bind);
+
+    args = ast_manager_get_relative(&p->ast_man, args, args->right);
+  }
 }
 
-AST_Node *body_split(CPS_Analysis *analysis, Parser *p, AST_Node *body) {
+void cps_analisys(Scope *scope, Parser *p, AST_Node *node);
+
+
+AST_Node *body_split(Scope *scope, Parser *p, AST_Node *body) {
   assert(body->kind == AST_PROGRAM_POINT);
 
   AST_Manager *m = &p->ast_man;
@@ -36,44 +50,54 @@ AST_Node *body_split(CPS_Analysis *analysis, Parser *p, AST_Node *body) {
 
   AST_Node *continuation = ast_manager_get_relative(m, body, body->right);
 
-
   if (program_point->kind == AST_BIND_CONSTANT ||
       program_point->kind == AST_BIND_VARIABLE) {
-		scope_push(analysis->scope, program_point);
+    AST_Node *expr = ast_bind_get_expr(m, program_point);
 
-		AST_Node *expr = ast_bind_get_expr(m, program_point);
+    scope_push(scope, program_point);
 
     if (expr->kind == AST_FUNCTION_CALL) {
+      AST_Node *func = ast_manager_get_relative(m, expr, expr->left);
+      AST_Node *sign = scope_find(scope, p, func);
 
-		 AST_Node* func = ast_manager_get_relative(m, expr, expr->left);
-		 AST_Node* sign = scope_find(analysis->scope, p, func);
- 
-		if(ast_is_null_node(sign)) {
-			parser_error(p, func->tok, "Could not find definition");
-		}
+      if (ast_is_null_node(sign)) {
+        parser_error(p, func->tok, "Could not find definition");
+      }
 
-		// get the type of the function, an arrow type
-		AST_Node* arrw = ast_type_bind_get_type(m, sign);
-		// get the return type of the function
-		AST_Node* type = ast_manager_get_relative(m, arrw, arrw->right);
+      // get the type of the function, an arrow type
+      if (sign->kind == AST_BIND_CONSTANT || sign->kind == AST_BIND_VARIABLE) {
+        sign = ast_bind_get_type_bind(m, sign);
+      }
 
+      assert(sign->kind == AST_BIND_TYPE);
 
-    AST_Node *bind = ast_bind_get_type_bind(m, program_point);
+      AST_Node *arrw = ast_type_bind_get_type(m, sign);
+      // get the return type of the function
+      AST_Node *type = ast_is_null_node(arrw)
+                           ? ast_type_any(m, token)
+                           : ast_manager_get_relative(m, arrw, arrw->right);
 
-		bind->right = type->id;
-			
-		AST_Node *args = ast_decl_args(m, token, bind, ast_node_null(m));
+      if (ast_is_null_node(type))
+        type = ast_type_any(m, token);
+
+      AST_Node *bind = ast_bind_get_type_bind(m, program_point);
+
+      bind->right = type->id;
+
+      AST_Node *args = ast_decl_args(m, token, bind, ast_node_null(m));
 
       // TODO: not use any as type here and try to infer the type
-      AST_Node *csign = ast_function_signature(m, token, args, ast_type_any(m, token));
+      AST_Node *csign =
+          ast_function_signature(m, token, args, ast_type_any(m, token));
+
       AST_Node *cdecl = ast_function_literal(m, token, csign, continuation);
 
       ast_call_push_argument(m, token, expr, cdecl);
 
-			body->right = ast_node_null(m)->id;
-			body->left = expr->id;
+      body->right = ast_node_null(m)->id;
+      body->left = expr->id;
     }
-		
+
     return continuation;
   }
 
@@ -85,28 +109,39 @@ AST_Node *body_split(CPS_Analysis *analysis, Parser *p, AST_Node *body) {
 
     if (expr->kind == AST_FUNCTION_CALL) {
 
-		 AST_Node* func = ast_manager_get_relative(m, expr, expr->left);
-		 AST_Node* sign = scope_find(analysis->scope, p, func);
- 
-		if(ast_is_null_node(sign)) {
-			parser_error(p, func->tok, "Could not find definition");
-		}
-		// get the type of the function, an arrow type
-		AST_Node* arrw = ast_type_bind_get_type(m, sign);
-		// get the return type of the function
-		AST_Node* type = ast_manager_get_relative(m, arrw, arrw->right);
+      AST_Node *func = ast_manager_get_relative(m, expr, expr->left);
+      AST_Node *sign = scope_find(scope, p, func);
 
+      if (ast_is_null_node(sign)) {
+        parser_error(p, func->tok, "Could not find definition");
+      }
+      // get the type of the function, an arrow type
+      if (sign->kind == AST_BIND_CONSTANT || sign->kind == AST_BIND_VARIABLE) {
+        sign = ast_bind_get_type_bind(m, sign);
+      }
+
+      assert(sign->kind == AST_BIND_TYPE);
+
+      AST_Node *arrw = ast_type_bind_get_type(m, sign);
+      // get the return type of the function
+      AST_Node *type = ast_is_null_node(arrw)
+                           ? ast_type_any(m, token)
+                           : ast_manager_get_relative(m, arrw, arrw->right);
+
+      if (ast_is_null_node(type))
+        type = ast_type_any(m, token);
 
       AST_Node *bind = ast_constant_bind(m, token, symb, type);
       AST_Node *args = ast_decl_args(m, token, bind, ast_node_null(m));
 
-      AST_Node *csign = ast_function_signature(m, token, args, ast_type_any(m, token));
+      AST_Node *csign =
+          ast_function_signature(m, token, args, ast_type_any(m, token));
       AST_Node *cdecl = ast_function_literal(m, token, csign, continuation);
 
       ast_call_push_argument(m, token, expr, cdecl);
-			
-			body->right = ast_node_null(m)->id;
-			body->left = expr->id;
+
+      body->right = ast_node_null(m)->id;
+      body->left = expr->id;
     }
 
     return continuation;
@@ -115,42 +150,57 @@ AST_Node *body_split(CPS_Analysis *analysis, Parser *p, AST_Node *body) {
   if (program_point->kind == AST_FUNCTION_CALL) {
     // TODO: use type of the symbol, need to find the definition on the context
 
-		// need to get the return type of the function
-		AST_Node* symb = ast_manager_get_relative(m, program_point, program_point->left);
+    // need to get the return type of the function
+    AST_Node *symb =
+        ast_manager_get_relative(m, program_point, program_point->left);
 
-		AST_Node* sign = scope_find(analysis->scope, p, symb);
+    AST_Node *sign = scope_find(scope, p, symb);
 
-		if(ast_is_null_node(sign)) {
-			parser_error(p, symb->tok, "Could not find definition");
-		}
-		
-		// get the type of the function, an arrow type
-		AST_Node* arrw = ast_type_bind_get_type(m, sign);
-		// get the return type of the function
-		AST_Node* type = ast_manager_get_relative(m, arrw, arrw->right);
+    if (ast_is_null_node(sign)) {
+      parser_error(p, symb->tok, "Could not find definition");
+    }
+    // get the type of the function, an arrow type
+    if (sign->kind == AST_BIND_CONSTANT || sign->kind == AST_BIND_VARIABLE) {
+      sign = ast_bind_get_type_bind(m, sign);
+    }
 
-		AST_Node* carg = ast_type_bind(m, token, ast_temp_node(m), type);
-		AST_Node* bind = ast_decl_args(m, token, carg, ast_node_null(m));
+    assert(sign->kind == AST_BIND_TYPE);
+
+    AST_Node *arrw = ast_type_bind_get_type(m, sign);
+    // get the return type of the function
+    AST_Node *type = ast_is_null_node(arrw)
+                         ? ast_type_any(m, token)
+                         : ast_manager_get_relative(m, arrw, arrw->right);
+
+    if (ast_is_null_node(type))
+      type = ast_type_any(m, token);
+
+    AST_Node *carg = ast_type_bind(m, token, ast_temp_node(m), type);
+    AST_Node *bind = ast_decl_args(m, token, carg, ast_node_null(m));
 
     // TODO: not use any as type here and try to infer the type
-    AST_Node *csign = ast_function_signature(m, token, bind, ast_type_any(m, token));
+    AST_Node *csign =
+        ast_function_signature(m, token, bind, ast_type_any(m, token));
     AST_Node *cdecl = ast_function_literal(m, token, csign, continuation);
 
     ast_call_push_argument(m, token, program_point, cdecl);
-					
-		body->right = ast_node_null(m)->id;
 
-		return continuation;
+    body->right = ast_node_null(m)->id;
+
+    return continuation;
   }
 
   return continuation;
 }
 
-AST_Node *body_to_cps(CPS_Analysis *analysis, Parser *p, AST_Node *body,
+AST_Node *body_to_cps(Scope *scope, Parser *p, AST_Node *body,
                       AST_Node *cont_symb) {
-  assert(body->kind == AST_PROGRAM_POINT);
-
   AST_Manager *m = &p->ast_man;
+
+  if (ast_is_null_node(body))
+    return ast_node_null(m);
+
+  assert(body->kind == AST_PROGRAM_POINT);
 
   Token token = lexer_undef_token();
 
@@ -164,39 +214,72 @@ AST_Node *body_to_cps(CPS_Analysis *analysis, Parser *p, AST_Node *body,
       AST_Node *call = ast_call(m, token, cont_symb, expr);
 
       body->left = call->id;
-			body->right = ast_node_null(m)->id;
- 
-			return ast_node_null(m);
+      body->right = ast_node_null(m)->id;
     }
 
     if (program_point->kind == AST_BIND_CONSTANT ||
         program_point->kind == AST_BIND_VARIABLE ||
-        program_point->kind == AST_OP_BIN_ASSIGN ||
-        program_point->kind == AST_FUNCTION_CALL) {
-      return body_to_cps(analysis, p, body_split(analysis, p, body), cont_symb);
+        program_point->kind == AST_OP_BIN_ASSIGN) {
+
+      if (program_point->kind == AST_BIND_CONSTANT ||
+          program_point->kind == AST_BIND_VARIABLE) {
+        scope_push(scope, program_point);
+      }
+
+      AST_Node *right =
+          ast_manager_get_relative(m, program_point, program_point->right);
+
+      if (right->kind == AST_FUNCTION_LITERAL) {
+        cps_analisys(scope, p, right);
+      } else {
+        body_to_cps(scope, p, body_split(scope, p, body), cont_symb);
+      }
+    }
+
+    if (program_point->kind == AST_FUNCTION_CALL) {
+      body_to_cps(scope, p, body_split(scope, p, body), cont_symb);
+    }
+
+    if (program_point->kind == AST_CTRL_FLOW_IF) {
+      body_to_cps(
+          scope, p,
+          ast_manager_get_relative(m, program_point, program_point->right),
+          cont_symb);
+    }
+
+    if (program_point->kind == AST_CTRL_FLOW_IF_ELSE) {
+      AST_Node *if_statement =
+          ast_manager_get_relative(m, program_point, program_point->left);
+      body_to_cps(
+          scope, p,
+          ast_manager_get_relative(m, program_point, if_statement->right),
+          cont_symb);
+      body_to_cps(
+          scope, p,
+          ast_manager_get_relative(m, program_point, program_point->right),
+          cont_symb);
     }
 
     parent = body;
     body = ast_program_point_get_tail(m, body);
   }
 
-  AST_Node *args = ast_call_arg_list(m, token);
-  AST_Node *call = ast_call(m, token, cont_symb, args);
+  // AST_Node *args = ast_decl_args(m, token, ast_node_null(m), ast_node_null(m));
+  // AST_Node *call = ast_call(m, token, cont_symb, args);
+  // AST_Node *continuation = ast_program_point(m, token);
 
-  AST_Node *continuation = ast_program_point(m, token);
-
-  continuation->left = call->left;
-
-  parent->right = continuation->id;
+  // continuation->left = call->id;
+  // parent->right = continuation->id;
 
   return ast_node_null(m);
 }
 
-void ast_to_cps(CPS_Analysis *analysis, Parser *p, AST_Node *node) {
-	if(ast_is_null_node(node)) return;
-	
+void cps_analisys(Scope *scope, Parser *p, AST_Node *node) {
+  if (ast_is_null_node(node))
+    return;
+
   AST_Manager *m = &p->ast_man;
-	
+
   Token token = lexer_undef_token();
 
   if (node->kind == AST_FUNCTION_LITERAL) {
@@ -208,32 +291,67 @@ void ast_to_cps(CPS_Analysis *analysis, Parser *p, AST_Node *node) {
 
     ast_function_literal_push_argument(m, token, node, cont_bind);
 
+    scope = scope_create(scope);
+
+    scope_add_function_literal_arguments(scope, p, node);
+
     AST_Node *body = ast_function_literal_get_body(m, node);
-
-		body_to_cps(analysis, p, body, cont_symb);
-
-		return;
+    body_to_cps(scope, p, body, cont_symb);
+    // TODO: fix leak
+    scope = scope->parent;
+    return;
   }
 
+  if (node->kind == AST_BIND_CONSTANT || node->kind == AST_BIND_VARIABLE) {
+    // push current definition to the scope
+    scope_push(scope, node);
+    cps_analisys(scope, p, ast_manager_get_relative(m, node, node->right));
+    return;
+  }
+
+  if (node->kind == AST_PROGRAM_POINT) {
+    cps_analisys(scope, p, ast_manager_get_relative(m, node, node->left));
+    cps_analisys(scope, p, ast_manager_get_relative(m, node, node->right));
+
+    return;
+  }
+
+  if (node->kind == AST_HANDLER_LITERAL) {
+    cps_analisys(scope, p, ast_manager_get_relative(m, node, node->right));
+  }
+
+  if (node->kind == AST_HANDLER_LITERAL) {
+    cps_analisys(scope, p, ast_manager_get_relative(m, node, node->right));
+  }
+}
+
+struct Closure_Analysis {
+	// functions and continuations that may escape the current scope.
+	Scope* escaping_user_funcs;
+	Scope* escaping_cont_funcs;
+
+	// functions and continuations that cannot scape the current scope.
+	Scope* known_user_funcs;
+	Scope* known_cont_funcs;
+
+};
+
+
+void fill_function_information(Closure_Analysis* analysis, Parser* p, AST_Node* node) {
+	AST_Manager* m = &p->ast_man;
+	
 	if(node->kind == AST_BIND_CONSTANT || node->kind == AST_BIND_VARIABLE) {
-		// push current definition to the scope
-		scope_push(analysis->scope, ast_manager_get_relative(m, node, node->left));
-		ast_to_cps(analysis, p, ast_manager_get_relative(m, node, node->right));
-		return;
+		AST_Node* expr = ast_bind_get_expr(m, node);
+		
+		
+		if(expr->kind == AST_FUNCTION_LITERAL) {
+			scope_push(analysis->known_user_funcs, node);
+		}
 	}
 	
-	if(node->kind == AST_PROGRAM_POINT) {
-		ast_to_cps(analysis, p, ast_manager_get_relative(m, node, node->left));
-		ast_to_cps(analysis, p, ast_manager_get_relative(m, node, node->right));
+}
 
-		return;
-	}
-
-	if(node->kind == AST_HANDLER_LITERAL) {
-		ast_to_cps(analysis, p, ast_manager_get_relative(m, node, node->right));
-	}
+void closure_analysis(Closure_Analysis* analysis, Parser* p, AST_Node* node) {
 	
-	if(node->kind == AST_HANDLER_LITERAL) {
-		ast_to_cps(analysis, p, ast_manager_get_relative(m, node, node->right));
-	}
+	
 }

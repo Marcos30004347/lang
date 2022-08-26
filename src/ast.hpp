@@ -16,9 +16,14 @@ enum AST_Kind {
   AST_WITH_HANDLER,
 
   // Control Flow
+	__AST_CTRL_FLOW_START,
   AST_CTRL_FLOW_IF,
+  AST_CTRL_FLOW_IF_ELSE,
   AST_CTRL_FLOW_RETURN,
-
+	AST_CTRL_FLOW_MATCH,
+	AST_CTRL_FLOW_CASE,
+	__AST_CTRL_FLOW_END,
+	
   // Bindings
   AST_BIND_CONSTANT,
   AST_BIND_VARIABLE,
@@ -77,6 +82,13 @@ enum AST_Kind {
   AST_EFFECT_CALL,
   __AST_CALL_OPERATION_END,
 
+
+	__AST_INTERNAL_START,
+	AST_PHI_NODE,
+	AST_PHI_NODE_ARG,
+	AST_PHI_NODE_ARG_LIST,
+	__AST_INTERNAL_END,
+	
   __AST_KIND_END,
 };
 
@@ -236,3 +248,8 @@ inline b8 ast_is_unary_operation(AST_Node *n) {
 }
 
 b8 ast_is_temporary(AST_Manager *m, AST_Node *n);
+
+AST_Node* ast_phi(AST_Manager* m, AST_Node* args);
+AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch);
+AST_Node* ast_match(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* cases);
+AST_Node* ast_match_case(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* body);

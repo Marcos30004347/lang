@@ -552,20 +552,26 @@ AST_Node *parser_parse_if_statement(Parser *p) {
   parser_read_token(p, TOKEN_KEYWORD_IF);
 
   AST_Node *cond = parser_parse_expr(p);
-
   AST_Node * body = ast_node_null(&p->ast_man);
 	
 	if(parser_curr_tok(p).type == TOKEN_KEYWORD_THEN) {
+		parser_read_token(p, TOKEN_KEYWORD_THEN);
+	
 		body = parser_parse_expr(p);
 	} else {
 		body = parser_parse_statements(p);
-}
+	}
 
-  AST_Node *cont = 0;
+  AST_Node *cont = ast_node_null(&p->ast_man);
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_ELSE) {
     parser_read_token(p, TOKEN_KEYWORD_ELSE);
-    cont = parser_parse_if_statement(p);
+
+		if(parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
+			cont = parser_parse_statements(p);
+		} else {
+			cont = parser_parse_expr(p);
+		}
   }
 
   return ast_ctrl_flow_if(&p->ast_man, tok, cond, body, cont);
@@ -1052,7 +1058,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 	if(n->kind == AST_FUNCTION_LITERAL) {
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
 		printf(" {\n");
-		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 1);
+		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
 		
 		for(i32 i = 0; i < scope; i++) printf(" ");
 		printf("}");
@@ -1073,7 +1079,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
 		printf(": ");
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
-		printf("\n");
+		printf("");
 		return;
 	}
 	
@@ -1081,7 +1087,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
 		printf("= ");
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
-		printf("\n");
+		printf("");
 		return;
 	}
 
@@ -1098,7 +1104,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
 		printf(" = ");
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
-		printf("\n");
+		printf("");
 		return;
 	}
 
@@ -1121,7 +1127,18 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 		printf("if ");
 		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
 		printf(" {\n");
-		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
+		
+		for(i32 i = 0; i < scope; i++) printf(" ");
+		printf("}");
+		return;
+	}
+
+	if(n->kind == AST_CTRL_FLOW_IF_ELSE) {
+		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+		printf(" else {\n");
+		print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
+		for(i32 i = 0; i < scope; i++) printf(" ");
 		printf("}");
 		return;
 	}

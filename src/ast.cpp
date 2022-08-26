@@ -23,8 +23,13 @@ const char *ast_kind_strs[] = {
   "AST_WITH_HANDLER",
 
   // Control Flow
+	"__AST_CTRL_FLOW_START",
   "AST_CTRL_FLOW_IF",
+  "AST_CTRL_FLOW_IF_ELSE",
   "AST_CTRL_FLOW_RETURN",
+	"AST_CTRL_FLOW_MATCH",
+	"AST_CTRL_FLOW_CASE",
+	"__AST_CTRL_FLOW_END",
 
   // Bindings
   "AST_BIND_CONSTANT",
@@ -83,6 +88,12 @@ const char *ast_kind_strs[] = {
   "AST_FUN_CALL",
   "AST_EFF_CALL",
   "__AST_CALL_OPERATION_END",
+
+	"__AST_INTERNAL_START",
+	"AST_PHI_NODE",
+	"AST_PHI_NODE_ARG",
+	"AST_PHI_NODE_ARG_LIST",
+	"__AST_INTERNAL_END",
 
   "__AST_KIND_END",
 };
@@ -308,6 +319,25 @@ AST_Node *ast_handler_literal(AST_Manager *m, Token tok, AST_Node *l,
   return ast_manager_alloc(m, tok, AST_HANDLER_LITERAL, l->id, r->id);
 }
 
+AST_Node* ast_phi(AST_Manager* m, AST_Node* args) {
+	assert(args->kind == AST_DECL_ARGS_LIST);
+
+  return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE, args->id, ast_node_null(m)->id);
+}
+
+AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch) {
+  return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE_ARG, arg->id, branch->id);
+}
+
+AST_Node* ast_match(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* cases) {
+	assert(cases->kind == AST_DECL_ARGS_LIST || cases->kind == AST_NULL_NODE);
+  return ast_manager_alloc(m, lexer_undef_token(), AST_CTRL_FLOW_CASE, expr->id, cases->id);
+}
+
+AST_Node* ast_match_case(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* body) {
+  return ast_manager_alloc(m, lexer_undef_token(), AST_CTRL_FLOW_CASE, expr->id, body->id);
+}
+
 i8 *ast_kind_to_cstr(u64 k) {
 	if(k >= __AST_KIND_END) {
 		i8 buff[256];
@@ -330,7 +360,12 @@ i8 *ast_kind_to_cstr(u64 k) {
 AST_Node *ast_ctrl_flow_if(AST_Manager *m, Token tok, AST_Node *cond,
                            AST_Node *body, AST_Node *elif) {
   AST_Node *a = ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF, cond->id, body->id);
-  return ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF, a->id, elif->id);
+
+	if(ast_is_null_node(elif)) {
+		return a;
+	}
+	
+  return ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF_ELSE, a->id, elif->id);
 }
 
 AST_Node *ast_ctrl_flow_ret(AST_Manager *m, Token tok, AST_Node *expr) {

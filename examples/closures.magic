@@ -1,17 +1,23 @@
-g : i32 * i32 -> i32 : (x:i32, y:i32) -> i32 {
-	return x + y;
+f :: (x:i32) -> i32 {
+	return 0;
 }
 
-h : i32 -> i32 : (x:i32) -> i32 {
-	return x;
+iter :: (x:i32, p:i32, f:i32) -> i32 {
+	h :: (a:i32, r:i32) -> i32 {
+		cond :: p(a, r);
+		if cond {
+			return a;
+		} else {
+			u :: f(a);
+			y :: h(u, a);
+			return y;
+		}
+	}
+
+	t :: h(x, 1);
+
+	return t;
 }
 
-f : i32 -> i32 : (x:i32) -> i32 {
-	z : i32 : x + 1;
-	y : i32 : z + 2;
-	w : i32 : g(y, z);
 
-	h(w);
 
-	return y;
-}

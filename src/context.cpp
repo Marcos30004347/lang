@@ -77,9 +77,15 @@ void scope_print(Scope *s, Parser *p) {
 
   while (ctx) {
     AST_Node *n = ast_manager_get(&p->ast_man, ctx->decl);
-
-    AST_Node *s = ast_type_bind_get_symbol(&p->ast_man, n);
-
+		AST_Node* s = ast_node_null(&p->ast_man);
+		
+		if(n->kind == AST_BIND_TYPE) {
+			s = ast_type_bind_get_symbol(&p->ast_man, n);
+		} else {
+			AST_Node* t = ast_bind_get_type_bind(&p->ast_man, n);
+			s = ast_type_bind_get_symbol(&p->ast_man, t);
+		}
+		
 		i8 buff[256];
 		
 		if(ast_is_temporary(&p->ast_man, s)) {
