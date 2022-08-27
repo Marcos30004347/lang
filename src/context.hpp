@@ -2,21 +2,28 @@
 
 #include "parser.hpp"
 
-struct Scope {
-	typedef struct Context Context;
+struct Context {
+  AST_Id decl;
 
-	Context *ctx;
-  Scope *parent;
+  Context* next;
+  Context* prev;
 };
 
-Scope *scope_create(Scope *parent);
+struct Scope {
+  typedef struct Context Context;
 
-void scope_push(Scope *s, AST_Node *n);
-void scope_pop(Scope *s);
+  Context* ctx;
+  Scope* parent;
+};
 
-void scope_print(Scope *s, Parser *p);
+Scope* scope_create(Scope* parent);
 
-b8 scope_is_global(Scope *s);
+void scope_push(Scope* s, AST_Node* n);
+void scope_pop(Scope* s);
 
-AST_Node *scope_find(Scope *s, Parser *p, AST_Node *sym);
-AST_Node *scope_find_local(Scope *s, Parser *p, AST_Node *sym);
+void scope_print(Scope* s, Parser* p);
+
+b8 scope_is_global(Scope* s);
+
+AST_Node* scope_find(Scope* s, Parser* p, AST_Node* sym);
+AST_Node* scope_find_local(Scope* s, Parser* p, AST_Node* sym);

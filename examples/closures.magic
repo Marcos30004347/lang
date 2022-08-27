@@ -1,23 +1,47 @@
+// NOTE(marcos): language does not have type inference yet
+// for things to work all typing information needs to be
+// statically available.
+
 f :: (x:i32) -> i32 {
 	return 0;
 }
 
-iter :: (x:i32, p:i32, f:i32) -> i32 {
-	h :: (a:i32, r:i32) -> i32 {
+iter :: (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
+	h : i32*i32 -> i32 : (a:i32, r:i32) -> i32 {
 		cond :: p(a, r);
 		if cond {
 			return a;
 		} else {
-			u :: f(a);
-			y :: h(u, a);
+			u : i32 : f(a);
+			y : i32 : h(u, a);
 			return y;
 		}
 	}
 
-	t :: h(x, 1);
+	t : i32 : h(x, 1);
 
 	return t;
 }
 
+w : unit -> i32 : () {
+	x : i32 = 3;
+	
+	g : unit -> i32 : () {
+		x = 5;
+		return 4;
+	}
+	
+	g();
 
+	return 4;
+}
+
+q : unit -> i32 : (f: i32 -> i32) {
+	t : i32 -> i32 : (x:i32) -> i32 { return x; }
+	r : i32 -> i32 : (x:i32) -> i32 { return x; }
+
+	f = t;
+
+	return r;
+}
 

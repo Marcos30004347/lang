@@ -42,6 +42,7 @@ struct Control_Flow_Graph {
   Basic_Block bb;
 	Control_Flow_Graph* dominator;
 	std::vector<Control_Flow_Graph*> succ;
+	std::vector<Control_Flow_Graph*> pred;
 };
 
 struct CFG_List_Node {
@@ -222,7 +223,6 @@ Control_Flow_Graph *build_control_flow_graph(Parser *p, AST_Node *node,
 
 
 struct Dominator_Analysis {
-	u64 n;
 	std::vector<u32> semi;
 	std::vector<u32> idom;
 	std::vector<u32> label;
@@ -235,16 +235,20 @@ struct Dominator_Analysis {
 	std::vector<std::vector<u32> > pred;
 	std::vector<std::vector<u32> > edges;
 	std::vector<std::vector<u32> > bucket;
+};
+
+struct Control_Flow_Graph_Map {
+	u64 n;
 	std::vector<Control_Flow_Graph*> nodes;
 };
 
 
-u32 dfs_init(Dominator_Analysis* dfs, Control_Flow_Graph* cfg) {
+u32 dfs_init(Dominator_Analysis* dfs, Control_Flow_Graph_Map* map, Control_Flow_Graph* cfg) {
 	if(cfg == NULL) return 0;
 	if(cfg->id != -1) return cfg->id;
 										
-	cfg->id = dfs->nodes.size();
-	dfs->nodes.push_back(cfg);
+	cfg->id = map->nodes.size();
+	map->nodes.push_back(cfg);
 
 	dfs->semi.push_back(0);
 	dfs->vertex.push_back(0);
@@ -263,18 +267,19 @@ u32 dfs_init(Dominator_Analysis* dfs, Control_Flow_Graph* cfg) {
 	dfs->succ.push_back(std::vector<u32>());
 
 	for(u64 i = 0; i < cfg->succ.size(); i++) {
-		u64 b = dfs_init(dfs, cfg->succ[i]);
+		u64 b = dfs_init(dfs, map, cfg->succ[i]);
 
+		cfg->succ[i]->pred.push_back(cfg);
 		dfs->succ[cfg->id].push_back(b);
 	}
 
 	return cfg->id;
 }
 
-void dfs_rec(Dominator_Analysis* a, u64 v) {
-	a->semi[v] = a->n = a->n + 1;
+void dfs_rec(Dominator_Analysis* a, Control_Flow_Graph_Map*map, u64 v) {
+	a->semi[v] = map->n = map->n + 1;
 
-	a->vertex[a->n] = a->label[v] = v;
+	a->vertex[map->n] = a->label[v] = v;
 
 	a->size[v] = 1;	
 	a->childs[v] = 0;
@@ -286,15 +291,15 @@ void dfs_rec(Dominator_Analysis* a, u64 v) {
 
 		if (a->semi[w] == 0) {
 			a->parent[w] = v;
-			dfs_rec(a, w);
+			dfs_rec(a, map, w);
 		}
 		
 		a->pred[w].push_back(v);
 	}
 }
 
-u64 dfs(Dominator_Analysis* a, Control_Flow_Graph* cfg) {
-	a->n = 0;
+u64 dfs(Dominator_Analysis* a, Control_Flow_Graph_Map* map, Control_Flow_Graph* cfg) {
+	map->n = 0;
 
 	a->bucket.push_back(std::vector<u32>());
 	a->edges.push_back(std::vector<u32>());
@@ -309,13 +314,13 @@ u64 dfs(Dominator_Analysis* a, Control_Flow_Graph* cfg) {
 	a->semi.push_back(0);
 	a->idom.push_back(0);
 	
-	a->nodes.push_back(NULL);
+	map->nodes.push_back(NULL);
 	a->succ.push_back(std::vector<u32>());
 	a->vertex.push_back(0);
 	
-	u32 root = dfs_init(a, cfg);
+	u32 root = dfs_init(a,map, cfg);
 	
-	dfs_rec(a, root);
+	dfs_rec(a, map, root);
 
 	return root;
 }
@@ -373,16 +378,13 @@ u64 eval(Dominator_Analysis* a, u64 v) {
 	return a->label[v];
 }
 
-
-
-void dominator(Control_Flow_Graph* cfg) {
+void compute_dominators(Control_Flow_Graph_Map* map, Control_Flow_Graph* cfg) {
 	Dominator_Analysis a;
 	
-	u64 root = dfs(&a, cfg);
+	u64 root = dfs(&a, map, cfg);
 	
-	printf("root: %lu\n", root);
-
-	for(u64 i = a.n; i >= 2; i--) { // iterate until root
+	// NOTE(Marcos): 1 is the index of the root node, we can ignore it
+	for(u64 i = map->n; i >= 2; i--) { // iterate until root
 		u64 w = a.vertex[i];
 
 		for(u64 j = 0; j < a.pred[w].size(); j++) {
@@ -413,12 +415,8 @@ void dominator(Control_Flow_Graph* cfg) {
 			}
 		}
 	}
-
-	for(u64 i = 2; i < a.idom.size(); i++) {
-		printf("--> %u\n", a.idom[i]);
-	}
-
-	for(u64 i = 2; i <= a.n; i++) {
+	
+	for(u64 i = 2; i <= map->n; i++) {
 		u64 w = a.vertex[i];
 		if(a.idom[w] != a.vertex[a.semi[w]]) {
 			a.idom[w] = a.idom[a.idom[w]];
@@ -426,12 +424,73 @@ void dominator(Control_Flow_Graph* cfg) {
 	}
 
 	a.idom[1] = 0;
-	a.nodes[a.vertex[1]]->dominator = NULL;
+	map->nodes[a.vertex[1]]->dominator = NULL;
 	
 	for(u64 i = 2; i < a.vertex.size(); i++) {
-		a.nodes[a.vertex[i]]->dominator = a.nodes[a.vertex[a.idom[i]]];
+		map->nodes[a.vertex[i]]->dominator = map->nodes[a.vertex[a.idom[i]]];
+	}
+
+}
+
+struct Dominator_Frontier {
+	std::vector<std::vector<u64> > frontier; 
+};
+
+void init_dominator_frontier (Dominator_Frontier* df, u64 n) {
+	df->frontier = std::vector<std::vector<u64> >(n, std::vector<u64>());
+}
+
+void add_path_to_df_rec(Dominator_Frontier* df, Control_Flow_Graph* node, Control_Flow_Graph* prev, Control_Flow_Graph* idom) {
+	if(prev == idom) return;
+
+	if(node != prev) {
+		df->frontier[node->id].push_back(prev->id);
+	}
+	
+	for(u64 i = 0; i < node->pred.size(); i++) {
+		add_path_to_df_rec(df, node, node->pred[i], idom);
 	}
 }
+
+void compute_dominator_frontier(Dominator_Frontier *df,Control_Flow_Graph_Map* map, Control_Flow_Graph* cfg) {
+	init_dominator_frontier(df, map->n);
+
+	for (u64 i = 0; i < map->nodes.size(); i++) {
+    Control_Flow_Graph *cfg = map->nodes[i];
+
+    // TODO(marcos): test if this node is a joint point, move to a separete
+    // function
+    if (cfg->pred.size() >= 2) {
+      Control_Flow_Graph *node = cfg;
+
+      for (u64 i = 0; i < node->pred.size(); i++) {
+        Control_Flow_Graph *runner = cfg->pred[i];
+        Control_Flow_Graph *idom = runner->dominator;
+
+        while (runner != idom) {
+          df->frontier[runner->id].push_back(cfg->id);
+					runner = runner->dominator;
+        }
+      }
+    }
+  }
+}
+
+
+void ast_to_ssa(Parser* p, AST_Node* body) {
+  AST_Manager *m = &p->ast_man;
+
+	Control_Flow_Graph *cfg = build_control_flow_graph(p, body);
+	Dominator_Frontier df;
+	Control_Flow_Graph_Map map;
+	
+	compute_dominators(&map, cfg);
+
+	compute_dominator_frontier(&df, &map, cfg);
+
+	
+}
+
 
 void ast_to_ssa_form(Parser *p, AST_Node *node) {
   AST_Manager *m = &p->ast_man;
@@ -445,7 +504,7 @@ void ast_to_ssa_form(Parser *p, AST_Node *node) {
 
     Control_Flow_Graph *cfg = build_control_flow_graph(p, body);
 
-		dominator(cfg);
+		u64 n = compute_dominators(cfg);
 
 		// TODO: to_ssa(program_point, cfg);
 		return;
