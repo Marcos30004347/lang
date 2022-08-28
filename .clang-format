@@ -10,10 +10,13 @@ PointerAlignment: Left
 # AlignAfterOpenBracket: false
 BinPackParameters: false
 BinPackArguments: false
-ColumnLimit: 120
+ColumnLimit: 220
 IndentWidth: 2
 AlignArrayOfStructures: Right
 AlignConsecutiveAssignments: true
 AlignConsecutiveMacros: true
 AlignOperands: AlignAfterOperator
 AlignTrailingComments: true
+BreakBeforeBinaryOperators: NonAssignment
+AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse

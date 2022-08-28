@@ -23,11 +23,18 @@ void should_closure_convert_ast() {
 
   print_ast(&p, root);
 
-  cps_analisys(scope, &p, root);
+  // CPS_Function_Analysis analysis;
+
+  // analysis.continuation_funcs   = scope_create(NULL);
+  // analysis.escaping_local_funcs = scope_create(NULL);
+
+  // cps_analisys(&analysis, scope, &p, root);
+
+  cps_conversion(&p, root);
 
   print_ast_to_program(&p, root);
 
-  run_escaping_analysis(NULL, &p, root);
+  // run_escaping_analysis(&analysis, &p, root);
 
   parser_destroy(&p);
 }

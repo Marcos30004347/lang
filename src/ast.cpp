@@ -195,73 +195,41 @@ AST_Node* ast_manager_get_relative(AST_Manager* m, AST_Node* root, AST_Id child_
   return x;
 }
 
-AST_Node* ast_manager_alloc(AST_Manager* m, Token tok, u64 kind, AST_Id l, AST_Id r) {
-  return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r));
-}
+AST_Node* ast_manager_alloc(AST_Manager* m, Token tok, u64 kind, AST_Id l, AST_Id r) { return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r)); }
 
 void ast_change_kind(AST_Node* m, AST_Kind kind) { m->kind = kind; }
 AST_Node* ast_symbol(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_SYMBOL_LITERAL, 0, 0); }
 
 AST_Node* ast_i32_lit(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_NATURAL_LITERAL, 0, 0); }
 
-AST_Node* ast_bin_add(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_ADD, l->id, r->id);
-}
+AST_Node* ast_bin_add(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_ADD, l->id, r->id); }
 
-AST_Node* ast_bin_sub(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_SUB, l->id, r->id);
-}
+AST_Node* ast_bin_sub(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_SUB, l->id, r->id); }
 
-AST_Node* ast_bin_mul(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_MUL, l->id, r->id);
-}
+AST_Node* ast_bin_mul(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_MUL, l->id, r->id); }
 
-AST_Node* ast_bin_div(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_DIV, l->id, r->id);
-}
+AST_Node* ast_bin_div(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_DIV, l->id, r->id); }
 
-AST_Node* ast_una_add(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_UNA_ADD, l->id, r->id);
-}
+AST_Node* ast_una_add(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_UNA_ADD, l->id, r->id); }
 
-AST_Node* ast_una_sub(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_UNA_SUB, l->id, r->id);
-}
+AST_Node* ast_una_sub(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_UNA_SUB, l->id, r->id); }
 
-AST_Node* ast_bin_gt(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_GT, l->id, r->id);
-}
+AST_Node* ast_bin_gt(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_GT, l->id, r->id); }
 
-AST_Node* ast_bin_lt(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_LT, l->id, r->id);
-}
+AST_Node* ast_bin_lt(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_LT, l->id, r->id); }
 
-AST_Node* ast_bin_ge(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_GE, l->id, r->id);
-}
+AST_Node* ast_bin_ge(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_GE, l->id, r->id); }
 
-AST_Node* ast_bin_le(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_LE, l->id, r->id);
-}
-AST_Node* ast_bin_ne(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_NE, l->id, r->id);
-}
+AST_Node* ast_bin_le(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_LE, l->id, r->id); }
+AST_Node* ast_bin_ne(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_NE, l->id, r->id); }
 
-AST_Node* ast_bin_eq(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_EQ, l->id, r->id);
-}
+AST_Node* ast_bin_eq(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_EQ, l->id, r->id); }
 
-AST_Node* ast_member_access(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_MEMBER_ACCESS, l->id, r->id);
-}
+AST_Node* ast_member_access(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_MEMBER_ACCESS, l->id, r->id); }
 
-AST_Node* ast_assignment(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_OP_BIN_ASSIGN, l->id, r->id);
-}
+AST_Node* ast_assignment(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_ASSIGN, l->id, r->id); }
 
-AST_Node* ast_call(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r, bool effectfull) {
-  return ast_manager_alloc(m, tok, effectfull ? AST_EFFECT_CALL : AST_FUNCTION_CALL, l->id, r->id);
-}
+AST_Node* ast_call(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r, bool effectfull) { return ast_manager_alloc(m, tok, effectfull ? AST_EFFECT_CALL : AST_FUNCTION_CALL, l->id, r->id); }
 
 AST_Node* ast_call_arg_list(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_CALL_ARGS_LIST, 0, 0); }
 
@@ -277,28 +245,16 @@ AST_Node* ast_decl_list(AST_Manager* m, Token tok) { return ast_manager_alloc(m,
 //   return ast_manager_alloc(m, tok, AST_HND_EFF_LIST, 0, 0);
 // }
 
-AST_Node* ast_constant_bind(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_BIND_CONSTANT, l->id, r->id);
-}
+AST_Node* ast_constant_bind(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_BIND_CONSTANT, l->id, r->id); }
 
-AST_Node* ast_variable_bind(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_BIND_VARIABLE, l->id, r->id);
-}
+AST_Node* ast_variable_bind(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_BIND_VARIABLE, l->id, r->id); }
 
-AST_Node* ast_function_literal(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_FUNCTION_LITERAL, l->id, r->id);
-}
-AST_Node* ast_function_signature(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_FUN_SIGNATURE, l->id, r->id);
-}
+AST_Node* ast_function_literal(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_FUNCTION_LITERAL, l->id, r->id); }
+AST_Node* ast_function_signature(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_FUN_SIGNATURE, l->id, r->id); }
 
-AST_Node* ast_type_effect(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_TYPE_EFFECT, l->id, r->id);
-}
+AST_Node* ast_type_effect(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_TYPE_EFFECT, l->id, r->id); }
 
-AST_Node* ast_handler_literal(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_HANDLER_LITERAL, l->id, r->id);
-}
+AST_Node* ast_handler_literal(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_HANDLER_LITERAL, l->id, r->id); }
 
 AST_Node* ast_phi(AST_Manager* m, AST_Node* args) {
   assert(args->kind == AST_DECL_ARGS_LIST);
@@ -306,9 +262,7 @@ AST_Node* ast_phi(AST_Manager* m, AST_Node* args) {
   return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE, args->id, ast_node_null(m)->id);
 }
 
-AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch) {
-  return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE_ARG, arg->id, branch->id);
-}
+AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch) { return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE_ARG, arg->id, branch->id); }
 
 // AST_Node* ast_match(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* cases) {
 // 	assert(cases->kind == AST_DECL_ARGS_LIST || cases->kind == AST_NULL_NODE);
@@ -341,20 +295,14 @@ i8* ast_kind_to_cstr(u64 k) {
 AST_Node* ast_ctrl_flow_if(AST_Manager* m, Token tok, AST_Node* cond, AST_Node* body, AST_Node* elif) {
   AST_Node* a = ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF, cond->id, body->id);
 
-  if (ast_is_null_node(elif)) {
-    return a;
-  }
+  if (ast_is_null_node(elif)) { return a; }
 
   return ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF_ELSE, a->id, elif->id);
 }
 
-AST_Node* ast_ctrl_flow_ret(AST_Manager* m, Token tok, AST_Node* expr) {
-  return ast_manager_alloc(m, tok, AST_CTRL_FLOW_RETURN, expr->id, 0);
-}
+AST_Node* ast_ctrl_flow_ret(AST_Manager* m, Token tok, AST_Node* expr) { return ast_manager_alloc(m, tok, AST_CTRL_FLOW_RETURN, expr->id, 0); }
 
-AST_Node* ast_with_handler(AST_Manager* m, Token tok, AST_Node* call, AST_Node* hnd) {
-  return ast_manager_alloc(m, tok, AST_WITH_HANDLER, call->id, hnd->id);
-}
+AST_Node* ast_with_handler(AST_Manager* m, Token tok, AST_Node* call, AST_Node* hnd) { return ast_manager_alloc(m, tok, AST_WITH_HANDLER, call->id, hnd->id); }
 
 AST_Node* ast_type_type(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_TYPE, 0, 0); }
 
@@ -364,43 +312,27 @@ AST_Node* ast_type_unit(AST_Manager* m, Token tok) { return ast_manager_alloc(m,
 
 AST_Node* ast_type_any(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_ANY, 0, 0); }
 
-AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
-  return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id);
-}
+AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id); }
 
 AST_Node* ast_node_null(AST_Manager* m) { return &m->root->data[0]; }
 
-AST_Node* ast_type_bind(AST_Manager* m, Token tok, AST_Node* sym, AST_Node* type) {
-  return ast_manager_alloc(m, tok, AST_BIND_TYPE, sym->id, type->id);
-}
+AST_Node* ast_type_bind(AST_Manager* m, Token tok, AST_Node* sym, AST_Node* type) { return ast_manager_alloc(m, tok, AST_BIND_TYPE, sym->id, type->id); }
 
-AST_Node* ast_type_union(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail) {
-  return ast_manager_alloc(m, tok, AST_TYPE_UNION, l->id, tail->id);
-}
+AST_Node* ast_type_union(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail) { return ast_manager_alloc(m, tok, AST_TYPE_UNION, l->id, tail->id); }
 
-AST_Node* ast_teamplate_type_variable(AST_Manager* m, Token tok, AST_Node* l) {
-  return ast_manager_alloc(m, tok, AST_TYPE_VARIABLE, l->id, ast_node_null(m)->id);
-}
+AST_Node* ast_teamplate_type_variable(AST_Manager* m, Token tok, AST_Node* l) { return ast_manager_alloc(m, tok, AST_TYPE_VARIABLE, l->id, ast_node_null(m)->id); }
 
-AST_Node* ast_decl_args(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail) {
-  return ast_manager_alloc(m, tok, AST_DECL_ARGS_LIST, l->id, tail->id);
-}
+AST_Node* ast_decl_args(AST_Manager* m, Token tok, AST_Node* l, AST_Node* tail) { return ast_manager_alloc(m, tok, AST_DECL_ARGS_LIST, l->id, tail->id); }
 AST_Node* ast_temp_node(AST_Manager* m) {
   m->temp += 1;
   return ast_manager_alloc(m, lexer_undef_token(), m->temp, 0, 0);
 }
 
-AST_Node* ast_type_yield(AST_Manager* m, Token tok, AST_Node* eff) {
-  return ast_manager_alloc(m, tok, AST_TYPE_YIELD, eff->id, ast_node_null(m)->id);
-}
+AST_Node* ast_type_yield(AST_Manager* m, Token tok, AST_Node* eff) { return ast_manager_alloc(m, tok, AST_TYPE_YIELD, eff->id, ast_node_null(m)->id); }
 
-AST_Node* ast_type_struct(AST_Manager* m, Token tok, AST_Node* mems) {
-  return ast_manager_alloc(m, tok, AST_TYPE_STRUCT, mems->id, ast_node_null(m)->id);
-}
+AST_Node* ast_type_struct(AST_Manager* m, Token tok, AST_Node* mems) { return ast_manager_alloc(m, tok, AST_TYPE_STRUCT, mems->id, ast_node_null(m)->id); }
 
-AST_Node* ast_struct_member(AST_Manager* m, Token tok, AST_Node* mem, AST_Node* tail) {
-  return ast_manager_alloc(m, tok, AST_PROGRAM_POINT, mem->id, tail->id);
-}
+AST_Node* ast_struct_member(AST_Manager* m, Token tok, AST_Node* mem, AST_Node* tail) { return ast_manager_alloc(m, tok, AST_PROGRAM_POINT, mem->id, tail->id); }
 
 AST_Node* ast_type_bind_get_type(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
@@ -414,33 +346,23 @@ AST_Node* ast_bind_get_type_bind(AST_Manager* m, AST_Node* n) { return ast_manag
 
 AST_Node* ast_bind_get_expr(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
-AST_Node* ast_function_literal_get_signature(AST_Manager* m, AST_Node* n) {
-  return ast_manager_get_relative(m, n, n->left);
-}
+AST_Node* ast_function_literal_get_signature(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->left); }
 
-AST_Node* ast_function_literal_get_body(AST_Manager* m, AST_Node* n) {
-  return ast_manager_get_relative(m, n, n->right);
-}
+AST_Node* ast_function_literal_get_body(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
-AST_Node* ast_function_signature_get_args(AST_Manager* m, AST_Node* n) {
-  return ast_manager_get_relative(m, n, n->left);
-}
+AST_Node* ast_function_signature_get_args(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->left); }
 
-AST_Node* ast_function_signature_get_return_type(AST_Manager* m, AST_Node* n) {
-  return ast_manager_get_relative(m, n, n->right);
-}
+AST_Node* ast_function_signature_get_return_type(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
 AST_Node* ast_decl_list_get_elem(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->left); }
 
 AST_Node* ast_decl_list_get_tail(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
-AST_Node* ast_fun_call_get_call_sym(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
+AST_Node* ast_fun_call_get_call_sym(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->left); }
 
 AST_Node* ast_fun_call_get_call_args(AST_Manager* m, AST_Node* n) { return ast_manager_get_relative(m, n, n->right); }
 
-AST_Node* ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret) {
-  return ast_manager_get_relative(m, ret, ret->left);
-}
+AST_Node* ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret) { return ast_manager_get_relative(m, ret, ret->left); }
 
 AST_Node* ast_manager_push_decl(AST_Manager* m, AST_Node* decl) {
   AST_Node* root = ast_decl_list(m, decl->tok);

@@ -14,9 +14,7 @@ Context* context_push(Context* r, AST_Node* n) {
   c->decl = n->id;
   c->next = NULL;
 
-  if (r) {
-    r->next = c;
-  }
+  if (r) { r->next = c; }
 
   return c;
 }
@@ -32,8 +30,7 @@ Context* context_pop(Context* r) {
 AST_Node* context_find(Context* env, Parser* p, AST_Node* sym) {
   AST_Manager* m = &p->ast_man;
 
-  if (env == NULL)
-    return ast_node_null(m);
+  if (env == NULL) return ast_node_null(m);
 
   AST_Node* node = ast_manager_get(m, env->decl);
 
@@ -41,15 +38,11 @@ AST_Node* context_find(Context* env, Parser* p, AST_Node* sym) {
 
   AST_Node* root = node;
 
-  if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
-    root = ast_bind_get_type_bind(m, root);
-  }
+  if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) { root = ast_bind_get_type_bind(m, root); }
 
   AST_Node* symb = ast_type_bind_get_symbol(m, root);
 
-  if (parser_is_same_symbol(p, sym, symb)) {
-    return node;
-  }
+  if (parser_is_same_symbol(p, sym, symb)) { return node; }
 
   return context_find(env->prev, p, sym);
 }
@@ -60,8 +53,7 @@ void scope_init(Scope* scope, Scope* parent) {
 }
 
 void scope_print_rec(Scope* s, Parser* p) {
-  if (s == NULL)
-    return;
+  if (s == NULL) return;
 
   printf("{ ");
 
@@ -95,8 +87,7 @@ void scope_print_rec(Scope* s, Parser* p) {
     printf("%s", buff);
 
     ctx = ctx->prev;
-    if (ctx)
-      printf(", ");
+    if (ctx) printf(", ");
   }
 
   printf(" }");
@@ -115,24 +106,36 @@ Scope* scope_create(Scope* parent) {
   return s;
 }
 
-AST_Node* scope_find(Scope* s, Parser* p, AST_Node* sym) {
+AST_Node* scope_find_rec(Scope* s, Parser* p, AST_Node* sym, Scope** owner) {
   AST_Manager* m = &p->ast_man;
-  if (s == NULL)
-    return ast_node_null(m);
+
+  if (s == NULL) return ast_node_null(m);
 
   AST_Node* n = context_find(s->ctx, p, sym);
 
-  if (!ast_is_null_node(n))
+  if (!ast_is_null_node(n)) {
+    if (owner) { *owner = s; }
     return n;
+  }
 
-  return scope_find(s->parent, p, sym);
+  return scope_find_rec(s->parent, p, sym, owner);
+}
+
+AST_Node* scope_find(Scope* s, Parser* p, AST_Node* sym, b8* is_local) {
+  *is_local = false;
+
+  Scope* scope = NULL;
+
+  AST_Node* n = scope_find_rec(s, p, sym, &scope);
+
+  if (scope == s) { *is_local = true; }
+
+  return n;
 }
 
 AST_Node* scope_find_local(Scope* s, Parser* p, AST_Node* sym) {
   AST_Manager* m = &p->ast_man;
-  if (s == NULL) {
-    return ast_node_null(m);
-  }
+  if (s == NULL) { return ast_node_null(m); }
 
   return context_find(s->ctx, p, sym);
 }
