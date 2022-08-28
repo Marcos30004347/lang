@@ -20,3 +20,4 @@ AlignTrailingComments: true
 BreakBeforeBinaryOperators: NonAssignment
 AllowShortBlocksOnASingleLine: Always
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+SpacesInAngles: Always

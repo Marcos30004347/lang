@@ -23,6 +23,7 @@
 #include <cstdio>
 
 #include <iterator>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -774,110 +775,33 @@ AST_Node* get_call_continuation_argument(Parser* p, AST_Node* call, AST_Node** a
   return decl;
 }
 
-AST_Node* lift_call_continuation_to_declaration(Parser* p, AST_Node* statement, AST_Node* program_point) {
-  AST_Manager* m = &p->ast_man;
-  // continuation argument to declaration
-  AST_Node* arg_cont = ast_node_null(m);
+// AST_Node* lift_call_continuation_to_declaration(Parser* p, AST_Node* statement, AST_Node* program_point) {
+//   AST_Manager* m = &p->ast_man;
+//   // continuation argument to declaration
+//   AST_Node* arg_cont = ast_node_null(m);
 
-  Token undef = lexer_undef_token();
+//   Token undef = lexer_undef_token();
 
-  AST_Node* cont_symb = ast_temp_node(m);
-  AST_Node* cont_type = ast_type_any(m, undef);
-  AST_Node* cont_bind = ast_type_bind(m, undef, cont_symb, cont_type);
+//   AST_Node* cont_symb = ast_temp_node(m);
+//   AST_Node* cont_type = ast_type_any(m, undef);
+//   AST_Node* cont_bind = ast_type_bind(m, undef, cont_symb, cont_type);
 
-  AST_Node* cont_func = get_call_continuation_argument(p, statement, &arg_cont);
-  AST_Node* cont_decl = ast_constant_bind(m, undef, cont_bind, cont_func);
+//   AST_Node* cont_func = get_call_continuation_argument(p, statement, &arg_cont);
+//   AST_Node* cont_decl = ast_constant_bind(m, undef, cont_bind, cont_func);
 
-  assert(program_point->right == 0);
+//   assert(program_point->right == 0);
 
-  AST_Node* call_point = ast_program_point(m, undef);
+//   AST_Node* call_point = ast_program_point(m, undef);
 
-  // insert the declaration at the body of the function
-  call_point->left     = statement->id;
-  program_point->left  = cont_decl->id;
-  program_point->right = call_point->id;
+//   // insert the declaration at the body of the function
+//   call_point->left     = statement->id;
+//   program_point->left  = cont_decl->id;
+//   program_point->right = call_point->id;
 
-  // replace continuation literal by the continuation symbol on the call body
-  arg_cont->left = cont_symb->id;
-  return cont_decl;
-}
-
-AST_Node* get_first_call(Parser* p, AST_Node* node) {
-  AST_Manager* m = &p->ast_man;
-
-  if (ast_is_null_node(node)) { return ast_node_null(m); }
-
-  assert(node->kind == AST_PROGRAM_POINT);
-
-  AST_Node* statement = ast_program_point_get_decl(m, node);
-  AST_Node* tail      = ast_program_point_get_tail(m, node);
-
-  if (statement->kind == AST_FUNCTION_CALL) { return statement; }
-
-  return get_first_call(p, tail);
-}
-
-struct CPS_Ext_Graph_Node {
-  typedef std::unordered_set<CPS_Ext_Graph_Node*> Edges;
-
-  AST_Id decl;
-  Edges edges;
-};
-
-CPS_Ext_Graph_Node* create_cps_ext_graph_node(AST_Node* node, CPS_Ext_Graph_Node::Edges& edges) {
-  CPS_Ext_Graph_Node* G = (CPS_Ext_Graph_Node*)malloc(sizeof(CPS_Ext_Graph_Node));
-
-  G->decl  = node->id;
-  G->edges = edges;
-
-  return G;
-}
-
-typedef std::unordered_map<AST_Id, CPS_Ext_Graph_Node*> CPS_Ext_Graph_Ctx;
-
-void build_extended_cps_graph(CPS_Ext_Graph_Ctx& context, Scope* scope, Parser* p, AST_Node* node) {
-  AST_Manager* m = &p->ast_man;
-
-  if (node->kind == AST_BIND_CONSTANT || node->kind == AST_BIND_VARIABLE) {
-    scope_push(scope, node);
-
-    AST_Node* expr = ast_bind_get_expr(m, node);
-
-    if (expr->kind == AST_FUNCTION_LITERAL) {
-      CPS_Ext_Graph_Node::Edges edges;
-
-      CPS_Ext_Graph_Node* G = create_cps_ext_graph_node(node, edges);
-
-      AST_Node* signature  = ast_function_literal_get_signature(m, expr);
-      AST_Node* arguments  = ast_function_signature_get_args(m, signature);
-      AST_Node* statements = ast_function_literal_get_body(m, expr);
-
-      while (!ast_is_null_node(statements)) {
-        assert(statements->kind == AST_PROGRAM_POINT);
-
-        AST_Node* statement = ast_program_point_get_decl(m, statements);
-
-        if (statement->kind == AST_FUNCTION_CALL) {
-          AST_Node* continuation = lift_call_continuation_to_declaration(p, statement, statements);
-
-          build_extended_cps_graph(context, scope, p, continuation);
-
-          AST_Node* func_symb = ast_fun_call_get_call_sym(m, statement);
-          AST_Node* func_decl = scope_find(scope, p, func_symb);
-
-          // Test if the function being called is a local closure
-          if (!ast_is_null_node(func_decl)) {
-            build_extended_cps_graph(context, scope, p, func_decl);
-
-            edges.insert(context[func_decl->id]);
-          }
-        }
-
-        statements = ast_program_point_get_tail(m, statements);
-      }
-    }
-  }
-}
+//   // replace continuation literal by the continuation symbol on the call body
+//   arg_cont->left = cont_symb->id;
+//   return cont_decl;
+// }
 
 void replace_return_with_continuation_call(Parser* p, AST_Node* statement, AST_Node* continuation) {
   if (ast_is_null_node(statement)) return;
@@ -911,6 +835,15 @@ void replace_return_with_continuation_call(Parser* p, AST_Node* statement, AST_N
 AST_Node* create_continuation_function(Parser* p, Scope* scope, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
   AST_Manager* m  = &p->ast_man;
   Token undefined = lexer_undef_token();
+
+  // NOTE(marcos): If the binding dosent have a type set it to be 'any',
+  // this is just a quick patch since we dont have type check and
+  // inference yet.
+  if (!ast_is_null_node(argument)) {
+    AST_Node* argument_type = ast_type_bind_get_type(m, argument);
+
+    if (ast_is_null_node(argument_type)) { argument->right = ast_type_any(m, undefined)->id; }
+  }
 
   AST_Node* arguments = ast_decl_args(m, undefined, argument, ast_node_null(m));
   AST_Node* signature = ast_function_signature(m, undefined, arguments, return_type);
@@ -1001,6 +934,12 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
 
     declaration = create_continuation_function(p, scope, bind, type, continuation);
 
+    // AST_Node* body = ast_function_literal_get_body(m, declaration);
+
+    // AST_Node* head = ast_manager_get_relative(m, body, body->left);
+
+    // if()
+
     AST_Node* continuation_bind = ast_bind_get_type_bind(m, declaration);
 
     continuation_symbol = ast_type_bind_get_symbol(m, continuation_bind);
@@ -1016,13 +955,13 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
 
         function_literal_cps_conversion(p, closure_scope, closure, continuation_symbol);
 
-        AST_Node* old_body = ast_function_literal_get_body(m, closure);
-        AST_Node* new_body = ast_program_point(m, undefined);
+        // AST_Node* old_body = ast_function_literal_get_body(m, closure);
+        // AST_Node* new_body = ast_program_point(m, undefined);
 
-        new_body->left  = declaration->id;
-        new_body->right = old_body->id;
+        // new_body->left  = declaration->id;
+        // new_body->right = old_body->id;
 
-        closure->right = new_body->id;
+        // closure->right = new_body->id;
       }
 
       if (!ast_is_null_node(bind)) {
@@ -1030,12 +969,16 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
         program_point->right = ast_node_null(m)->id;
       }
 
-      return program_point;
+      // return program_point;
     }
   }
 
   // NOTE(marcos): call to global function
   if (ast_is_null_node(continuation)) { return program_point; }
+
+  ast_call_push_argument(m, undefined, call, continuation_symbol);
+
+  // if (!is_local) {
 
   AST_Node* statement = ast_program_point(m, undefined);
 
@@ -1044,9 +987,10 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
   program_point->left  = declaration->id;
   program_point->right = statement->id;
 
-  if (!is_local) { ast_call_push_argument(m, undefined, call, continuation_symbol); }
-
   return statement;
+  // }
+
+  // return program_point;
 }
 
 void function_literal_cps_conversion(Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation_symbol) {
@@ -1094,5 +1038,167 @@ void cps_conversion(Parser* p, AST_Node* root) {
     }
 
     root = ast_manager_get_relative(m, root, root->right);
+  }
+}
+
+AST_Node* get_first_call(Parser* p, AST_Node* node) {
+  AST_Manager* m = &p->ast_man;
+
+  if (ast_is_null_node(node)) { return ast_node_null(m); }
+
+  assert(node->kind == AST_PROGRAM_POINT);
+
+  AST_Node* statement = ast_program_point_get_decl(m, node);
+  AST_Node* tail      = ast_program_point_get_tail(m, node);
+
+  if (statement->kind == AST_FUNCTION_CALL) { return statement; }
+
+  return get_first_call(p, tail);
+}
+
+typedef std::unordered_map< AST_Id, std::unordered_set< AST_Id > > CPS_Ext_Graph_Ctx;
+
+void build_extended_cps_graph_declaration(CPS_Ext_Graph_Ctx& context, Scope* scope, Parser* p, AST_Node* function, AST_Node* statement) {
+  AST_Manager* m = &p->ast_man;
+
+  if (statement->kind == AST_FUNCTION_CALL) {
+    AST_Node* symbol    = ast_fun_call_get_call_sym(m, statement);
+    AST_Node* arguments = ast_fun_call_get_call_args(m, statement);
+
+    AST_Node* declaration = scope_find(scope, p, symbol);
+    if (!ast_is_null_node(declaration)) {
+      AST_Node* bind = declaration;
+
+      if (bind->kind == AST_BIND_CONSTANT || bind->kind == AST_BIND_VARIABLE) { bind = ast_bind_get_type_bind(m, bind); }
+      assert(bind->kind == AST_BIND_TYPE);
+
+      AST_Node* expr = ast_bind_get_expr(m, declaration);
+
+      if (expr->kind != AST_FUNCTION_LITERAL) { return; }
+
+      context[function->id].insert(bind->id);
+
+    } else {
+      // is global function
+      AST_Node* continuation = get_call_continuation_argument(p, statement);
+      AST_Node* declaration  = scope_find(scope, p, continuation);
+
+      if (ast_is_null_node(declaration) || (declaration->kind != AST_BIND_CONSTANT && declaration->kind != AST_BIND_VARIABLE)) { return; }
+
+      AST_Node* expr = ast_bind_get_expr(m, declaration);
+      if (expr->kind != AST_FUNCTION_LITERAL) { return; }
+
+      AST_Node* bind = declaration;
+
+      if (bind->kind == AST_BIND_CONSTANT || bind->kind == AST_BIND_VARIABLE) { bind = ast_bind_get_type_bind(m, bind); }
+      assert(bind->kind == AST_BIND_TYPE);
+
+      context[function->id].insert(bind->id);
+    }
+  }
+
+  if (statement->kind == AST_CTRL_FLOW_IF) {
+    AST_Node* l = ast_manager_get_relative(m, statement, statement->left);
+    AST_Node* r = ast_manager_get_relative(m, statement, statement->right);
+
+    build_extended_cps_graph_declaration(context, scope, p, function, l);
+    build_extended_cps_graph_declaration(context, scope, p, function, r);
+  }
+
+  if (statement->kind == AST_CTRL_FLOW_IF_ELSE) {
+    AST_Node* l = ast_manager_get_relative(m, statement, statement->left);
+    AST_Node* r = ast_manager_get_relative(m, statement, statement->right);
+
+    build_extended_cps_graph_declaration(context, scope, p, function, l);
+    build_extended_cps_graph_declaration(context, scope, p, function, r);
+  }
+
+  if (statement->kind == AST_BIND_CONSTANT || statement->kind == AST_BIND_VARIABLE) {
+
+    AST_Node* bind = ast_bind_get_type_bind(m, statement);
+    AST_Node* expr = ast_bind_get_expr(m, statement);
+
+    if (expr->kind == AST_FUNCTION_LITERAL) {
+      scope_push(scope, statement);
+
+      Scope* closure_scope = scope_create(scope);
+
+      assert(bind->kind == AST_BIND_TYPE);
+
+      context[bind->id] = std::unordered_set< AST_Id >();
+
+      AST_Node* signature = ast_function_literal_get_signature(m, expr);
+      AST_Node* arguments = ast_function_signature_get_args(m, signature);
+      AST_Node* body      = ast_function_literal_get_body(m, expr);
+
+      build_extended_cps_graph_declaration(context, closure_scope, p, bind, body);
+    }
+  }
+
+  if (statement->kind == AST_PROGRAM_POINT) {
+    while (!ast_is_null_node(statement)) {
+      assert(statement->kind == AST_PROGRAM_POINT);
+
+      AST_Node* closure_statement = ast_program_point_get_decl(m, statement);
+
+      build_extended_cps_graph_declaration(context, scope, p, function, closure_statement);
+
+      statement = ast_program_point_get_tail(m, statement);
+    }
+  }
+}
+
+void build_extended_cps_graph(CPS_Ext_Graph_Ctx& graph, Parser* p, AST_Node* root) {
+  assert(root->kind == AST_PROGRAM_POINT);
+
+  AST_Manager* m = &p->ast_man;
+
+  while (!ast_is_null_node(root)) {
+    AST_Node* statement = ast_program_point_get_decl(m, root);
+    // FIXME(marcos): memory leak
+    Scope* scope = scope_create(NULL);
+
+    build_extended_cps_graph_declaration(graph, scope, p, ast_node_null(m), statement);
+
+    root = ast_program_point_get_tail(m, root);
+  }
+}
+
+void print_cps_extended_graph(CPS_Ext_Graph_Ctx& ctx, AST_Id node, Parser* p) {
+  if (ctx[node].size() == 0) return;
+
+  AST_Manager* m = &p->ast_man;
+
+  AST_Node* bind = ast_manager_get(m, node);
+
+  assert(bind->kind == AST_BIND_TYPE);
+
+  AST_Node* symbol = ast_type_bind_get_symbol(m, bind);
+  printf("from ");
+
+  print_ast_to_program(p, symbol);
+
+  printf(" to ");
+
+  for (std::unordered_set< AST_Id >::iterator it = ctx[node].begin(); it != ctx[node].end(); it++) {
+    AST_Node* to = ast_manager_get(m, *it);
+
+    assert(to->kind == AST_BIND_TYPE);
+
+    AST_Node* symbol = ast_type_bind_get_symbol(m, to);
+
+    print_ast_to_program(p, symbol);
+
+    printf(" ");
+  }
+
+  printf("\n");
+}
+
+void print_cps_extended_graph_context(CPS_Ext_Graph_Ctx& ctx, Parser* p) {
+  AST_Manager* m = &p->ast_man;
+
+  for (CPS_Ext_Graph_Ctx::iterator it = ctx.begin(); it != ctx.end(); it++) {
+    print_cps_extended_graph(ctx, it->first, p);
   }
 }

@@ -122,13 +122,13 @@ AST_Node* scope_find_rec(Scope* s, Parser* p, AST_Node* sym, Scope** owner) {
 }
 
 AST_Node* scope_find(Scope* s, Parser* p, AST_Node* sym, b8* is_local) {
-  *is_local = false;
+  if (is_local) *is_local = false;
 
   Scope* scope = NULL;
 
   AST_Node* n = scope_find_rec(s, p, sym, &scope);
 
-  if (scope == s) { *is_local = true; }
+  if (scope == s && is_local) { *is_local = true; }
 
   return n;
 }
