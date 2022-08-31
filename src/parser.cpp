@@ -174,7 +174,8 @@ AST_Node* parser_parse_primary(Parser* p) {
 
     parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
 
-    if (root->kind == AST_DECL_ARGS_LIST || root->kind == AST_NULL_NODE || root->kind == AST_BIND_TYPE || root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
+    if (root->kind == AST_DECL_ARGS_LIST || root->kind == AST_NULL_NODE || root->kind == AST_BIND_TYPE || root->kind == AST_BIND_CONSTANT
+        || root->kind == AST_BIND_VARIABLE) {
 
       if (root->kind != AST_DECL_ARGS_LIST) { root = ast_decl_args(&p->ast_man, tok, root, ast_node_null(&p->ast_man)); }
 
@@ -803,7 +804,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
     for (i32 i = 0; i < scope; i++)
       printf(" ");
-    printf("}");
+    printf("}\n");
     return;
   }
 
@@ -885,6 +886,34 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     for (i32 i = 0; i < scope; i++)
       printf(" ");
     printf("}");
+    return;
+  }
+
+  if (n->kind == AST_OP_BIN_ASSIGN) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" = ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+
+  if (n->kind == AST_OP_BIN_ADD) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" + ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+
+  if (n->kind == AST_OP_BIN_SUB) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" - ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+
+  if (n->kind == AST_OP_BIN_MUL) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" * ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     return;
   }
 

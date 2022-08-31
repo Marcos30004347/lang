@@ -2,11 +2,12 @@
 // for things to work all typing information needs to be
 // statically available.
 
-f :: (x:i32) -> i32 {
+
+f : any : (x:i32) -> i32 {
 	return 0;
 }
 
-iter :: (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
+iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
 	h : i32*i32 -> i32 : (a:i32, r:i32) -> i32 {
 		z : i32 : p(a, r);
 
@@ -15,8 +16,7 @@ iter :: (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
 		} else {
 			u : i32 : f(a);
 			y : i32 : h(u, a);
-			i : i32 : y + 4;
-			return i;
+			return y;
 		}
 	}
 
@@ -25,3 +25,20 @@ iter :: (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
 	return t;
 }
 
+some_f :: (f: any -> any) {
+	y : any = 3;
+
+	y = 4;
+
+	t : any : read();
+
+	if t {
+		y = 2;
+	}
+
+	h :: () {
+		f(y);
+	}
+
+	h();
+}

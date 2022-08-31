@@ -27,3 +27,4 @@ b8 scope_is_global(Scope* s);
 
 AST_Node* scope_find(Scope* s, Parser* p, AST_Node* sym, b8* is_local = 0);
 AST_Node* scope_find_local(Scope* s, Parser* p, AST_Node* sym);
+u64 get_scope_depth(Scope* s);

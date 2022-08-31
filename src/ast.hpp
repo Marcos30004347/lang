@@ -57,8 +57,6 @@ enum AST_Kind {
 
   // Binary operators
   __AST_BINARY_OPERATOR_START,
-  AST_OP_POINTER_LOAD,
-  AST_OP_POINTER_STORE,
   AST_OP_BIN_ASSIGN,
   AST_OP_BIN_ADD,
   AST_OP_BIN_SUB,
@@ -102,7 +100,7 @@ struct AST_Node {
   // This AST Node Id
   AST_Id id;
   // The token that resulted on this Node
-  Token tok;
+  Token  tok;
   AST_Id left;
   AST_Id right;
 
@@ -117,8 +115,8 @@ struct AST_Node {
 #define AST_BUCKET_SIZE 128
 
 struct AST_Bucket {
-  u64 id;
-  AST_Node data[AST_BUCKET_SIZE];
+  u64         id;
+  AST_Node    data[AST_BUCKET_SIZE];
   AST_Bucket* prev;
   AST_Bucket* next;
 };
@@ -229,13 +227,9 @@ AST_Node* ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret);
 AST_Node* ast_function_literal_push_argument(AST_Manager* m, Token tok, AST_Node* fun_decl, AST_Node* arg);
 AST_Node* ast_call_push_argument(AST_Manager* m, Token tok, AST_Node* call, AST_Node* arg);
 
-inline b8 ast_is_binary_operation(AST_Node* n) {
-  return n->kind >= __AST_BINARY_OPERATOR_START && n->kind <= __AST_BINARY_OPERATOR_END;
-}
+inline b8 ast_is_binary_operation(AST_Node* n) { return n->kind >= __AST_BINARY_OPERATOR_START && n->kind <= __AST_BINARY_OPERATOR_END; }
 
-inline b8 ast_is_unary_operation(AST_Node* n) {
-  return n->kind > __AST_UNARY_OPERATOR_START && n->kind < __AST_UNARY_OPERATOR_END;
-}
+inline b8 ast_is_unary_operation(AST_Node* n) { return n->kind > __AST_UNARY_OPERATOR_START && n->kind < __AST_UNARY_OPERATOR_END; }
 
 b8 ast_is_temporary(AST_Manager* m, AST_Node* n);
 

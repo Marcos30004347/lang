@@ -148,3 +148,14 @@ void scope_push(Scope* s, AST_Node* n) {
 void scope_pop(Scope* s) { s->ctx = context_pop(s->ctx); }
 
 b8 scope_is_global(Scope* s) { return s->parent == NULL; }
+
+u64 get_scope_depth(Scope* s) {
+  u64 d = 0;
+
+  while (s) {
+    d = d + 1;
+    s = s->parent;
+  }
+
+  return d;
+}

@@ -64,8 +64,6 @@ const char* ast_kind_strs[] = {
 
     // Binary operators
     "__AST_BINARY_OPERATOR_START",
-    "AST_OP_POINTER_LOAD",
-    "AST_OP_POINTER_STORE",
     "AST_OP_BIN_ASSIGN",
     "AST_OP_BIN_ADD",
     "AST_OP_BIN_SUB",
@@ -197,7 +195,7 @@ AST_Node* ast_manager_get_relative(AST_Manager* m, AST_Node* root, AST_Id child_
 
 AST_Node* ast_manager_alloc(AST_Manager* m, Token tok, u64 kind, AST_Id l, AST_Id r) { return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r)); }
 
-void ast_change_kind(AST_Node* m, AST_Kind kind) { m->kind = kind; }
+void      ast_change_kind(AST_Node* m, AST_Kind kind) { m->kind = kind; }
 AST_Node* ast_symbol(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_SYMBOL_LITERAL, 0, 0); }
 
 AST_Node* ast_i32_lit(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_NATURAL_LITERAL, 0, 0); }
@@ -229,7 +227,9 @@ AST_Node* ast_member_access(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r)
 
 AST_Node* ast_assignment(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_OP_BIN_ASSIGN, l->id, r->id); }
 
-AST_Node* ast_call(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r, bool effectfull) { return ast_manager_alloc(m, tok, effectfull ? AST_EFFECT_CALL : AST_FUNCTION_CALL, l->id, r->id); }
+AST_Node* ast_call(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r, bool effectfull) {
+  return ast_manager_alloc(m, tok, effectfull ? AST_EFFECT_CALL : AST_FUNCTION_CALL, l->id, r->id);
+}
 
 AST_Node* ast_call_arg_list(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_CALL_ARGS_LIST, 0, 0); }
 

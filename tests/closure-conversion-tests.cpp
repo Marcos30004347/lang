@@ -21,17 +21,9 @@ void should_closure_convert_ast() {
 
   Scope* scope = scope_create(0);
 
-  print_ast(&p, root);
+  // print_ast(&p, root);
 
-  cps_conversion(&p, root);
-
-  print_ast_to_program(&p, root);
-
-  CPS_Ext_Graph_Ctx context;
-
-  build_extended_cps_graph(context, &p, root);
-
-  print_cps_extended_graph_context(context, &p);
+  closure_conversion(&p, root);
 
   parser_destroy(&p);
 }
