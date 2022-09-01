@@ -5,6 +5,7 @@
 enum AST_Kind {
   // Compounds
   AST_NULL_NODE = 0,
+  AST_UNDEFINED_NODE,
 
   __AST_KIND_BEGIN,
 
@@ -226,6 +227,8 @@ AST_Node* ast_ctrl_flow_return_get_expression(AST_Manager* m, AST_Node* ret);
 
 AST_Node* ast_function_literal_push_argument(AST_Manager* m, Token tok, AST_Node* fun_decl, AST_Node* arg);
 AST_Node* ast_call_push_argument(AST_Manager* m, Token tok, AST_Node* call, AST_Node* arg);
+
+AST_Node* ast_undefined(AST_Manager* m);
 
 inline b8 ast_is_binary_operation(AST_Node* n) { return n->kind >= __AST_BINARY_OPERATOR_START && n->kind <= __AST_BINARY_OPERATOR_END; }
 

@@ -7,10 +7,10 @@
 // 2. calls are only made on simple assignment.
 // 3. All variable types are know and the program typechecks.
 
-// TODO: we need to get the funtions that may escape throught function arguments
-// right now since we dont have pointer types, this is not possible, so we're
-// just considering that a function may escape on an assignment to an constant
-// argument for testing reasons, fix that when the language gets more features.
+/*
+ TODO(marcos): Scope and Aliases are leaking right now, there is already new implementations
+ planned for those data structures, so a fix is planned.
+*/
 
 #include "ast.hpp"
 #include "context.hpp"
@@ -18,17 +18,6 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 
-#include "stdio.h"
-#include <__string>
-#include <_stdio.h>
-#include <assert.h>
-#include <cstddef>
-#include <cstdio>
-
-#include <iterator>
-#include <random>
-#include <sys/resource.h>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -99,7 +88,7 @@ AST_Node* create_continuation_function(Parser* p, Scope* scope, AST_Node* argume
     if (ast_is_null_node(argument_type)) { argument->right = ast_type_any(m, undefined)->id; }
   }
 
-  AST_Node* arguments = ast_decl_args(m, undefined, argument, ast_node_null(m));
+  AST_Node* arguments = !ast_is_null_node(argument) ? ast_decl_args(m, undefined, argument, ast_node_null(m)) : ast_node_null(m);
   AST_Node* signature = ast_function_signature(m, undefined, arguments, return_type);
   AST_Node* function  = ast_function_literal(m, undefined, signature, body);
   AST_Node* symbol    = ast_temp_node(m);
@@ -126,7 +115,13 @@ void program_point_cps_conversion(Parser* p, AST_Node* statements, Scope* scope)
       AST_Node* left  = ast_bind_get_type_bind(m, statement);
       AST_Node* right = ast_bind_get_expr(m, statement);
 
-      if (right->kind == AST_FUNCTION_LITERAL) { scope_push(scope, statement); }
+      if (right->kind == AST_FUNCTION_LITERAL) {
+        Scope* closure_scope = scope_create(scope); // TODO(marcos): fix leak
+
+        function_literal_cps_conversion(p, closure_scope, right, NULL);
+
+        scope_push(scope, statement);
+      }
 
       if (right->kind == AST_FUNCTION_CALL) {
         program_point_cps_conversion(p, continuation, scope);
@@ -134,7 +129,11 @@ void program_point_cps_conversion(Parser* p, AST_Node* statements, Scope* scope)
       }
     }
 
-    if (statement->kind == AST_OP_BIN_ASSIGN) { assert(false && "TODO: implement reassignment"); }
+    if (statement->kind == AST_OP_BIN_ASSIGN) {
+      AST_Node* expr = ast_manager_get_relative(m, statement, statement->right);
+
+      if (expr->kind == AST_FUNCTION_LITERAL) { assert(false && "TODO: implement reassignment"); }
+    }
 
     if (statement->kind == AST_FUNCTION_CALL) {
       // break continuation
@@ -174,9 +173,9 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
   AST_Manager* m        = &p->ast_man;
   AST_Node*    function = ast_fun_call_get_call_sym(m, call);
 
-  b8 is_local = false;
+  // b8 is_local = false;
 
-  AST_Node* local = scope_find(scope, p, function, &is_local);
+  AST_Node* local = scope_find(scope, p, function);
 
   Token undefined = lexer_undef_token();
 
@@ -193,33 +192,33 @@ AST_Node* function_call_cps_conversion(Parser* p, Scope* scope, AST_Node* progra
     continuation_symbol = ast_type_bind_get_symbol(m, continuation_bind);
   }
 
-  if (local->kind == AST_BIND_VARIABLE || local->kind == AST_BIND_CONSTANT) {
-    AST_Node* closure = ast_bind_get_expr(m, local);
+  // if (local->kind == AST_BIND_VARIABLE || local->kind == AST_BIND_CONSTANT) {
+  //   AST_Node* closure = ast_bind_get_expr(m, local);
 
-    if (closure->kind == AST_FUNCTION_LITERAL) {
-      if (is_local) {
-        // FIXME(marcos): memory leak
-        Scope* closure_scope = scope_create(scope);
+  //   if (closure->kind == AST_FUNCTION_LITERAL) {
+  //     //if (is_local) {
+  //       // FIXME(marcos): memory leak
+  //       // Scope* closure_scope = scope_create(scope);
 
-        function_literal_cps_conversion(p, closure_scope, closure, continuation_symbol);
+  //       // function_literal_cps_conversion(p, closure_scope, closure, continuation_symbol);
 
-        // AST_Node* old_body = ast_function_literal_get_body(m, closure);
-        // AST_Node* new_body = ast_program_point(m, undefined);
+  //       // AST_Node* old_body = ast_function_literal_get_body(m, closure);
+  //       // AST_Node* new_body = ast_program_point(m, undefined);
 
-        // new_body->left  = declaration->id;
-        // new_body->right = old_body->id;
+  //       // new_body->left  = declaration->id;
+  //       // new_body->right = old_body->id;
 
-        // closure->right = new_body->id;
-      }
+  //       // closure->right = new_body->id;
+  // 		// }
 
-      if (!ast_is_null_node(bind)) {
-        program_point->left  = call->id;
-        program_point->right = ast_node_null(m)->id;
-      }
+  //     if (!ast_is_null_node(bind)) {
+  //       program_point->left  = call->id;
+  //       program_point->right = ast_node_null(m)->id;
+  //     }
 
-      // return program_point;
-    }
-  }
+  //     // return program_point;
+  //   }
+  // }
 
   // NOTE(marcos): call to global function
   if (ast_is_null_node(continuation)) { return program_point; }
@@ -450,7 +449,10 @@ void compute_function_declaration_stage_numbers(Closure_Converter& converter, Pa
     }
   }
 
-  if (root->kind == AST_OP_BIN_ASSIGN) { assert(false && "TODO"); }
+  if (root->kind == AST_OP_BIN_ASSIGN) {
+    AST_Node* expr = ast_manager_get_relative(m, root, root->right);
+    if (expr->kind == AST_FUNCTION_LITERAL) { assert(false && "TODO(marcos): implement reassignment"); }
+  }
 
   if (root->kind == AST_CTRL_FLOW_IF || root->kind == AST_CTRL_FLOW_IF_ELSE) {
     AST_Node* l = ast_manager_get_relative(m, root, root->left);
@@ -599,7 +601,7 @@ void print_cps_extended_graph_context(CPS_Extended_Call_Graph& ctx, Parser* p) {
   }
 }
 
-Scope* function_literal_args_to_scope(Parser* p, AST_Node* node, Scope* parent = NULL) {
+Scope* declaration_arguments_to_scope(Parser* p, AST_Node* node, Scope* parent = NULL) {
   Scope* scope = scope_create(parent);
 
   if (ast_is_null_node(node)) { return scope; }
@@ -644,6 +646,8 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
       b8 is_local = false;
 
       AST_Node* declaration = scope_find(scope, p, node, &is_local);
+
+      assert(!ast_is_null_node(declaration));
 
       if (is_local) { break; }
 
@@ -690,6 +694,7 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
         AST_Node* n = ast_manager_get(m, it->first);
 
         if (n->kind == AST_BIND_VARIABLE || n->kind == AST_BIND_CONSTANT) { n = ast_manager_get_relative(m, n, n->left); }
+        // print_ast(p, n);
         assert(n->kind == AST_BIND_TYPE);
         if (n->kind == AST_BIND_TYPE) { n = ast_manager_get_relative(m, n, n->left); }
 
@@ -710,7 +715,7 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
     AST_Node* signature = ast_function_literal_get_signature(m, node);
     AST_Node* arguments = ast_function_signature_get_args(m, signature);
 
-    Scope* closure_scope = function_literal_args_to_scope(p, arguments, scope);
+    Scope* closure_scope = declaration_arguments_to_scope(p, arguments, scope);
 
     AST_Node* body = ast_function_literal_get_body(m, node);
 
@@ -734,12 +739,11 @@ struct Alias_Scope {
 
 Alias_Scope* copy_alias_scope_to_heap(Alias_Scope* alias) {
   if (alias == NULL) return NULL;
+  Alias_Scope* a = new Alias_Scope(); //(Alias_Scope*)malloc(sizeof(Alias_Scope));
 
-  Alias_Scope* a = (Alias_Scope*)malloc(sizeof(Alias_Scope));
-
+  a->aliases = Alias_Scope::Alias_Map();
   a->aliases = alias->aliases;
   a->parent  = copy_alias_scope_to_heap(alias->parent);
-
   return a;
 }
 
@@ -751,19 +755,6 @@ void free_alias_scope(Alias_Scope* alias) {
   free(alias);
 }
 
-// void push_alias(Alias_Scope* aliases, AST_Id left, AST_Id right) {
-//   while (aliases) {
-//     if (aliases->aliases.find(left) != aliases->aliases.end()) {
-//       aliases->aliases[left].insert(right);
-//       return;
-//     }
-
-//     aliases = aliases->parent;
-//   }
-
-//   assert(false && "Alias not found");
-// }
-
 Alias_Scope::Alias_Set* find_alias_set(Alias_Scope* aliases, AST_Id id) {
   while (aliases) {
     if (aliases->aliases.find(id) != aliases->aliases.end()) { return &aliases->aliases[id]; }
@@ -774,9 +765,9 @@ Alias_Scope::Alias_Set* find_alias_set(Alias_Scope* aliases, AST_Id id) {
   return NULL;
 }
 
-void assign_left_to_right_alias(Alias_Scope* aliases, AST_Id left, AST_Id right, b8 reset = false) {
+void assign_left_to_right_alias(Alias_Scope* aliases, AST_Id left, AST_Id right, b8 reset = true) {
   Alias_Scope::Alias_Set* left_aliases  = find_alias_set(aliases, left);
-  Alias_Scope::Alias_Set* right_aliases = find_alias_set(aliases, left);
+  Alias_Scope::Alias_Set* right_aliases = find_alias_set(aliases, right);
 
   if (left_aliases == NULL) {
     aliases->aliases[left] = Alias_Scope::Alias_Set();
@@ -806,19 +797,272 @@ b8 is_inconditional_branch(Parser* p, AST_Node* branch) {
   return true;
 }
 
-void function_literal_return_escape_analysis(Closure_Converter& conv, Parser* p, AST_Node* root, AST_Node* cont, Scope* scope, Alias_Scope* aliases) {
+void print_aliases(Parser* p, Alias_Scope* aliases, AST_Id l) {
+  AST_Manager* m = &p->ast_man;
+  AST_Node*    n = ast_manager_get(m, l);
+  printf("[| ");
+  print_ast_to_program(p, ast_type_bind_get_symbol(m, n));
+  printf(" |] := ");
+  printf("{ ");
+  u64 i = 0;
+
+  Alias_Scope::Alias_Set* s = find_alias_set(aliases, l);
+
+  for (Alias_Scope::Alias_Set::iterator it = s->begin(); it != s->end(); it++) {
+    i = i + 1;
+
+    AST_Node* n = ast_manager_get(m, *it);
+
+    print_ast_to_program(p, n);
+
+    if (i != s->size()) printf(", ");
+  }
+  printf(" }\n");
+}
+
+void print_all_aliases(Parser* p, Alias_Scope* aliases) {
+  if (aliases == NULL) return;
+
+  for (Alias_Scope::Alias_Map::iterator it = aliases->aliases.begin(); it != aliases->aliases.end(); it++) {
+    print_aliases(p, aliases, it->first);
+  }
+
+  print_all_aliases(p, aliases->parent);
+}
+
+void replace_aliases(Alias_Scope* a, Alias_Scope* b) {
+  while (a) {
+    assert(a && b);
+    a->aliases = b->aliases;
+    a          = a->parent;
+    b          = b->parent;
+  }
+}
+
+void merge_aliases(Alias_Scope* a, Alias_Scope* b) {
+  while (b) {
+    assert(b && a);
+    for (Alias_Scope::Alias_Map::iterator it0 = b->aliases.begin(); it0 != b->aliases.end(); it0++) {
+      for (Alias_Scope::Alias_Set::iterator it1 = it0->second.begin(); it1 != it0->second.end(); it1++) {
+        if (a->aliases.find(it0->first) == a->aliases.end()) { a->aliases[it0->first] = Alias_Scope::Alias_Set(); }
+
+        a->aliases[it0->first].insert(*it1);
+      }
+    }
+
+    a = a->parent;
+    b = b->parent;
+  }
+}
+
+void insert_all_function_literal_aliases(Alias_Scope* aliases, Scope* scope, Parser* p, AST_Node* node, Alias_Scope::Alias_Set* literals) {
+  AST_Manager* m = &p->ast_man;
+
+  if (ast_is_null_node(node)) return;
+
+  if (node->kind == AST_FUNCTION_LITERAL) {
+    literals->insert(node->id);
+    return;
+  }
+
+  assert(node->kind == AST_BIND_TYPE);
+
+  Alias_Scope::Alias_Set* values = find_alias_set(aliases, node->id);
+
+  if (values == NULL) return;
+
+  for (Alias_Scope::Alias_Set::iterator it = values->begin(); it != values->end(); it++) {
+    AST_Id    alias = *it;
+    AST_Node* value = ast_manager_get(m, alias);
+    if (value->kind == AST_FUNCTION_LITERAL) {
+      literals->insert(value->id);
+    } else {
+      AST_Node* declaration = scope_find(scope, p, value);
+
+      if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+      insert_all_function_literal_aliases(aliases, scope, p, declaration, literals);
+    }
+  }
+}
+void insert_all_aliases_to_function_literals(Alias_Scope* aliases, Scope* scope, Parser* p, AST_Node* node, Alias_Scope::Alias_Set* literals) {
+  AST_Manager* m = &p->ast_man;
+
+  if (ast_is_null_node(node)) return;
+
+  Alias_Scope::Alias_Set* set = find_alias_set(aliases, node->id);
+
+  if (set) {
+    for (Alias_Scope::Alias_Set::iterator it = set->begin(); it != set->end(); it++) {
+      AST_Node* value = ast_manager_get(m, *it);
+
+      if (value->kind == AST_FUNCTION_LITERAL) { literals->insert(node->id); }
+    }
+
+    return;
+  }
+
+  assert(node->kind == AST_BIND_TYPE);
+
+  Alias_Scope::Alias_Set* values = find_alias_set(aliases, node->id);
+
+  if (values == NULL) return;
+
+  for (Alias_Scope::Alias_Set::iterator it = values->begin(); it != values->end(); it++) {
+    AST_Id    alias = *it;
+    AST_Node* value = ast_manager_get(m, alias);
+
+    AST_Node* declaration = scope_find(scope, p, value);
+
+    if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+    insert_all_aliases_to_function_literals(aliases, scope, p, declaration, literals);
+  }
+}
+
+void get_function_literals(Parser* p, Alias_Scope* alias, AST_Node* call, Scope* scope, Alias_Scope::Alias_Set* literals) {
+  AST_Manager* m = &p->ast_man;
+
+  AST_Node* symbol      = ast_fun_call_get_call_sym(m, call);
+  AST_Node* declaration = scope_find(scope, p, symbol);
+
+  // NOTE(marcos): if a declaration is a type bind it is a argument.
+  if (ast_is_null_node(declaration)) {
+    // TODO(marcos): assume that all closures being passed as argumens are escaping
+    AST_Node* arguments    = ast_fun_call_get_call_args(m, call);
+    AST_Node* continuation = get_last(p, arguments);
+    declaration            = scope_find(scope, p, continuation);
+  }
+
+  if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+  return insert_all_function_literal_aliases(alias, scope, p, declaration, literals);
+}
+
+void get_aliases_to_function_literals(Parser* p, Alias_Scope* alias, AST_Node* node, Scope* scope, Alias_Scope::Alias_Set* literals) {
+  AST_Manager* m = &p->ast_man;
+
+  AST_Node* declaration = scope_find(scope, p, node);
+
+  if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+  return insert_all_aliases_to_function_literals(alias, scope, p, declaration, literals);
+}
+
+u64 function_literal_arguments_count(Parser* p, AST_Node* literal) {
+  AST_Manager* m = &p->ast_man;
+
+  AST_Node* signature = ast_function_literal_get_signature(m, literal);
+  AST_Node* arguments = ast_function_signature_get_args(m, signature);
+
+  u64 count = 0;
+
+  while (!ast_is_null_node(arguments)) {
+    count += 1;
+    arguments = ast_decl_list_get_tail(m, arguments);
+  }
+
+  return count;
+}
+
+u64 function_call_arguments_count(Parser* p, AST_Node* call) {
+  AST_Manager* m = &p->ast_man;
+
+  AST_Node* arguments = ast_fun_call_get_call_args(m, call);
+
+  u64 count = 0;
+
+  while (!ast_is_null_node(arguments)) {
+    count += 1;
+    arguments = ast_decl_list_get_tail(m, arguments);
+  }
+
+  return count;
+}
+
+b8 is_symbols_aliases(Alias_Scope* aliases, Scope* scope, Parser* p, AST_Node* a, AST_Node* b) {
+  // NOTE(marcos): the efficience of this is pretty bad
+
+  AST_Manager* m = &p->ast_man;
+
+  if (a->kind != b->kind) return false;
+
+  assert(a->kind == AST_BIND_TYPE);
+
+  AST_Node* l = ast_type_bind_get_symbol(m, a);
+  AST_Node* r = ast_type_bind_get_symbol(m, b);
+
+  if (parser_is_same_symbol(p, l, r)) { return true; }
+
+  Alias_Scope::Alias_Set* set_b = find_alias_set(aliases, b->id);
+
+  if (set_b) {
+    for (Alias_Scope::Alias_Set::iterator it = set_b->begin(); it != set_b->end(); it++) {
+      AST_Node* c = ast_manager_get(m, *it);
+      if (is_symbols_aliases(aliases, scope, p, a, c)) return true;
+    }
+  }
+
+  return false;
+}
+
+void bind_function_call_arguments(Alias_Scope* aliases, Scope* scope, Parser* p, AST_Node* literal, AST_Node* call) {
+  AST_Manager* m = &p->ast_man;
+
+  u64 call_arguments_count    = function_call_arguments_count(p, call);
+  u64 literal_arguments_count = function_literal_arguments_count(p, literal);
+
+  AST_Node* signature = ast_function_literal_get_signature(m, literal);
+  AST_Node* bindings  = ast_function_signature_get_args(m, signature);
+
+  if (call_arguments_count == literal_arguments_count) {
+    AST_Node* arguments = ast_fun_call_get_call_args(m, call);
+
+    while (!ast_is_null_node(bindings)) {
+      AST_Node* binding = ast_decl_list_get_elem(m, bindings);
+      AST_Node* value   = ast_undefined(m);
+
+      if (!ast_is_null_node(arguments)) {
+        value     = ast_decl_list_get_elem(m, arguments);
+        arguments = ast_decl_list_get_tail(m, arguments);
+      }
+
+      scope_push(scope, binding);
+
+      assign_left_to_right_alias(aliases, binding->id, value->id);
+
+      bindings = ast_decl_list_get_tail(m, bindings);
+    }
+  }
+
+  // NOTE(marcos): assuming continuation is going to be called
+  if (literal_arguments_count) {
+    while (!ast_is_null_node(bindings)) {
+      AST_Node* binding = ast_decl_list_get_elem(m, bindings);
+
+      scope_push(scope, binding);
+
+      aliases->aliases[binding->left].insert(ast_undefined(m)->id);
+      bindings = ast_program_point_get_tail(m, bindings);
+    }
+  }
+}
+
+void function_literal_return_escape_analysis(
+    Closure_Converter& conv, Parser* p, AST_Node* root, AST_Node* cont, Scope* scope, Alias_Scope* aliases, Alias_Scope::Alias_Set* escapes) {
   if (ast_is_null_node(root)) return;
+
   AST_Manager* m = &p->ast_man;
 
   if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
-    scope_push(scope, root);
 
-    AST_Node* left  = ast_manager_get_relative(m, root, root->left);
-    AST_Node* right = ast_manager_get_relative(m, root, root->right);
+    AST_Node* left = ast_bind_get_type_bind(m, root);
 
-    assign_left_to_right_alias(aliases, left->id, right->id);
+    scope_push(scope, left);
 
-    return;
+    AST_Node* right = ast_bind_get_expr(m, root);
+
+    return assign_left_to_right_alias(aliases, left->id, right->id);
   }
 
   if (root->kind == AST_OP_BIN_ASSIGN) {
@@ -826,61 +1070,70 @@ void function_literal_return_escape_analysis(Closure_Converter& conv, Parser* p,
     AST_Node* bind  = scope_find(scope, p, left);
     AST_Node* right = ast_manager_get_relative(m, root, root->right);
 
-    assign_left_to_right_alias(aliases, bind->id, right->id);
+    if (bind->kind == AST_BIND_CONSTANT || bind->kind == AST_BIND_VARIABLE) { bind = ast_bind_get_type_bind(m, bind); }
+
+    assert(bind->kind == AST_BIND_TYPE);
+
+    return assign_left_to_right_alias(aliases, bind->id, right->id);
+  }
+
+  if (root->kind == AST_FUNCTION_CALL) {
+    AST_Node* symbol = ast_fun_call_get_call_sym(m, root);
+
+    AST_Node* declaration = scope_find(scope, p, symbol);
+
+    if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+    if (is_symbols_aliases(aliases, scope, p, declaration, cont)) {
+      AST_Node* arguments = ast_fun_call_get_call_args(m, root);
+      while (!ast_is_null_node(arguments)) {
+        AST_Node* arg = ast_decl_list_get_elem(m, arguments);
+
+        get_aliases_to_function_literals(p, aliases, arg, scope, escapes);
+
+        arguments = ast_decl_list_get_tail(m, arguments);
+      }
+      return;
+    }
+
+    Alias_Scope::Alias_Set literals;
+
+    get_function_literals(p, aliases, root, scope, &literals);
+
+    for (Alias_Scope::Alias_Set::iterator it = literals.begin(); it != literals.end(); it++) {
+      Alias_Scope temp = {.aliases = Alias_Scope::Alias_Map(), .parent = aliases};
+
+      Alias_Scope* call_aliases = copy_alias_scope_to_heap(&temp);
+
+      AST_Node* literal    = ast_manager_get(m, *it);
+      AST_Node* statements = ast_function_literal_get_body(m, literal);
+      AST_Node* signature  = ast_function_literal_get_signature(m, literal);
+      AST_Node* arguments  = ast_function_signature_get_args(m, signature);
+
+      Scope* call_scope = scope_create(scope); // TODO(marcos): fix leaks
+
+      bind_function_call_arguments(call_aliases, call_scope, p, literal, root);
+
+      function_literal_return_escape_analysis(conv, p, statements, cont, call_scope, call_aliases, escapes);
+
+      if (it == literals.begin()) {
+        replace_aliases(aliases, call_aliases->parent);
+      } else {
+        merge_aliases(aliases, call_aliases->parent);
+      }
+    }
 
     return;
   }
 
-  if (root->kind == AST_FUNCTION_CALL) {
-    AST_Node* symbol      = ast_manager_get_relative(m, root, root->left);
-    AST_Node* arguments   = ast_manager_get_relative(m, root, root->right);
-    AST_Node* function    = get_last(p, arguments);
-    AST_Node* declaration = scope_find(scope, p, function);
-
-    if (ast_is_null_node(declaration)) return;
-
-    AST_Node* literal = ast_bind_get_expr(m, declaration);
-
-    assert(literal->kind == AST_FUNCTION_LITERAL && "not a function definition");
-
-    AST_Node* signature = ast_function_literal_get_signature(m, literal);
-    AST_Node* bindings  = ast_function_signature_get_args(m, signature);
-
-    Scope* closure_scope = function_literal_args_to_scope(p, literal, scope);
-
-    Alias_Scope closure_aliases = {.parent = aliases};
-
-    while (!ast_is_null_node(arguments)) {
-      assert(!ast_is_null_node(bindings) && "Invalid number of arguments");
-
-      AST_Node* argument = ast_decl_list_get_elem(m, arguments);
-      AST_Node* binding  = ast_decl_list_get_elem(m, bindings);
-
-      if (binding->kind == AST_BIND_CONSTANT || binding->kind == AST_BIND_VARIABLE) { binding = ast_bind_get_type_bind(m, binding); }
-
-      assert(binding->kind == AST_BIND_TYPE);
-
-      closure_aliases.aliases[binding->left] = Alias_Scope::Alias_Set();
-      closure_aliases.aliases[binding->left].insert(argument->id);
-
-      bindings  = ast_decl_list_get_tail(m, bindings);
-      arguments = ast_decl_list_get_tail(m, arguments);
-    }
-
-    AST_Node* body = ast_function_literal_get_body(m, literal);
-
-    return function_literal_return_escape_analysis(conv, p, body, cont, closure_scope, &closure_aliases);
-  }
-
   if (root->kind == AST_CTRL_FLOW_IF) {
-    AST_Node* condition = ast_manager_get_relative(m, root, root->left);
-    AST_Node* body      = ast_manager_get_relative(m, root, root->right);
+    AST_Node* body = ast_manager_get_relative(m, root, root->right);
 
     Alias_Scope* branch_aliases = copy_alias_scope_to_heap(aliases);
 
-    function_literal_return_escape_analysis(conv, p, condition, cont, scope, aliases);
-    function_literal_return_escape_analysis(conv, p, body, cont, scope, branch_aliases);
+    function_literal_return_escape_analysis(conv, p, body, cont, scope, branch_aliases, escapes);
 
+    merge_aliases(aliases, branch_aliases);
     return;
   }
 
@@ -889,22 +1142,17 @@ void function_literal_return_escape_analysis(Closure_Converter& conv, Parser* p,
     AST_Node* tail   = ast_manager_get_relative(m, root, root->right);
 
     Alias_Scope* branch_aliases = copy_alias_scope_to_heap(aliases);
-    function_literal_return_escape_analysis(conv, p, branch, cont, scope, branch_aliases);
+
+    function_literal_return_escape_analysis(conv, p, branch, cont, scope, branch_aliases, escapes);
 
     while (tail->kind == AST_CTRL_FLOW_IF_ELSE) {
       branch = ast_manager_get_relative(m, tail, tail->left);
 
       Alias_Scope* _branch_aliases = copy_alias_scope_to_heap(aliases);
 
-      function_literal_return_escape_analysis(conv, p, branch, cont, scope, _branch_aliases);
+      function_literal_return_escape_analysis(conv, p, branch, cont, scope, _branch_aliases, escapes);
 
-      for (Alias_Scope::Alias_Map::iterator it0 = _branch_aliases->aliases.begin(); it0 != _branch_aliases->aliases.end(); it0++) {
-        for (Alias_Scope::Alias_Set::iterator it1 = it0->second.begin(); it1 != it0->second.end(); it1++) {
-          if (branch_aliases->aliases.find(it0->first) == branch_aliases->aliases.end()) { branch_aliases->aliases[it0->first] = Alias_Scope::Alias_Set(); }
-
-          branch_aliases->aliases[it0->first].insert(*it1);
-        }
-      }
+      merge_aliases(branch_aliases, _branch_aliases);
 
       tail = ast_manager_get_relative(m, tail, tail->right);
     }
@@ -912,15 +1160,9 @@ void function_literal_return_escape_analysis(Closure_Converter& conv, Parser* p,
     if (!ast_is_null_node(tail)) {
       Alias_Scope* _branch_aliases = copy_alias_scope_to_heap(aliases);
 
-      function_literal_return_escape_analysis(conv, p, tail, cont, scope, _branch_aliases);
+      function_literal_return_escape_analysis(conv, p, tail, cont, scope, _branch_aliases, escapes);
 
-      for (Alias_Scope::Alias_Map::iterator it0 = _branch_aliases->aliases.begin(); it0 != _branch_aliases->aliases.end(); it0++) {
-        for (Alias_Scope::Alias_Set::iterator it1 = it0->second.begin(); it1 != it0->second.end(); it1++) {
-          if (branch_aliases->aliases.find(it0->first) == branch_aliases->aliases.end()) { aliases->aliases[it0->first] = Alias_Scope::Alias_Set(); }
-
-          branch_aliases->aliases[it0->first].insert(*it1);
-        }
-      }
+      merge_aliases(branch_aliases, _branch_aliases);
     }
 
     Alias_Scope* temp = aliases;
@@ -939,8 +1181,22 @@ void function_literal_return_escape_analysis(Closure_Converter& conv, Parser* p,
   AST_Node* left  = ast_manager_get_relative(m, root, root->left);
   AST_Node* right = ast_manager_get_relative(m, root, root->right);
 
-  function_literal_return_escape_analysis(conv, p, left, cont, scope, aliases);
-  function_literal_return_escape_analysis(conv, p, right, cont, scope, aliases);
+  function_literal_return_escape_analysis(conv, p, left, cont, scope, aliases, escapes);
+  function_literal_return_escape_analysis(conv, p, right, cont, scope, aliases, escapes);
+}
+
+void init_alias_scope(Parser* p, AST_Node* function, Alias_Scope* aliases) {
+  AST_Manager* m         = &p->ast_man;
+  AST_Node*    signature = ast_function_literal_get_signature(m, function);
+  AST_Node*    arguments = ast_function_signature_get_args(m, signature);
+
+  while (!ast_is_null_node(arguments)) {
+    AST_Node* binding = ast_decl_list_get_elem(m, arguments);
+
+    aliases->aliases[binding->id].insert(ast_undefined(m)->id);
+
+    arguments = ast_decl_list_get_tail(m, arguments);
+  }
 }
 
 void return_escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
@@ -948,27 +1204,32 @@ void return_escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* r
   AST_Manager* m = &p->ast_man;
 
   while (!ast_is_null_node(root)) {
-    AST_Node* statement = ast_manager_get_relative(m, root, root->left);
+    AST_Node* statement = ast_program_point_get_decl(m, root);
 
     if (statement->kind == AST_BIND_CONSTANT || statement->kind == AST_BIND_VARIABLE) {
       AST_Node* expr = ast_bind_get_expr(m, statement);
       if (expr->kind == AST_FUNCTION_LITERAL) {
-        Scope*    scope        = function_literal_args_to_scope(p, expr);
         AST_Node* signature    = ast_function_literal_get_signature(m, expr);
         AST_Node* body         = ast_function_literal_get_body(m, expr);
         AST_Node* arguments    = ast_function_signature_get_args(m, signature);
+        Scope*    scope        = declaration_arguments_to_scope(p, arguments);
         AST_Node* continuation = get_last(p, arguments);
-        AST_Node* cont_symbol  = ast_type_bind_get_symbol(m, continuation);
 
-        assert(ast_is_temporary(m, cont_symbol));
+        Alias_Scope aliases = {.parent = NULL, .aliases = Alias_Scope::Alias_Map()};
 
-        Alias_Scope aliases;
+        init_alias_scope(p, expr, &aliases);
 
-        function_literal_return_escape_analysis(converter, p, body, cont_symbol, scope, &aliases);
+        Alias_Scope::Alias_Set escapes;
+
+        function_literal_return_escape_analysis(converter, p, body, continuation, scope, &aliases, &escapes);
+
+        printf("========\n");
+        print_all_aliases(p, &aliases);
+        printf("========\n");
       }
     }
 
-    root = ast_manager_get_relative(m, root, root->left);
+    root = ast_program_point_get_tail(m, root);
   }
 }
 

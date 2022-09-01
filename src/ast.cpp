@@ -12,7 +12,7 @@
 const char* ast_kind_strs[] = {
     // Compounds
     "AST_NULL_NODE",
-
+    "AST_UNDEFINED_NODE",
     "__AST_KIND_BEGIN",
 
     "AST_PROGRAM_POINT",
@@ -437,3 +437,5 @@ AST_Node* ast_call_push_argument(AST_Manager* m, Token tok, AST_Node* call, AST_
 }
 
 b8 ast_is_temporary(AST_Manager* m, AST_Node* n) { return n->kind >= __AST_KIND_END; }
+
+AST_Node* ast_undefined(AST_Manager* m) { return ast_manager_alloc(m, lexer_undef_token(), AST_UNDEFINED_NODE, ast_node_null(m)->id, ast_node_null(m)->id); }

@@ -211,7 +211,7 @@ AST_Node* parser_parse_postfix_suffix_unary(Parser* p) {
 AST_Node* parser_parse_call_args(Parser* p) {
   bool effectfull = false;
 
-  Token tok      = parser_curr_tok(p);
+  Token     tok  = parser_curr_tok(p);
   AST_Node* arg  = parse_call_args(p);
   AST_Node* tail = 0;
 
@@ -914,6 +914,11 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf(" * ");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+
+  if (n->kind == AST_UNDEFINED_NODE) {
+    printf("undefined");
     return;
   }
 

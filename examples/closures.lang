@@ -25,20 +25,35 @@ iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
 	return t;
 }
 
+read :: () {}
+
 some_f :: (f: any -> any) {
-	y : any = 3;
+	y : i32 = 3;
 
-	y = 4;
+	
+	z : i32 = 4;
 
-	t : any : read();
+	t : i32 : read();
 
 	if t {
 		y = 2;
 	}
 
-	h :: () {
-		f(y);
+	g : unit -> i32 : () {
+		u :: read();
+
+		if u {
+			y = 7;
+		}
+		
+		return 0;
 	}
 
-	h();
+	w : any : g;
+
+	w();
+
+	f = w;
+	
+	return 0;
 }

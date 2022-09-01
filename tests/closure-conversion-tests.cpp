@@ -19,9 +19,7 @@ void should_closure_convert_ast() {
 
   AST_Node* root = parser_parse(&p);
 
-  Scope* scope = scope_create(0);
-
-  // print_ast(&p, root);
+  print_ast(&p, root);
 
   closure_conversion(&p, root);
 
@@ -62,7 +60,7 @@ void should_closure_convert_ast() {
 // }
 
 int main() {
-  buf = read_from_file("../examples/closures.magic");
+  buf = read_from_file("../examples/closures.lang");
 
   TEST(should_closure_convert_ast);
 
