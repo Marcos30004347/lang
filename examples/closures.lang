@@ -3,28 +3,6 @@
 // statically available.
 
 
-f : any : (x:i32) -> i32 {
-	return 0;
-}
-
-iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
-	h : i32*i32 -> i32 : (a:i32, r:i32) -> i32 {
-		z : i32 : p(a, r);
-
-		if z {
-			return a;
-		} else {
-			u : i32 : f(a);
-			y : i32 : h(u, a);
-			return y;
-		}
-	}
-
-	t : i32 : h(x, 1);
-
-	return t;
-}
-
 read :: () {}
 
 some_f :: (f: any -> any) {
@@ -57,3 +35,58 @@ some_f :: (f: any -> any) {
 	
 	return 0;
 }
+
+
+k :: (x: i32 -> i32) {
+	h : i32 = 0;
+
+	t : unit -> i32 : () -> i32 {
+		q : i32 : h + 1;
+		return q;
+	}
+
+	x = (a:i32) -> i32 {
+		return a;
+	}
+
+	return t;
+}
+
+
+
+
+f : any : (x:i32) -> i32 {
+	return 0;
+}
+
+iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
+	h : i32*i32 -> i32 : (a:i32, r:i32) -> i32 {
+		z : i32 : p(a, r);
+
+		if z {
+			return a;
+		} else {
+			u : i32 : f(a);
+			y : i32 : h(u, a);
+			return y;
+		}
+	}
+
+	t : i32 : h(x, 1);
+
+	return t;
+}
+
+j : any : () -> any {
+	w : any : () -> any {
+		k : any : () -> any {
+			return 0;
+		}
+		
+		return k;
+	}
+
+	u : any : w();
+
+	return u;
+} 
