@@ -186,11 +186,7 @@ AST_Node* ast_manager_get_relative(AST_Manager* m, AST_Node* root, AST_Id child_
     b = b->prev;
   }
 
-  AST_Node* x = &b->data[child_id % AST_BUCKET_SIZE];
-
-  assert(x->id == child_id);
-
-  return x;
+  return &b->data[child_id % AST_BUCKET_SIZE];
 }
 
 AST_Node* ast_manager_alloc(AST_Manager* m, Token tok, u64 kind, AST_Id l, AST_Id r) { return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r)); }

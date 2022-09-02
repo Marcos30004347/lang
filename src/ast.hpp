@@ -98,16 +98,20 @@ typedef u32 AST_Id;
 typedef struct AST_Bucket AST_Bucket;
 
 struct AST_Node {
-  // This AST Node Id
   AST_Id id;
-  // The token that resulted on this Node
-  Token  tok;
+
+  // TODO(marcos): this node can use less bytes
+  // if we take this token away and just store
+  // a reference to it here, like a TokenId ref
+  // as we do for the AST_Node childs.
+  Token tok;
+
   AST_Id left;
   AST_Id right;
 
-  // internally, any kind greater than the maximum value inside AST_Kind is
-  // a temp variable, identified by the stored number on kind, read
-  // transformations.hpp. for more info.
+  // NOTE(marcos): kinds > __AST_KIND_END represents
+  // temporary values, that is, values inserted by
+  // the compiler for compilation purposes.
   u64 kind;
 
   AST_Bucket* bucket;

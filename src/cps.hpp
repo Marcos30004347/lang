@@ -1339,6 +1339,15 @@ void escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
   }
 }
 
+void closure_representation_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
+  AST_Manager* m = &p->ast_man;
+
+  if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
+    AST_Node* left  = ast_bind_get_type_bind(m, root);
+    AST_Node* right = ast_bind_get_expr(m, root);
+  }
+}
+
 void closure_conversion(Parser* p, AST_Node* root) {
   Closure_Converter converter;
 
