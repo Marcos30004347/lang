@@ -3,58 +3,6 @@
 // statically available.
 
 
-read :: () {}
-
-some_f :: (f: any -> any) {
-	y : i32 = 3;
-
-	
-	z : i32 = 4;
-
-	t : i32 : read();
-
-	if t {
-		y = 2;
-	}
-
-	g : unit -> i32 : () {
-		u :: read();
-
-		if u {
-			y = 7;
-		}
-		
-		return 0;
-	}
-
-	w : any : g;
-
-	w();
-
-	f = w;
-	
-	return 0;
-}
-
-
-k :: (x: i32 -> i32) {
-	h : i32 = 0;
-
-	t : unit -> i32 : () -> i32 {
-		q : i32 : h + 1;
-		return q;
-	}
-
-	x = (a:i32) -> i32 {
-		return a;
-	}
-
-	return t;
-}
-
-
-
-
 f : any : (x:i32) -> i32 {
 	return 0;
 }
@@ -77,16 +25,27 @@ iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
 	return t;
 }
 
-j : any : () -> any {
-	w : any : () -> any {
-		k : any : () -> any {
-			return 0;
-		}
-		
-		return k;
+g :: () {
+
+	x := 0;
+	y := 0;
+	z := 0;
+
+	mul :: () {
+		x = x + 2;
+		z = z + 2;
+		y = y + 2;
 	}
 
-	u : any : w();
+	add :: () {
+		x = x + 1;
+		z = z + 1;
+	}
 
-	return u;
-} 
+	sub :: () {
+		x = x + 1;
+		y = y + 1;
+	}
+
+	return add, sub, mul;
+}

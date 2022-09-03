@@ -29,7 +29,7 @@ struct CPS_Extended_Call_Edges {
 
 typedef std::unordered_map< AST_Id, CPS_Extended_Call_Edges > CPS_Extended_Call_Graph;
 
-struct Closure_Converter {
+struct Closure_Analysis {
   enum Escaping_Kind {
     FUNCTION_LOCAL,
     FUNCTION_ESCAPING,
@@ -37,26 +37,31 @@ struct Closure_Converter {
     CONTINUATION_LOCAL,
   };
 
-  struct Free_Variable_Data {
+  struct Lifetime {
     u64 last_use_time;
     u64 first_use_time;
   };
 
-  typedef std::unordered_set< AST_Id > Continuations;
-  typedef std::unordered_set< AST_Id > User_Functions;
+  typedef std::unordered_set< AST_Id > AST_Set;
 
-  typedef std::unordered_map< AST_Id, u64 >                Stage_Number_Map;
-  typedef std::unordered_map< AST_Id, Free_Variable_Data > Free_Variables_Map;
-  typedef std::unordered_map< AST_Id, Free_Variables_Map > Function_Free_Variables_Map;
-  typedef std::unordered_map< AST_Id, Escaping_Kind >      Function_Escaping_Map;
+  typedef std::unordered_map< AST_Id, u64 >           AST_To_U64_Map;
+  typedef std::unordered_map< AST_Id, Lifetime >      Lifetimes;
+  typedef std::unordered_map< AST_Id, AST_Set >       Function_Free_Variables_Map;
+  typedef std::unordered_map< AST_Id, Escaping_Kind > Function_Escaping_Map;
 
-  User_Functions user_functions;
-  Continuations  continuations;
+  AST_Set user_functions;
+  AST_Set continuations;
 
   CPS_Extended_Call_Graph     cps_extended_call_graph;
-  Stage_Number_Map            stage_number;
-  Function_Free_Variables_Map function_free_variables;
+  AST_To_U64_Map              strategy_number;
+  AST_To_U64_Map              stage_number;
+  Function_Free_Variables_Map free_variables;
   Function_Escaping_Map       escaping_kind;
+  Lifetimes                   lifetimes;
+  // Map closures to they environments
+
+  // AST_Map where_map;
+  // AST_Map base_registers;
 };
 
 Scope* declaration_arguments_to_scope(Parser* p, AST_Node* node, Scope* parent = NULL) {
@@ -136,7 +141,7 @@ void replace_return_with_continuation_call(Parser* p, AST_Node* statement, AST_N
   replace_return_with_continuation_call(p, r, continuation);
 }
 
-AST_Node* create_continuation_function(Closure_Converter& conv, Parser* p, Scope* scope, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
+AST_Node* create_continuation_function(Closure_Analysis& conv, Parser* p, Scope* scope, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
   AST_Manager* m         = &p->ast_man;
   Token        undefined = lexer_undef_token();
 
@@ -162,11 +167,11 @@ AST_Node* create_continuation_function(Closure_Converter& conv, Parser* p, Scope
   return declaration;
 }
 
-AST_Node* function_call_cps_conversion(Closure_Converter& conv, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind);
-void      function_literal_cps_conversion(Closure_Converter& conv, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation = NULL);
-void      program_point_cps_conversion(Closure_Converter& conv, Parser* p, AST_Node* statements, Scope* scope);
+AST_Node* function_call_cps_conversion(Closure_Analysis& conv, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind);
+void      function_literal_cps_conversion(Closure_Analysis& conv, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation = NULL);
+void      program_point_cps_conversion(Closure_Analysis& conv, Parser* p, AST_Node* statements, Scope* scope);
 
-void program_point_cps_conversion(Closure_Converter& conv, Parser* p, AST_Node* statements, Scope* scope) {
+void program_point_cps_conversion(Closure_Analysis& conv, Parser* p, AST_Node* statements, Scope* scope) {
 
   AST_Manager* m = &p->ast_man;
 
@@ -255,8 +260,7 @@ void program_point_cps_conversion(Closure_Converter& conv, Parser* p, AST_Node* 
   }
 }
 
-AST_Node*
-function_call_cps_conversion(Closure_Converter& conv, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind) {
+AST_Node* function_call_cps_conversion(Closure_Analysis& conv, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind) {
   AST_Manager* m        = &p->ast_man;
   AST_Node*    function = ast_fun_call_get_call_sym(m, call);
 
@@ -327,7 +331,7 @@ function_call_cps_conversion(Closure_Converter& conv, Parser* p, Scope* scope, A
   // return program_point;
 }
 
-void function_literal_cps_conversion(Closure_Converter& conv, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation_symbol) {
+void function_literal_cps_conversion(Closure_Analysis& conv, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation_symbol) {
   assert(function->kind == AST_FUNCTION_LITERAL);
 
   AST_Manager* m         = &p->ast_man;
@@ -356,7 +360,7 @@ void function_literal_cps_conversion(Closure_Converter& conv, Parser* p, Scope* 
   program_point_cps_conversion(conv, p, statements, scope);
 }
 
-void cps_conversion(Closure_Converter& conv, Parser* p, AST_Node* root) {
+void cps_conversion(Closure_Analysis& conv, Parser* p, AST_Node* root) {
   assert(root->kind == AST_PROGRAM_POINT);
 
   AST_Manager* m = &p->ast_man;
@@ -505,7 +509,7 @@ void build_extended_cps_graph(CPS_Extended_Call_Graph& graph, Parser* p, AST_Nod
   }
 }
 
-void compute_function_declaration_stage_numbers(Closure_Converter& converter, Parser* p, AST_Node* root, Scope* scope) {
+void compute_function_declaration_stage_numbers(Closure_Analysis& converter, Parser* p, AST_Node* root, Scope* scope) {
   AST_Manager* m = &p->ast_man;
 
   if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
@@ -543,7 +547,7 @@ void compute_function_declaration_stage_numbers(Closure_Converter& converter, Pa
   }
 }
 
-void compute_continuations_stage_numbers(Closure_Converter& converter, Parser* p, AST_Node* root, Scope* scope) {
+void compute_continuations_stage_numbers(Closure_Analysis& converter, Parser* p, AST_Node* root, Scope* scope) {
   AST_Manager* m = &p->ast_man;
 
   if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
@@ -676,15 +680,11 @@ void print_cps_extended_graph_context(CPS_Extended_Call_Graph& ctx, Parser* p) {
 }
 
 struct FunctionDeclaration {
-
-  typedef std::unordered_map< AST_Id, Closure_Converter::Free_Variable_Data > Free_Variables;
-
-  Free_Variables       free_variables;
   AST_Node*            declaration;
   FunctionDeclaration* prev;
 };
 
-void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p, FunctionDeclaration* enclosing, AST_Node* node) {
+void compute_use_time_rec(Closure_Analysis& analysis, Scope* scope, Parser* p, FunctionDeclaration* enclosing, AST_Node* node) {
   if (ast_is_null_node(node)) return;
 
   AST_Manager* m = &p->ast_man;
@@ -692,24 +692,31 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
   if (node->kind == AST_SYMBOL_LITERAL || ast_is_temporary(m, node)) {
     if (enclosing == NULL) return;
 
-    while (enclosing) {
-      b8 is_local = false;
+    b8 is_local = false;
 
+    while (enclosing != NULL) {
       AST_Node* declaration = scope_find(scope, p, node, &is_local);
 
       assert(!ast_is_null_node(declaration) && "Declaration not found");
 
       if (is_local) { break; }
 
-      u64 stage_number = converter.stage_number[enclosing->declaration->id];
+      u64 stage_number = analysis.stage_number[enclosing->declaration->id];
 
-      if (enclosing->free_variables.find(declaration->id) == enclosing->free_variables.end()) {
-        enclosing->free_variables[declaration->id]                = Closure_Converter::Free_Variable_Data();
-        enclosing->free_variables[declaration->id].first_use_time = stage_number;
-        enclosing->free_variables[declaration->id].last_use_time  = stage_number;
+      Closure_Analysis::AST_Set& fv = analysis.free_variables[enclosing->declaration->id];
+
+      fv.insert(declaration->id);
+
+      if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
+
+      assert(declaration->kind == AST_BIND_TYPE);
+
+      if (analysis.lifetimes.find(declaration->id) == analysis.lifetimes.end()) {
+        analysis.lifetimes[declaration->id].first_use_time = stage_number;
+        analysis.lifetimes[declaration->id].last_use_time  = stage_number;
       } else {
-        enclosing->free_variables[declaration->id].first_use_time = std::min(enclosing->free_variables[declaration->id].first_use_time, stage_number);
-        enclosing->free_variables[declaration->id].last_use_time  = std::max(enclosing->free_variables[declaration->id].last_use_time, stage_number);
+        analysis.lifetimes[declaration->id].first_use_time = std::min(analysis.lifetimes[declaration->id].first_use_time, stage_number);
+        analysis.lifetimes[declaration->id].last_use_time  = std::max(analysis.lifetimes[declaration->id].last_use_time, stage_number);
       }
 
       scope     = scope->parent;
@@ -723,15 +730,19 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
     scope_push(scope, node);
 
     AST_Node* right = ast_bind_get_expr(m, node);
+    AST_Node* left  = ast_bind_get_type_bind(m, node);
 
     if (right->kind == AST_FUNCTION_LITERAL) {
       FunctionDeclaration declaration;
 
-      declaration.prev           = enclosing;
-      declaration.declaration    = node;
-      declaration.free_variables = FunctionDeclaration::Free_Variables();
+      declaration.prev        = enclosing;
+      declaration.declaration = left;
 
-      compute_use_time_rec(converter, scope, p, &declaration, right);
+      analysis.free_variables[left->id] = Closure_Analysis::AST_Set();
+
+      // declaration.free_variables = FunctionDeclaration::Free_Variables();
+
+      compute_use_time_rec(analysis, scope, p, &declaration, right);
 
       printf("FreeVariables(");
       print_ast_to_program(p, ast_manager_get_relative(m, ast_manager_get_relative(m, node, node->left), ast_manager_get_relative(m, node, node->left)->left));
@@ -739,25 +750,26 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
 
       u64 i = 0;
 
-      for (FunctionDeclaration::Free_Variables::iterator it = declaration.free_variables.begin(); it != declaration.free_variables.end(); it++) {
+      for (Closure_Analysis::AST_Set::iterator it = analysis.free_variables[left->id].begin(); it != analysis.free_variables[left->id].end(); it++) {
         i++;
-        AST_Node* n = ast_manager_get(m, it->first);
-
+        AST_Node* n = ast_manager_get(m, *it);
         if (n->kind == AST_BIND_VARIABLE || n->kind == AST_BIND_CONSTANT) { n = ast_manager_get_relative(m, n, n->left); }
         // print_ast(p, n);
+        AST_Id id = n->id;
         assert(n->kind == AST_BIND_TYPE);
         if (n->kind == AST_BIND_TYPE) { n = ast_manager_get_relative(m, n, n->left); }
 
         print_ast_to_program(p, n);
-        if (i != declaration.free_variables.size()) printf(", ");
+        printf("[%lu, %lu]", analysis.lifetimes[id].first_use_time, analysis.lifetimes[id].last_use_time);
+        if (i != analysis.free_variables[left->id].size()) printf(", ");
       }
 
       printf(" }\n");
 
-      converter.function_free_variables[node->id] = declaration.free_variables;
+      // converter.free_variables[node->id] = declaration.free_variables;
       return;
     } else {
-      return compute_use_time_rec(converter, scope, p, enclosing, right);
+      return compute_use_time_rec(analysis, scope, p, enclosing, right);
     }
   }
 
@@ -769,14 +781,14 @@ void compute_use_time_rec(Closure_Converter& converter, Scope* scope, Parser* p,
 
     AST_Node* body = ast_function_literal_get_body(m, node);
 
-    return compute_use_time_rec(converter, closure_scope, p, enclosing, body);
+    return compute_use_time_rec(analysis, closure_scope, p, enclosing, body);
   }
 
   AST_Node* l = ast_manager_get_relative(m, node, node->left);
   AST_Node* r = ast_manager_get_relative(m, node, node->right);
 
-  compute_use_time_rec(converter, scope, p, enclosing, l);
-  compute_use_time_rec(converter, scope, p, enclosing, r);
+  compute_use_time_rec(analysis, scope, p, enclosing, l);
+  compute_use_time_rec(analysis, scope, p, enclosing, r);
 }
 
 struct Alias_Scope {
@@ -987,13 +999,20 @@ void get_function_literals(Parser* p, Alias_Scope* alias, AST_Node* call, Scope*
 }
 
 void get_aliases_to_function_literals(Parser* p, Alias_Scope* alias, AST_Node* node, Scope* scope, Alias_Scope::Alias_Set* literals) {
-  AST_Manager* m = &p->ast_man;
+  if (ast_is_null_node(node)) return;
 
-  AST_Node* declaration = scope_find(scope, p, node);
+  AST_Manager* m           = &p->ast_man;
+  AST_Node*    declaration = scope_find(scope, p, node);
 
   if (declaration->kind == AST_BIND_CONSTANT || declaration->kind == AST_BIND_VARIABLE) { declaration = ast_bind_get_type_bind(m, declaration); }
 
-  return insert_all_aliases_to_function_literals(alias, scope, p, declaration, literals);
+  if (declaration->kind == AST_BIND_TYPE) { return insert_all_aliases_to_function_literals(alias, scope, p, declaration, literals); }
+
+  AST_Node* left  = ast_manager_get_relative(m, node, node->left);
+  AST_Node* right = ast_manager_get_relative(m, node, node->right);
+
+  get_aliases_to_function_literals(p, alias, left, scope, literals);
+  get_aliases_to_function_literals(p, alias, right, scope, literals);
 }
 
 u64 function_literal_arguments_count(Parser* p, AST_Node* literal) {
@@ -1116,7 +1135,7 @@ void push_argument_aliases(Parser* p, AST_Node* function, AST_Node* values, Alia
 }
 
 void function_literal_escape_analysis(
-    Closure_Converter& conv, Parser* p, AST_Node* root, AST_Node* cont, Scope* scope, Alias_Scope* aliases, Alias_Scope::Alias_Set* escapes) {
+    Closure_Analysis& conv, Parser* p, AST_Node* root, AST_Node* cont, Scope* scope, Alias_Scope* aliases, Alias_Scope::Alias_Set* escapes) {
   if (ast_is_null_node(root)) return;
 
   AST_Manager* m = &p->ast_man;
@@ -1129,41 +1148,6 @@ void function_literal_escape_analysis(
 
     AST_Node* right = ast_bind_get_expr(m, root);
 
-    // if (right->kind == AST_FUNCTION_CALL) {
-    //   printf("HAHAHAHA\n");
-    //   Alias_Scope::Alias_Set literals;
-
-    //   get_function_literals(p, aliases, right, scope, &literals);
-
-    //   Closure_Converter converter = conv;
-
-    //   aliases->aliases[left->id] = Alias_Scope::Alias_Set();
-
-    //   for (Alias_Scope::Alias_Set::iterator it = literals.begin(); it != literals.end(); it++) {
-    //     AST_Node* expr = ast_manager_get(m, *it);
-
-    //     AST_Node* signature = ast_function_literal_get_signature(m, expr);
-    //     AST_Node* body      = ast_function_literal_get_body(m, expr);
-    //     AST_Node* arguments = ast_function_signature_get_args(m, signature);
-
-    //     Scope* scope = declaration_arguments_to_scope(p, arguments, scope);
-
-    //     AST_Node* continuation = get_last(p, arguments);
-
-    //     // Alias_Scope function_aliases = {.parent = NULL, .aliases = Alias_Scope::Alias_Map()};
-
-    //     push_argument_aliases(p, expr, ast_fun_call_get_call_args(m, right), aliases);
-
-    //     Alias_Scope::Alias_Set escapes;
-
-    //     function_literal_escape_analysis(converter, p, body, continuation, scope, aliases, &escapes);
-
-    //     for (Alias_Scope::Alias_Set::iterator it = escapes.begin(); it != escapes.end(); it++) {
-    //       aliases->aliases[left->id].insert(*it);
-    //     }
-    //   }
-    // } else {
-    // }
     return assign_left_to_right_alias(aliases, left->id, right->id);
   }
 
@@ -1196,6 +1180,7 @@ void function_literal_escape_analysis(
 
         arguments = ast_decl_list_get_tail(m, arguments);
       }
+
       return;
     }
 
@@ -1288,7 +1273,7 @@ void function_literal_escape_analysis(
   function_literal_escape_analysis(conv, p, right, cont, scope, aliases, escapes);
 }
 
-void escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
+void escape_analysis(Closure_Analysis& converter, Parser* p, AST_Node* root) {
   assert(root->kind == AST_PROGRAM_POINT);
   AST_Manager* m = &p->ast_man;
 
@@ -1316,15 +1301,15 @@ void escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
 
         for (Alias_Scope::Alias_Map::iterator it = function_aliases.aliases.begin(); it != function_aliases.aliases.end(); it++) {
           for (Alias_Scope::Alias_Set::iterator val = it->second.begin(); val != it->second.end(); val++) {
-            if (converter.continuations.find(*val) != converter.continuations.end()) { converter.escaping_kind[*val] = Closure_Converter::CONTINUATION_ESCAPING; }
-            if (converter.user_functions.find(*val) != converter.continuations.end()) { converter.escaping_kind[*val] = Closure_Converter::FUNCTION_ESCAPING; }
+            if (converter.continuations.find(*val) != converter.continuations.end()) { converter.escaping_kind[*val] = Closure_Analysis::CONTINUATION_ESCAPING; }
+            if (converter.user_functions.find(*val) != converter.continuations.end()) { converter.escaping_kind[*val] = Closure_Analysis::FUNCTION_ESCAPING; }
           }
         }
 
         for (Alias_Scope::Alias_Set::iterator it = escapes.begin(); it != escapes.end(); it++) {
           AST_Node* n = ast_manager_get(m, *it);
-          if (converter.continuations.find(*it) != converter.continuations.end()) { converter.escaping_kind[*it] = Closure_Converter::CONTINUATION_ESCAPING; }
-          if (converter.user_functions.find(*it) != converter.continuations.end()) { converter.escaping_kind[*it] = Closure_Converter::FUNCTION_ESCAPING; }
+          if (converter.continuations.find(*it) != converter.continuations.end()) { converter.escaping_kind[*it] = Closure_Analysis::CONTINUATION_ESCAPING; }
+          if (converter.user_functions.find(*it) != converter.continuations.end()) { converter.escaping_kind[*it] = Closure_Analysis::FUNCTION_ESCAPING; }
         }
       }
     }
@@ -1332,46 +1317,90 @@ void escape_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
     root = ast_program_point_get_tail(m, root);
   }
 
-  for (Closure_Converter::Continuations::iterator it = converter.continuations.begin(); it != converter.continuations.end(); it++) {
-    if (converter.escaping_kind.find(*it) == converter.escaping_kind.end()) { converter.escaping_kind[*it] = Closure_Converter::CONTINUATION_LOCAL; }
+  for (Closure_Analysis::AST_Set::iterator it = converter.continuations.begin(); it != converter.continuations.end(); it++) {
+    if (converter.escaping_kind.find(*it) == converter.escaping_kind.end()) { converter.escaping_kind[*it] = Closure_Analysis::CONTINUATION_LOCAL; }
   }
 
-  for (Closure_Converter::User_Functions::iterator it = converter.user_functions.begin(); it != converter.user_functions.end(); it++) {
-    if (converter.escaping_kind.find(*it) == converter.escaping_kind.end()) { converter.escaping_kind[*it] = Closure_Converter::FUNCTION_LOCAL; }
+  for (Closure_Analysis::AST_Set::iterator it = converter.user_functions.begin(); it != converter.user_functions.end(); it++) {
+    if (converter.escaping_kind.find(*it) == converter.escaping_kind.end()) { converter.escaping_kind[*it] = Closure_Analysis::FUNCTION_LOCAL; }
   }
 
-  for (Closure_Converter::Continuations::iterator it = converter.continuations.begin(); it != converter.continuations.end(); it++) {
+  for (Closure_Analysis::AST_Set::iterator it = converter.continuations.begin(); it != converter.continuations.end(); it++) {
     AST_Node* node = ast_manager_get(m, *it);
     printf("[| ");
     print_ast_to_program(p, node);
     printf(" |] = ");
-    if (converter.escaping_kind[*it] == Closure_Converter::CONTINUATION_LOCAL) printf("local_continuation");
-    if (converter.escaping_kind[*it] == Closure_Converter::CONTINUATION_ESCAPING) printf("escaping_continuation");
+    if (converter.escaping_kind[*it] == Closure_Analysis::CONTINUATION_LOCAL) printf("local_continuation");
+    if (converter.escaping_kind[*it] == Closure_Analysis::CONTINUATION_ESCAPING) printf("escaping_continuation");
     printf("\n");
   }
 
-  for (Closure_Converter::User_Functions::iterator it = converter.user_functions.begin(); it != converter.user_functions.end(); it++) {
+  for (Closure_Analysis::AST_Set::iterator it = converter.user_functions.begin(); it != converter.user_functions.end(); it++) {
     AST_Node* node = ast_manager_get(m, *it);
     printf("[| ");
     print_ast_to_program(p, node);
     printf(" |] = ");
-    if (converter.escaping_kind[*it] == Closure_Converter::FUNCTION_LOCAL) printf("local_function");
-    if (converter.escaping_kind[*it] == Closure_Converter::FUNCTION_ESCAPING) printf("escaping_function");
+    if (converter.escaping_kind[*it] == Closure_Analysis::FUNCTION_LOCAL) printf("local_function");
+    if (converter.escaping_kind[*it] == Closure_Analysis::FUNCTION_ESCAPING) printf("escaping_function");
     printf("\n");
   }
 }
 
-void closure_representation_analysis(Closure_Converter& converter, Parser* p, AST_Node* root) {
+void closure_strategy_analysis(Closure_Analysis& converter, Parser* p, AST_Node* root) {
   AST_Manager* m = &p->ast_man;
+
+  if (ast_is_null_node(root)) return;
 
   if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) {
     AST_Node* left  = ast_bind_get_type_bind(m, root);
     AST_Node* right = ast_bind_get_expr(m, root);
+
+    if (right->kind == AST_FUNCTION_LITERAL) {
+      if (converter.escaping_kind.find(left->id) != converter.escaping_kind.end()) {
+        if (converter.escaping_kind[left->id] == Closure_Analysis::CONTINUATION_ESCAPING) { converter.strategy_number[left->id] = 0; }
+        if (converter.escaping_kind[left->id] == Closure_Analysis::FUNCTION_ESCAPING) { converter.strategy_number[left->id] = 0; }
+        if (converter.escaping_kind[left->id] == Closure_Analysis::FUNCTION_LOCAL) {
+          // TODO(marcos): implement accordingly
+          converter.strategy_number[left->id] = converter.free_variables[left->id].size();
+        }
+        if (converter.escaping_kind[left->id] == Closure_Analysis::CONTINUATION_LOCAL) {
+          converter.strategy_number[left->id] = converter.free_variables[left->id].size();
+        }
+      }
+    }
   }
+
+  AST_Node* left  = ast_manager_get_relative(m, root, root->left);
+  AST_Node* right = ast_manager_get_relative(m, root, root->right);
+
+  closure_strategy_analysis(converter, p, left);
+  closure_strategy_analysis(converter, p, right);
 }
 
+void get_transitive_closure(Closure_Analysis& conv, Parser* p, AST_Node* root) { AST_Manager* m = &p->ast_man; }
+
+struct Environment {
+  // Id of the struct that represents the values stored on this environment
+  AST_Id env_struct;
+  // Id of the evironment shared by this
+  AST_Id env_shared;
+};
+
+struct Environment_Map {
+  // map of function declaration to environment
+  typedef std::unordered_map< AST_Id, Environment > environment_of;
+
+  Environment_Map* previous;
+};
+
+struct Closures_Map {
+  typedef std::unordered_set< AST_Id > closures;
+
+  Closures_Map* previous;
+};
+
 void closure_conversion(Parser* p, AST_Node* root) {
-  Closure_Converter converter;
+  Closure_Analysis converter;
 
   cps_conversion(converter, p, root);
 
@@ -1387,7 +1416,7 @@ void closure_conversion(Parser* p, AST_Node* root) {
   compute_function_declaration_stage_numbers(converter, p, root, scopeA);
 
   Scope* scopeB = scope_create(NULL); // FIXME(marcos): fix leak
-  compute_function_declaration_stage_numbers(converter, p, root, scopeB);
+  compute_continuations_stage_numbers(converter, p, root, scopeB);
 
   Scope* scopeC = scope_create(NULL); // FIXME(marcos): fix leak
   compute_use_time_rec(converter, scopeC, p, NULL, root);
