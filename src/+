@@ -81,7 +81,7 @@ Assignment* assignment_create(AST_Node* value, AST_Node* program_point, Assignme
   return a;
 }
 
-void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node* type, AST_Node* value, AST_Node* program_point) {
+void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node* type, AST_Node* program_point) {
   AST_Node*    type_symbol = type;
   AST_Manager* m           = &p->ast_man;
 
@@ -89,9 +89,15 @@ void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node*
 
   Declaration* type_declaration = NULL;
 
-  if (ast_is_temporary(m, type_symbol) || type_symbol->kind == AST_SYMBOL_LITERAL) { type_declaration = context_declaration_of(ctx, p, type_symbol); }
+  if (ast_is_temporary(m, type_symbol) || type_symbol->kind == AST_SYMBOL_LITERAL) {
+    print_ast(p, type_symbol);
+    type_declaration = context_declaration_of(ctx, p, type_symbol);
+  }
 
+  // print_ast(p, type);
+  printf("%p\n", type_declaration);
   if (type_declaration && type_declaration->type->kind == AST_TYPE_STRUCT) {
+    printf("ASDASDsad\n");
     AST_Node* struct_type    = type_declaration->type;
     AST_Node* struct_members = ast_manager_get_relative(m, struct_type, struct_type->left);
 
@@ -107,7 +113,7 @@ void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node*
     }
   } else {
     d->context     = NULL;
-    d->assignments = assignment_create(value, program_point, NULL);
+    d->assignments = assignment_create(ast_undefined(m), program_point, NULL);
   }
 }
 
@@ -115,11 +121,13 @@ Declaration* context_declare(Context* ctx, Parser* p, AST_Node* declaration, AST
   AST_Manager* m = &p->ast_man;
 
   if (declaration->kind == AST_BIND_TYPE) {
-    AST_Node*    symbol = ast_type_bind_get_symbol(m, declaration);
-    AST_Node*    type   = ast_type_bind_get_type(m, declaration);
-    Declaration* d      = declaration_create(declaration, symbol, type);
 
-    setup_declaration_values(ctx, p, d, type, ast_undefined(m), program_point);
+    AST_Node* symbol = ast_type_bind_get_symbol(m, declaration);
+    AST_Node* type   = ast_type_bind_get_type(m, declaration);
+
+    Declaration* d = declaration_create(declaration, symbol, type);
+
+    setup_declaration_values(ctx, p, d, type, program_point);
 
     d->previous_declaration = ctx->last_declaration;
 
@@ -133,11 +141,10 @@ Declaration* context_declare(Context* ctx, Parser* p, AST_Node* declaration, AST
   AST_Node* bind   = ast_bind_get_type_bind(m, declaration);
   AST_Node* symbol = ast_type_bind_get_symbol(m, bind);
   AST_Node* type   = ast_type_bind_get_type(m, bind);
-  AST_Node* expr   = ast_bind_get_expr(m, declaration);
 
   Declaration* d = declaration_create(bind, symbol, type);
 
-  setup_declaration_values(ctx, p, d, type, expr, program_point);
+  setup_declaration_values(ctx, p, d, type, program_point);
 
   d->previous_declaration = ctx->last_declaration;
 
@@ -151,17 +158,26 @@ void context_assign(Context* ctx, Parser* p, AST_Node* assignment, AST_Node* pro
 
   AST_Manager* m    = &p->ast_man;
   AST_Node*    left = ast_manager_get_relative(m, assignment, assignment->left);
+  printf("symbol\n");
+  print_ast(p, left);
 
+  context_print(ctx, p);
   while (left->kind == AST_OP_MEMBER_ACCESS) {
-    AST_Node*    symbol = ast_manager_get_relative(m, left, left->left);
-    Declaration* decl   = context_declaration_of(ctx, p, symbol);
+    AST_Node* symbol = ast_manager_get_relative(m, left, left->left);
+    printf("symbol\n");
+    print_ast(p, symbol);
+    Declaration* decl = context_declaration_of(ctx, p, symbol);
 
     assert(decl);
+
+    context_print(ctx, p);
 
     ctx = decl->context;
 
     left = ast_manager_get_relative(m, left, left->right);
   }
+  printf("symbol\n");
+  print_ast(p, left);
 
   Declaration* decl = context_declaration_of(ctx, p, left);
 
@@ -266,8 +282,8 @@ void assignment_print(Assignment* a, Parser* p, int tabs) {
   AST_Node* v = a->value;
 
   if (v->kind == AST_FUNCTION_LITERAL) v = ast_function_literal_get_signature(m, v);
-  if (v->kind == AST_TYPE_STRUCT) printf("struct");
-  else print_ast_to_program(p, v, tabs);
+
+  print_ast_to_program(p, v, tabs);
 
   if (a->previous) {
     printf(", ");

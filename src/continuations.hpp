@@ -36,7 +36,7 @@ void replace_return_with_continuation_call(Parser* p, AST_Node* statement, AST_N
   replace_return_with_continuation_call(p, r, continuation);
 }
 
-AST_Node* create_continuation_function(Local_Continuations_Set& continuations, Parser* p, Scope* scope, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
+AST_Node* create_continuation_function(Local_Continuations_Set& continuations, Parser* p, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
   AST_Manager* m         = &p->ast_man;
   Token        undefined = lexer_undef_token();
 
@@ -63,11 +63,31 @@ AST_Node* create_continuation_function(Local_Continuations_Set& continuations, P
 }
 
 AST_Node*
-function_call_cps_conversion(Local_Continuations_Set& conv, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind);
-void function_literal_cps_conversion(Local_Continuations_Set& conv, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation = NULL);
-void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Scope* scope);
+function_call_cps_conversion(Local_Continuations_Set& conv, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind);
+void function_literal_cps_conversion(Local_Continuations_Set& conv, Parser* p, Context* ctx, AST_Node* function, AST_Node* continuation = NULL);
+void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx);
 
-void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Scope* scope) {
+void function_literal_assignment_to_constant_declaration(Context* ctx, Parser* p, AST_Node* literal, AST_Node* assignment, AST_Node* point) {
+  AST_Manager* m = &p->ast_man;
+
+  // Promote function declaration to constant
+  AST_Node* temp = ast_temp_node(m);
+  AST_Node* type = ast_undefined(m); // TODO(marcos): infer function type
+  AST_Node* bind = ast_type_bind(m, lexer_undef_token(), temp, type);
+  AST_Node* func = ast_constant_bind(m, lexer_undef_token(), bind, literal);
+  AST_Node* pp   = ast_program_point(m, lexer_undef_token());
+
+  point->left  = func->id;
+  pp->left     = point->id;
+  pp->right    = point->right;
+  point->right = pp->id;
+
+  assignment->right = ast_copy(m, temp)->id;
+
+  context_declare(ctx, p, func, point);
+}
+
+void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx) {
 
   AST_Manager* m = &p->ast_man;
 
@@ -76,80 +96,109 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
     AST_Node* statement    = ast_program_point_get_decl(m, statements);
     AST_Node* continuation = ast_program_point_get_tail(m, statements);
 
-    if (statement->kind == AST_BIND_CONSTANT || statement->kind == AST_BIND_VARIABLE) {
+    if (statement->kind == AST_BIND_VARIABLE) {
+
       AST_Node* left  = ast_bind_get_type_bind(m, statement);
       AST_Node* right = ast_bind_get_expr(m, statement);
 
       if (right->kind == AST_FUNCTION_LITERAL) {
         // conv.user_functions.insert(left->id);
+        Context* closure_context = context_create(ctx); // TODO(marcos): fix leak
 
-        Scope* closure_scope = scope_create(scope); // TODO(marcos): fix leak
+        function_literal_cps_conversion(conv, p, closure_context, right, NULL);
 
-        function_literal_cps_conversion(conv, p, closure_scope, right, NULL);
+        context_destroy(closure_context);
 
-        scope_push(scope, statement);
+        function_literal_assignment_to_constant_declaration(ctx, p, right, statement, statements);
       }
 
+      context_declare(ctx, p, statement, statements);
+
       if (right->kind == AST_FUNCTION_CALL) {
-        program_point_cps_conversion(conv, p, continuation, scope);
-        statements = function_call_cps_conversion(conv, p, scope, statements, right, continuation, left);
+        program_point_cps_conversion(conv, p, continuation, ctx);
+
+        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left);
+      }
+    }
+
+    if (statement->kind == AST_BIND_CONSTANT) {
+
+      AST_Node* left  = ast_bind_get_type_bind(m, statement);
+      AST_Node* right = ast_bind_get_expr(m, statement);
+
+      if (right->kind == AST_FUNCTION_LITERAL) {
+        Context* closure_context = context_create(ctx); // TODO(marcos): fix leak
+
+        function_literal_cps_conversion(conv, p, closure_context, right, NULL);
+
+        context_destroy(closure_context);
+      }
+
+      context_declare(ctx, p, statement, statements);
+
+      if (right->kind == AST_FUNCTION_CALL) {
+        program_point_cps_conversion(conv, p, continuation, ctx);
+
+        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left);
       }
     }
 
     if (statement->kind == AST_OP_BIN_ASSIGN) {
+
       AST_Node* expr = ast_manager_get_relative(m, statement, statement->right);
 
       if (expr->kind == AST_FUNCTION_LITERAL) {
-        //	assert(false && "TODO: implement reassignment");
-        Scope* closure_scope = scope_create(scope); // TODO(marcos): fix leak
-        function_literal_cps_conversion(conv, p, closure_scope, expr, NULL);
+        Context* closure_ctx = context_create(ctx);
 
-        // Promote function declaration to constant
-        AST_Node* temp = ast_temp_node(m);
-        AST_Node* type = ast_undefined(m); // TODO(marcos): infer function type
-        AST_Node* bind = ast_type_bind(m, lexer_undef_token(), temp, type);
-        AST_Node* func = ast_constant_bind(m, lexer_undef_token(), bind, expr);
+        function_literal_cps_conversion(conv, p, closure_ctx, expr, NULL);
 
-        AST_Node* pp = ast_program_point(m, lexer_undef_token());
+        context_destroy(closure_ctx);
 
-        statements->left  = func->id;
-        pp->left          = statement->id;
-        pp->right         = statements->right;
-        statements->right = pp->id;
-
-        statement->right = ast_copy(m, temp)->id;
-        statement        = func;
+        function_literal_assignment_to_constant_declaration(ctx, p, expr, statement, statements);
       }
+      context_assign(ctx, p, statement, statements);
     }
 
     if (statement->kind == AST_FUNCTION_CALL) {
-      // break continuation
-      // statements->right = ast_node_null(m)->id;
-      program_point_cps_conversion(conv, p, continuation, scope);
-      statements = function_call_cps_conversion(conv, p, scope, statements, statement, continuation, ast_node_null(m));
+      program_point_cps_conversion(conv, p, continuation, ctx);
+
+      statements = function_call_cps_conversion(conv, p, ctx, statements, statement, continuation, ast_node_null(m));
     }
 
     if (statement->kind == AST_CTRL_FLOW_IF) {
-      AST_Node* right = ast_manager_get_relative(m, statement, statement->right);
-      program_point_cps_conversion(conv, p, right, scope);
+      Context* branch_ctx = context_copy(ctx);
+
+      program_point_cps_conversion(conv, p, ast_manager_get_relative(m, statement, statement->right), branch_ctx);
+
+      context_merge(p, ctx, branch_ctx);
+
+      context_destroy(branch_ctx);
     }
 
     if (statement->kind == AST_CTRL_FLOW_IF_ELSE) {
-      AST_Node* list = statement;
+      Context* branch_ctx = context_copy(ctx);
 
-      while (!ast_is_null_node(list) && list->kind == AST_CTRL_FLOW_IF_ELSE) {
-        AST_Node* if_statement = ast_manager_get_relative(m, list, list->left);
+      while (statement->kind == AST_CTRL_FLOW_IF_ELSE) {
+        Context* _branch_ctx = context_copy(ctx);
 
-        AST_Node* body = if_statement;
+        AST_Node* if_statement = ast_manager_get_relative(m, statement, statement->left);
 
-        if (if_statement->kind == AST_CTRL_FLOW_IF) { body = ast_manager_get_relative(m, if_statement, if_statement->right); }
+        AST_Node* body = ast_manager_get_relative(m, if_statement, if_statement->right);
 
-        program_point_cps_conversion(conv, p, body, scope);
+        program_point_cps_conversion(conv, p, body, _branch_ctx);
 
-        list = ast_manager_get_relative(m, list, list->right);
+        statement = ast_manager_get_relative(m, statement, statement->right);
+
+        context_merge(p, branch_ctx, _branch_ctx);
+
+        context_destroy(_branch_ctx);
       }
 
-      program_point_cps_conversion(conv, p, list, scope);
+      if (!ast_is_null_node(statement)) { program_point_cps_conversion(conv, p, statement, branch_ctx); }
+
+      context_replace(ctx, branch_ctx);
+
+      context_destroy(branch_ctx);
     }
 
     statements = ast_program_point_get_tail(m, statements);
@@ -157,12 +206,14 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
 }
 
 AST_Node* function_call_cps_conversion(
-    Local_Continuations_Set& continuations, Parser* p, Scope* scope, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind) {
+    Local_Continuations_Set& continuations, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind) {
   AST_Manager* m = &p->ast_man;
 
   AST_Node* function = ast_fun_call_get_call_sym(m, call);
 
-  AST_Node* local = scope_find(scope, p, function);
+  // Declaration* local = context_declaration_of(ctx, p, function);
+
+  // AST_Node* local = scope_find(scope, p, function);
 
   Token undefined = lexer_undef_token();
 
@@ -172,7 +223,7 @@ AST_Node* function_call_cps_conversion(
   if (!ast_is_null_node(continuation)) {
     AST_Node* type = ast_type_any(m, undefined); // TODO: use a global context to find function and the type
 
-    declaration = create_continuation_function(continuations, p, scope, bind, type, continuation);
+    declaration = create_continuation_function(continuations, p, bind, type, continuation);
 
     AST_Node* continuation_bind = ast_bind_get_type_bind(m, declaration);
 
@@ -193,7 +244,7 @@ AST_Node* function_call_cps_conversion(
   return statement;
 }
 
-void function_literal_cps_conversion(Local_Continuations_Set& continuations, Parser* p, Scope* scope, AST_Node* function, AST_Node* continuation_symbol) {
+void function_literal_cps_conversion(Local_Continuations_Set& continuations, Parser* p, Context* ctx, AST_Node* function, AST_Node* continuation_symbol) {
   assert(function->kind == AST_FUNCTION_LITERAL);
 
   AST_Manager* m         = &p->ast_man;
@@ -219,7 +270,7 @@ void function_literal_cps_conversion(Local_Continuations_Set& continuations, Par
 
   replace_return_with_continuation_call(p, statements, continuation_symbol);
 
-  program_point_cps_conversion(continuations, p, statements, scope);
+  program_point_cps_conversion(continuations, p, statements, ctx);
 }
 
 void cps_conversion(Local_Continuations_Set& continuations, Parser* p, AST_Node* root) {
@@ -235,9 +286,9 @@ void cps_conversion(Local_Continuations_Set& continuations, Parser* p, AST_Node*
 
       if (decl->kind == AST_FUNCTION_LITERAL) {
         // FIXME(marcos): memory leak
-        Scope* scope = scope_create(NULL);
+        Context* ctx = context_create(NULL);
 
-        function_literal_cps_conversion(continuations, p, scope, decl);
+        function_literal_cps_conversion(continuations, p, ctx, decl);
       }
     }
 

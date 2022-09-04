@@ -125,6 +125,7 @@ void ast_manager_init(AST_Manager* m) {
 }
 
 b8 ast_is_null_node(AST_Node* m) { return m->id == 0; }
+b8 ast_is_undefined_node(AST_Node* m) { return m->kind == AST_UNDEFINED_NODE; }
 
 void ast_manager_free(AST_Manager* m) {
   while (m->root) {

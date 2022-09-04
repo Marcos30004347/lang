@@ -57,5 +57,49 @@ g :: () {
 	return add, sub, mul;
 }
 
+null :: () {}
+
+t :: () {
+	x : i32 = 0;
+	y : i32 = 0;
+
+	f :: () -> i32 {
+		z : i32 = x + 1;
+		return z;
+	}
+
+	g :: () -> i32 {
+		z : i32 = y + 1;
+		return z;
+	}
+
+	w : i32 : 1;
+
+	z : i32 = 2;
+
+	if w {
+		z = f;
+	} else {
+		z = g;
+	}
+
+	return z;
+}
 
 
+k :: () {
+	f :: () {
+		y : i32 = 0;
+
+		g :: () {
+			y = y + 1;
+			return y;
+		}
+		
+		return g;
+	}
+
+	x :: f();
+	
+	return x;
+}

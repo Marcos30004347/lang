@@ -151,6 +151,7 @@ AST_Node* ast_manager_get_relative(AST_Manager* m, AST_Node* from, AST_Id id);
 void ast_change_kind(AST_Node* m, AST_Kind kind);
 
 b8 ast_is_null_node(AST_Node* m);
+b8 ast_is_undefined_node(AST_Node* m);
 
 AST_Node* ast_symbol(AST_Manager* m, Token tok);
 AST_Node* ast_i32_lit(AST_Manager* m, Token tok);
