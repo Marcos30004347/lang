@@ -741,8 +741,8 @@ b8 parser_is_same_symbol(Parser* p, AST_Node* a, AST_Node* b) {
 void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
   if (ast_is_temporary(&p->ast_man, n)) {
-    i8* st = ast_kind_to_cstr(n->kind);
-    printf("%%%s", st);
+    i8* st = ast_kind_to_cstr(n->kind, __AST_KIND_END);
+    printf("t%s", st);
     free(st);
     return;
   }
@@ -821,7 +821,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
   if (n->kind == AST_BIND_CONSTANT) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
-    printf(": ");
+    printf(" :: ");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     printf("");
     return;
@@ -829,7 +829,7 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
   if (n->kind == AST_BIND_VARIABLE) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
-    printf("= ");
+    printf(" := ");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     printf("");
     return;
@@ -837,10 +837,9 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
   if (n->kind == AST_BIND_TYPE) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
-    if (n->right) printf(" : ");
-    else printf(" :");
-
-    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    // if (n->right) printf(" : ");
+    // else printf(" :");
+    // print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     return;
   }
 
@@ -922,6 +921,36 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == AST_TYPE_POINTER) {
+    printf("ptr");
+    printf("[");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf("]");
+    return;
+  }
+
+  if (n->kind == AST_OP_MEMBER_ACCESS) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(".");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+  if (n->kind == AST_TYPE_STRUCT) {
+    printf("struct {\n");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope + 2);
+    for (i32 i = 0; i < scope; i++)
+      printf(" ");
+
+    printf("}\n");
+    return;
+  }
+
+  if (n->kind == AST_OP_POINTER_LOAD) {
+    printf("ld[");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf("]");
+    return;
+  }
   if (ast_is_binary_operation(n)) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf(" op ");

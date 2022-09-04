@@ -4,10 +4,10 @@
 #include "stdlib.h"
 #include "utils.hpp"
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/cdefs.h>
 
 const char* ast_kind_strs[] = {
     // Compounds
@@ -76,6 +76,7 @@ const char* ast_kind_strs[] = {
     "AST_OP_BIN_NE",
     "AST_OP_BIN_EQ",
     "AST_OP_MEMBER_ACCESS",
+    "AST_OP_POINTER_LOAD",
     "__AST_BINARY_OPERATOR_END",
 
     // Unary operators
@@ -269,20 +270,17 @@ AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch) { return 
 //   return ast_manager_alloc(m, lexer_undef_token(), AST_CTRL_FLOW_CASE, expr->id, body->id);
 // }
 
-i8* ast_kind_to_cstr(u64 k) {
+i8* ast_kind_to_cstr(u64 k, u64 x) {
   if (k >= __AST_KIND_END) {
-    i8 buff[256];
+    assert(k >= x);
+    i32 n = snprintf(NULL, 0, "%lu", k - x);
+    assert(n > 0);
+    i8  buf[n + 1];
+    i32 c = snprintf(buf, n + 1, "%lu", k - x);
+    assert(buf[n] == '\0');
+    assert(c == n);
 
-    u8 i = 0;
-
-    while (k) {
-      buff[i++] = k % 10 + '0';
-      k /= 10;
-    }
-
-    buff[i++] = '\0';
-
-    return copy_str(buff);
+    return copy_str(buf);
   }
 
   return copy_str(ast_kind_strs[k]);
@@ -307,6 +305,9 @@ AST_Node* ast_type_i32(AST_Manager* m, Token tok) { return ast_manager_alloc(m, 
 AST_Node* ast_type_unit(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_UNIT, 0, 0); }
 
 AST_Node* ast_type_any(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_ANY, 0, 0); }
+
+AST_Node* ast_type_pointer(AST_Manager* m, Token tok, AST_Node* type) { return ast_manager_alloc(m, tok, AST_TYPE_POINTER, type->id, 0); }
+AST_Node* ast_pointer_load(AST_Manager* m, Token tok, AST_Node* type) { return ast_manager_alloc(m, tok, AST_OP_POINTER_LOAD, type->id, 0); }
 
 AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id); }
 

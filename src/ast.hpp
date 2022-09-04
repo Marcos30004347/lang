@@ -76,6 +76,7 @@ enum AST_Kind {
   __AST_UNARY_OPERATOR_START,
   AST_OP_UNA_SUB,
   AST_OP_UNA_ADD,
+  AST_OP_POINTER_LOAD,
   __AST_UNARY_OPERATOR_END,
 
   // Applications
@@ -187,7 +188,7 @@ AST_Node* ast_ctrl_flow_if(AST_Manager* m, Token tok, AST_Node* cond, AST_Node* 
 AST_Node* ast_ctrl_flow_ret(AST_Manager* m, Token tok, AST_Node* expr);
 AST_Node* ast_with_handler(AST_Manager* m, Token tok, AST_Node* call, AST_Node* hnd);
 
-i8* ast_kind_to_cstr(u64 k);
+i8* ast_kind_to_cstr(u64 k, u64 x = 0);
 
 AST_Node* ast_type_type(AST_Manager* m, Token tok);
 
@@ -212,6 +213,8 @@ AST_Node* ast_type_struct(AST_Manager* m, Token tok, AST_Node* members);
 AST_Node* ast_temp_node(AST_Manager* m);
 
 AST_Node* ast_type_any(AST_Manager* m, Token tok);
+AST_Node* ast_type_pointer(AST_Manager* m, Token tok, AST_Node* type);
+AST_Node* ast_pointer_load(AST_Manager* m, Token tok, AST_Node* ptr);
 
 AST_Node* ast_type_bind_get_type(AST_Manager* m, AST_Node* n);
 AST_Node* ast_type_bind_get_symbol(AST_Manager* m, AST_Node* n);
