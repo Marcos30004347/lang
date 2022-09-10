@@ -13,6 +13,7 @@ const char* ast_kind_strs[] = {
     // Compounds
     "AST_NULL_NODE",
     "AST_UNDEFINED_NODE",
+    "AST_UNITIALIZED_NODE",
     "__AST_KIND_BEGIN",
 
     "AST_PROGRAM_POINT",
@@ -27,8 +28,8 @@ const char* ast_kind_strs[] = {
     "AST_CTRL_FLOW_IF",
     "AST_CTRL_FLOW_IF_ELSE",
     "AST_CTRL_FLOW_RETURN",
-    //"AST_CTRL_FLOW_MATCH",
-    //"AST_CTRL_FLOW_CASE",
+    "AST_CTRL_FLOW_MATCH",
+    "AST_CTRL_FLOW_CASE",
     "__AST_CTRL_FLOW_END",
 
     // Bindings
@@ -76,13 +77,14 @@ const char* ast_kind_strs[] = {
     "AST_OP_BIN_NE",
     "AST_OP_BIN_EQ",
     "AST_OP_MEMBER_ACCESS",
-    "AST_OP_POINTER_LOAD",
     "__AST_BINARY_OPERATOR_END",
 
     // Unary operators
     "__AST_UNARY_OPERATOR_START",
     "AST_OP_UNA_SUB",
     "AST_OP_UNA_ADD",
+    "AST_OP_POINTER_LOAD",
+    "AST_OP_ADDRESS_OF",
     "__AST_UNARY_OPERATOR_END",
 
     // Applications
@@ -92,9 +94,17 @@ const char* ast_kind_strs[] = {
     "__AST_CALL_OPERATION_END",
 
     "__AST_INTERNAL_START",
-    "AST_PHI_NODE",
-    "AST_PHI_NODE_ARG",
-    "AST_PHI_NODE_ARG_LIST",
+    "_AST_BUILD_STACK_CLOSURE_OBJECT",
+    "_AST_BUILD_HEAP_CLOSURE_OBJECT",
+    "_AST_GET_CLOSURE_HANDLER",
+    "_AST_GET_CLOSURE_ENVIRONMENT",
+    "_AST_SIZE_OF",
+    "_AST_BITSET",
+    "_AST_BITSET_SET_BIT_ON",
+    "_AST_BITSET_SET_BIT_OFF",
+    "_AST_BITSET_BINARY_UNION",
+    "_AST_BITSET_BINARY_INTERSECTION",
+    "_AST_BITSET_IS_BIT_UP",
     "__AST_INTERNAL_END",
 
     "__AST_KIND_END",
@@ -254,23 +264,6 @@ AST_Node* ast_type_effect(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) {
 
 AST_Node* ast_handler_literal(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_HANDLER_LITERAL, l->id, r->id); }
 
-AST_Node* ast_phi(AST_Manager* m, AST_Node* args) {
-  assert(args->kind == AST_DECL_ARGS_LIST);
-
-  return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE, args->id, ast_node_null(m)->id);
-}
-
-AST_Node* ast_phi_arg(AST_Manager* m, AST_Node* arg, AST_Node* branch) { return ast_manager_alloc(m, lexer_undef_token(), AST_PHI_NODE_ARG, arg->id, branch->id); }
-
-// AST_Node* ast_match(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* cases) {
-// 	assert(cases->kind == AST_DECL_ARGS_LIST || cases->kind == AST_NULL_NODE);
-//   return ast_manager_alloc(m, lexer_undef_token(), AST_CTRL_FLOW_CASE, expr->id, cases->id);
-// }
-
-// AST_Node* ast_match_case(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* body) {
-//   return ast_manager_alloc(m, lexer_undef_token(), AST_CTRL_FLOW_CASE, expr->id, body->id);
-// }
-
 i8* ast_kind_to_cstr(u64 k, u64 x) {
   if (k >= __AST_KIND_END) {
     assert(k >= x);
@@ -295,6 +288,19 @@ AST_Node* ast_ctrl_flow_if(AST_Manager* m, Token tok, AST_Node* cond, AST_Node* 
   return ast_manager_alloc(m, tok, AST_CTRL_FLOW_IF_ELSE, a->id, elif->id);
 }
 
+AST_Node* ast_ctrl_flow_match(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* cases) { return ast_manager_alloc(m, tok, AST_CTRL_FLOW_MATCH, expr->id, cases->id); }
+
+AST_Node* ast_ctrl_flow_case(AST_Manager* m, Token tok, AST_Node* expr, AST_Node* body, AST_Node* tail) {
+  AST_Node* case_expr = ast_manager_alloc(m, tok, AST_CTRL_FLOW_CASE, expr->id, body->id);
+
+  AST_Node* pp = ast_program_point(m, tok);
+
+  pp->left  = case_expr->id;
+  pp->right = tail->id;
+
+  return pp;
+}
+
 AST_Node* ast_ctrl_flow_ret(AST_Manager* m, Token tok, AST_Node* expr) { return ast_manager_alloc(m, tok, AST_CTRL_FLOW_RETURN, expr->id, 0); }
 
 AST_Node* ast_with_handler(AST_Manager* m, Token tok, AST_Node* call, AST_Node* hnd) { return ast_manager_alloc(m, tok, AST_WITH_HANDLER, call->id, hnd->id); }
@@ -305,10 +311,13 @@ AST_Node* ast_type_i32(AST_Manager* m, Token tok) { return ast_manager_alloc(m, 
 
 AST_Node* ast_type_unit(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_UNIT, 0, 0); }
 
+AST_Node* ast_unitialized(AST_Manager* m) { return ast_manager_alloc(m, lexer_undef_token(), AST_UNITIALIZED_NODE, 0, 0); }
 AST_Node* ast_type_any(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_TYPE_ANY, 0, 0); }
 
 AST_Node* ast_type_pointer(AST_Manager* m, Token tok, AST_Node* type) { return ast_manager_alloc(m, tok, AST_TYPE_POINTER, type->id, 0); }
 AST_Node* ast_pointer_load(AST_Manager* m, Token tok, AST_Node* type) { return ast_manager_alloc(m, tok, AST_OP_POINTER_LOAD, type->id, 0); }
+
+AST_Node* ast_address_of(AST_Manager* m, Token tok, AST_Node* value) { return ast_manager_alloc(m, tok, AST_OP_ADDRESS_OF, value->id, 0); }
 
 AST_Node* ast_type_arrow(AST_Manager* m, Token tok, AST_Node* l, AST_Node* r) { return ast_manager_alloc(m, tok, AST_TYPE_ARROW, l->id, r->id); }
 
@@ -438,6 +447,21 @@ b8 ast_is_temporary(AST_Manager* m, AST_Node* n) { return n->kind >= __AST_KIND_
 
 AST_Node* ast_undefined(AST_Manager* m) { return ast_manager_alloc(m, lexer_undef_token(), AST_UNDEFINED_NODE, ast_node_null(m)->id, ast_node_null(m)->id); }
 
+AST_Node* _internal_ast_size_of(AST_Manager* m, AST_Node* type) { return ast_manager_alloc(m, lexer_undef_token(), _AST_SIZE_OF, type->id, ast_node_null(m)->id); }
+// AST_Node* _internal_ast_build_stack_closure_object(AST_Manager* m, AST_Node* func, AST_Node* env) {
+//   return ast_manager_alloc(m, lexer_undef_token(), _AST_BUILD_STACK_CLOSURE_OBJECT, func->id, env->id);
+// }
+
+// AST_Node* _internal_ast_build_heap_closure_object(AST_Manager* m, AST_Node* func, AST_Node* env) {
+//   return ast_manager_alloc(m, lexer_undef_token(), _AST_BUILD_HEAP_CLOSURE_OBJECT, func->id, env->id);
+// }
+AST_Node* _internal_ast_get_closure_handler(AST_Manager* m, AST_Node* closure) {
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_HANDLER, closure->id, ast_node_null(m)->id);
+}
+AST_Node* _internal_ast_get_closure_environment(AST_Manager* m, AST_Node* closure) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_ENVIRONMENT, closure->id, ast_node_null(m)->id);
+}
 AST_Node* ast_copy(AST_Manager* m, AST_Node* node) {
   if (ast_is_null_node(node)) return ast_node_null(m);
 
@@ -447,3 +471,106 @@ AST_Node* ast_copy(AST_Manager* m, AST_Node* node) {
 
   return c;
 }
+
+AST_Node* _internal_ast_sizeof(AST_Manager* m, AST_Node* n) { return ast_manager_alloc(m, lexer_undef_token(), _AST_SIZE_OF, n->id, ast_node_null(m)->id); }
+
+AST_Node* _internal_ast_typeof(AST_Manager* m, AST_Node* n) { return ast_manager_alloc(m, lexer_undef_token(), _AST_TYPE_OF, n->id, ast_node_null(m)->id); }
+
+AST_Node* _internal_ast_reallocate_heap_buffer(AST_Manager* m, AST_Node* buffer, AST_Node* size) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_REALLOCATE_HEAP_BUFFER, size->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_allocate_heap_buffer(AST_Manager* m, AST_Node* size) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_ALLOCATE_HEAP_BUFFER, size->id, ast_node_null(m)->id);
+}
+AST_Node* _internal_ast_capture_variable_into_environment(
+    AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env) {
+
+  Token undef = lexer_undef_token();
+
+  AST_Node* l5 = ast_decl_args(m, undef, local_env, ast_node_null(m));
+  AST_Node* l4 = ast_decl_args(m, undef, incc, l5);
+  AST_Node* l3 = ast_decl_args(m, undef, var, l4);
+  AST_Node* l2 = ast_decl_args(m, undef, buffer, l3);
+  AST_Node* l1 = ast_decl_args(m, undef, header_type, l2);
+  AST_Node* l0 = ast_decl_args(m, undef, env_type, l1);
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT, l0->id, ast_node_null(m)->id);
+}
+AST_Node* _internal_ast_borrow_variable_into_environment(
+    AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env) {
+  Token undef = lexer_undef_token();
+
+  AST_Node* l5 = ast_decl_args(m, undef, local_env, ast_node_null(m));
+  AST_Node* l4 = ast_decl_args(m, undef, incc, l5);
+  AST_Node* l3 = ast_decl_args(m, undef, var, l4);
+  AST_Node* l2 = ast_decl_args(m, undef, buffer, l3);
+  AST_Node* l1 = ast_decl_args(m, undef, header_type, l2);
+  AST_Node* l0 = ast_decl_args(m, undef, env_type, l1);
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_BORROW_VARIABLE_INTO_ENVIRONMENT, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_bitset(AST_Manager* m, u64 size) {
+  Token bitset_bits;
+
+  bitset_bits.buf  = size;
+  bitset_bits.size = -1;
+  bitset_bits.col  = -1;
+  bitset_bits.row  = -1;
+  bitset_bits.pos  = -1;
+  bitset_bits.type = TOKEN_I32_LIT;
+
+  return ast_manager_alloc(m, bitset_bits, _AST_BITSET, ast_node_null(m)->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_bitset_set_bit_on(AST_Manager* m, AST_Node* bitset, u64 index) {
+  Token bitset_bits;
+
+  bitset_bits.buf  = index;
+  bitset_bits.size = -1;
+  bitset_bits.col  = -1;
+  bitset_bits.row  = -1;
+  bitset_bits.pos  = -1;
+  bitset_bits.type = TOKEN_I32_LIT;
+
+  return ast_manager_alloc(m, bitset_bits, _AST_BITSET_SET_BIT_ON, bitset->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_bitset_set_bit_off(AST_Manager* m, AST_Node* bitset, u64 index) {
+  Token bitset_bits;
+
+  bitset_bits.buf  = index;
+  bitset_bits.size = -1;
+  bitset_bits.col  = -1;
+  bitset_bits.row  = -1;
+  bitset_bits.pos  = -1;
+  bitset_bits.type = TOKEN_I32_LIT;
+
+  return ast_manager_alloc(m, bitset_bits, _AST_BITSET_SET_BIT_OFF, bitset->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_bitset_union(AST_Manager* m, AST_Node* bitset_a, AST_Node* bitset_b) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_BITSET_BINARY_UNION, bitset_a->id, bitset_b->id);
+}
+
+AST_Node* _internal_ast_binary_set_intersection(AST_Manager* m, AST_Node* bitset_a, AST_Node* bitset_b) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_BITSET_BINARY_INTERSECTION, bitset_a->id, bitset_b->id);
+}
+
+AST_Node* _internal_ast_bitset_is_bit_up(AST_Manager* m, AST_Node* bitset_a, u64 index) {
+  Token bitset_index;
+
+  bitset_index.buf  = index;
+  bitset_index.size = -1;
+  bitset_index.col  = -1;
+  bitset_index.row  = -1;
+  bitset_index.pos  = -1;
+  bitset_index.type = TOKEN_I32_LIT;
+
+  return ast_manager_alloc(m, bitset_index, _AST_BITSET_IS_BIT_UP, bitset_a->id, ast_node_null(m)->id);
+}
+
+b8 ast_is_binary_operation(AST_Node* n) { return n->kind >= __AST_BINARY_OPERATOR_START && n->kind <= __AST_BINARY_OPERATOR_END; }
+
+b8 ast_is_unary_operation(AST_Node* n) { return n->kind > __AST_UNARY_OPERATOR_START && n->kind < __AST_UNARY_OPERATOR_END; }

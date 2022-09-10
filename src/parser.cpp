@@ -874,13 +874,20 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
 
     for (i32 i = 0; i < scope; i++)
       printf(" ");
-    printf("}");
+    printf("}\n");
     return;
   }
 
   if (n->kind == AST_CTRL_FLOW_IF_ELSE) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
-    printf(" else {\n");
+    for (i32 i = 0; i < scope; i++)
+      printf(" ");
+
+    printf("else {\n");
+
+    // for (i32 i = 0; i < scope + 2; i++)
+    //   printf(" ");
+
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
@@ -920,6 +927,10 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     printf("undefined");
     return;
   }
+  if (n->kind == AST_UNITIALIZED_NODE) {
+    printf(".{}");
+    return;
+  }
 
   if (n->kind == AST_TYPE_POINTER) {
     printf("ptr");
@@ -935,6 +946,35 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     return;
   }
+
+  if (n->kind == AST_CTRL_FLOW_CASE) {
+    printf("case ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" {\n");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
+    for (i32 i = 0; i < scope; i++)
+      printf(" ");
+    printf("}");
+    return;
+  }
+
+  if (n->kind == AST_CTRL_FLOW_MATCH) {
+    printf("match ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" {\n");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope + 2);
+    for (i32 i = 0; i < scope; i++)
+      printf(" ");
+    printf("}");
+    return;
+  }
+  if (n->kind == AST_OP_MEMBER_ACCESS) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(".");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+
   if (n->kind == AST_TYPE_STRUCT) {
     printf("struct {\n");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope + 2);
@@ -949,6 +989,147 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     printf("ld[");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf("]");
+    return;
+  }
+  if (n->kind == AST_OP_ADDRESS_OF) {
+    printf("$");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf("");
+    return;
+  }
+  // if (n->kind == _AST_BUILD_STACK_CLOSURE_OBJECT) {
+  //   printf("_build_stack_closure(");
+  //   print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+  //   printf(", ");
+  //   print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+  //   printf(")");
+
+  //   return;
+  // }
+
+  // if (n->kind == _AST_BUILD_HEAP_CLOSURE_OBJECT) {
+  //   printf("_build_heap_closure(");
+  //   print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+  //   printf(", ");
+  //   print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+  //   printf(")");
+
+  //   return;
+  // }
+
+  if (n->kind == _AST_GET_CLOSURE_HANDLER) {
+    printf("_get_closure_object_handler(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+  if (n->kind == _AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT) {
+    printf("_capture_variable_into_environment(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_BORROW_VARIABLE_INTO_ENVIRONMENT) {
+    printf("_borrow_variable_into_environment(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT) {
+    printf("_get_closure_object_environment(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+
+  if (n->kind == _AST_BITSET) {
+    printf("_bitset(%lu)", n->tok.buf);
+    return;
+  }
+
+  if (n->kind == _AST_BITSET_SET_BIT_ON) {
+    printf("_bitset_set_bit_on(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(", %lu)", n->tok.buf);
+    return;
+  }
+
+  if (n->kind == _AST_BITSET_SET_BIT_OFF) {
+    printf("_bitset_set_bit_off(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(", %lu)", n->tok.buf);
+    return;
+  }
+  if (n->kind == _AST_BITSET_IS_BIT_UP) {
+    printf("_bitset_test_bit(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(", %lu)", n->tok.buf);
+    return;
+  }
+
+  if (n->kind == _AST_BITSET_BINARY_UNION) {
+    printf("_bitset_binary_union(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(", ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_BITSET_BINARY_INTERSECTION) {
+    printf("_bitset_binary_intersection(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(", ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_ALLOCATE_HEAP_BUFFER) {
+    printf("_malloc(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_REALLOCATE_HEAP_BUFFER) {
+    printf("_realloc(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_SIZE_OF) {
+    printf("_size_of(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_TYPE_OF) {
+    printf("_type_of(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_SIZE_OF) {
+    printf("_size_of(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+
+  if (n->kind == AST_OP_BIN_EQ) {
+
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" == ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     return;
   }
   if (ast_is_binary_operation(n)) {

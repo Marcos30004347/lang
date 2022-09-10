@@ -1,0 +1,166 @@
+// NOTE(marcos): language does not have type inference yet
+// for things to work all typing information needs to be
+// statically available.
+
+A :: () {
+	w : i32 = 0;
+	x : i32 = 0;
+	
+	B :: () {
+		y : i32 = 0;
+		z : i32 = 0;
+
+		C :: () {
+			t :: w + y;
+			return t;
+		}
+
+		E :: () {
+			t :: x + z;
+			return t;
+		}
+
+		F :: () {
+			t :: w + x;
+			return t;
+		}
+		
+		G :: () {
+			t :: y + z;
+			return t;
+		}
+
+		t :: 0;
+		
+		if t {
+			return C, E;
+		}
+
+		return F, G;
+	}
+
+	H :: B();
+
+	return H;
+}
+
+f : any : (x:i32) -> i32 {
+	return 0;
+}
+
+iter : any : (x:i32, p: i32*i32 -> i32, f: i32 -> i32) -> i32 {
+	h : i32*i32 -> i32 : (a:i32, r:i32) -> i32 {
+		z : i32 : p(a, r);
+
+		if z {
+			return a;
+		} else {
+			u : i32 : f(a);
+			y : i32 : h(u, a);
+			return y;
+		}
+	}
+
+	t : i32 : h(x, 1);
+
+	return t;
+}
+
+g :: () {
+	x : i32 = 0;
+	y : i32 = 0;
+	z : i32 = 0;
+	w : i32 = 0;
+	
+	mul : unit -> i32 : () {
+		x = x + 1;
+		z = z + 1;
+		y = y + 1;
+		w = w + 1;
+		return 0;
+	}
+
+	add : unit -> i32 : () {
+		x = x + 1;
+		z = z + 1;
+		return 0;
+	}
+
+	sub : unit -> i32 : () {
+		x = x + 1;
+		y = y + 1;
+		return 0;
+	}
+
+	mul();
+	add();
+
+	return add, sub, mul;
+}
+
+null :: () {}
+
+t :: () {
+	x : i32 = 0;
+	y : i32 = 0;
+
+	f :: () -> i32 {
+		z : i32 = x + 1;
+		return z;
+	}
+
+	g :: () -> i32 {
+		z : i32 = y + 1;
+		return z;
+	}
+
+	w : i32 : 1;
+
+	z : i32 = 2;
+
+	if w {
+		z = f;
+	} else {
+		z = g;
+	}
+
+	return z;
+}
+
+
+k :: () {
+	f :: () {
+		y : i32 = 0;
+
+		g :: () {
+			y = y + 1;
+			return y;
+		}
+		
+		return g;
+	}
+
+	x :: f();
+	
+	return x;
+}
+
+w :: () {
+	x : i32 = 0;
+	y : i32 = 0;
+	
+	g := () { return 0; }
+
+	t : i32 = 0;
+
+	if t {
+		g = () { x = x + 1; return x; }
+	} else {
+		g = () { y = y + 1; return y; }
+	}
+
+	z :: g();
+	
+	return z;
+}
+

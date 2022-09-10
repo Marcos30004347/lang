@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "context.hpp"
+#include "lexer.hpp"
 #include "parser.hpp"
 #include <unordered_set>
 
@@ -36,18 +37,34 @@ void replace_return_with_continuation_call(Parser* p, AST_Node* statement, AST_N
   replace_return_with_continuation_call(p, r, continuation);
 }
 
-AST_Node* create_continuation_function(Local_Continuations_Set& continuations, Parser* p, AST_Node* argument, AST_Node* return_type, AST_Node* body) {
+AST_Node* create_continuation_function(Local_Continuations_Set& continuations, Parser* p, AST_Node* argument, AST_Node* return_type, AST_Node* body, AST_Node* joint) {
   AST_Manager* m         = &p->ast_man;
   Token        undefined = lexer_undef_token();
 
   // NOTE(marcos): If the binding dosent have a type set it to be 'any',
   // this is just a quick patch since we dont have type check and
   // inference yet.
+
   if (!ast_is_null_node(argument)) {
     AST_Node* argument_type = ast_type_bind_get_type(m, argument);
 
     if (ast_is_null_node(argument_type)) { argument->right = ast_type_any(m, undefined)->id; }
   }
+
+  AST_Node* last = body;
+
+  assert(last->kind == AST_PROGRAM_POINT);
+
+  while (!ast_is_null_node(last)) {
+    AST_Node* next = ast_program_point_get_tail(m, last);
+    if (!ast_is_null_node(next)) last = next;
+    else break;
+  }
+
+  assert(last->kind == AST_PROGRAM_POINT);
+  AST_Node* statement = ast_program_point_get_decl(m, last);
+
+  if (statement->kind != AST_FUNCTION_CALL) {}
 
   AST_Node* arguments   = !ast_is_null_node(argument) ? ast_decl_args(m, undefined, argument, ast_node_null(m)) : ast_node_null(m);
   AST_Node* signature   = ast_function_signature(m, undefined, arguments, return_type);
@@ -62,10 +79,10 @@ AST_Node* create_continuation_function(Local_Continuations_Set& continuations, P
   return declaration;
 }
 
-AST_Node*
-function_call_cps_conversion(Local_Continuations_Set& conv, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind);
+AST_Node* function_call_cps_conversion(
+    Local_Continuations_Set& conv, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind, AST_Node* joint);
 void function_literal_cps_conversion(Local_Continuations_Set& conv, Parser* p, Context* ctx, AST_Node* function, AST_Node* continuation = NULL);
-void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx);
+// void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx);
 
 void function_literal_assignment_to_constant_declaration(Context* ctx, Parser* p, AST_Node* literal, AST_Node* assignment, AST_Node* point) {
   AST_Manager* m = &p->ast_man;
@@ -77,8 +94,9 @@ void function_literal_assignment_to_constant_declaration(Context* ctx, Parser* p
   AST_Node* func = ast_constant_bind(m, lexer_undef_token(), bind, literal);
   AST_Node* pp   = ast_program_point(m, lexer_undef_token());
 
-  point->left  = func->id;
-  pp->left     = point->id;
+  point->left = func->id;
+  pp->left    = assignment->id;
+
   pp->right    = point->right;
   point->right = pp->id;
 
@@ -87,9 +105,11 @@ void function_literal_assignment_to_constant_declaration(Context* ctx, Parser* p
   context_declare(ctx, p, func, point);
 }
 
-void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx) {
+void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_Node* statements, Context* ctx, AST_Node* joint_continuation) {
 
   AST_Manager* m = &p->ast_man;
+
+  AST_Node* previous = ast_node_null(m);
 
   while (!ast_is_null_node(statements)) {
 
@@ -115,9 +135,8 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
       context_declare(ctx, p, statement, statements);
 
       if (right->kind == AST_FUNCTION_CALL) {
-        program_point_cps_conversion(conv, p, continuation, ctx);
-
-        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left);
+        program_point_cps_conversion(conv, p, continuation, ctx, joint_continuation);
+        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left, joint_continuation);
       }
     }
 
@@ -137,9 +156,9 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
       context_declare(ctx, p, statement, statements);
 
       if (right->kind == AST_FUNCTION_CALL) {
-        program_point_cps_conversion(conv, p, continuation, ctx);
+        program_point_cps_conversion(conv, p, continuation, ctx, joint_continuation);
 
-        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left);
+        statements = function_call_cps_conversion(conv, p, ctx, statements, right, continuation, left, joint_continuation);
       }
     }
 
@@ -160,15 +179,39 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
     }
 
     if (statement->kind == AST_FUNCTION_CALL) {
-      program_point_cps_conversion(conv, p, continuation, ctx);
-
-      statements = function_call_cps_conversion(conv, p, ctx, statements, statement, continuation, ast_node_null(m));
+      program_point_cps_conversion(conv, p, continuation, ctx, joint_continuation);
+      statements = function_call_cps_conversion(conv, p, ctx, statements, statement, continuation, ast_node_null(m), joint_continuation);
+      return;
     }
 
     if (statement->kind == AST_CTRL_FLOW_IF) {
+      AST_Node* old_joint = joint_continuation;
+      AST_Node* joint_continuation =
+          create_continuation_function(conv, p, ast_node_null(m), ast_type_any(m, lexer_undef_token()), ast_program_point_get_tail(m, statements), joint_continuation);
+      AST_Node* joint_bind    = ast_bind_get_type_bind(m, joint_continuation);
+      AST_Node* joint_symbol  = ast_type_bind_get_symbol(m, joint_bind);
+      AST_Node* joint_literal = ast_bind_get_expr(m, joint_continuation);
+
+      AST_Node* joint_body = ast_function_literal_get_body(m, joint_literal);
+
+      program_point_cps_conversion(conv, p, joint_body, ctx, old_joint);
+      //			program_point_cps_conversion(conv, p, joint_body, ctx, joint_continuation);
+
+      AST_Node* pp0 = ast_program_point(m, lexer_undef_token());
+      AST_Node* pp1 = ast_program_point(m, lexer_undef_token());
+
+      pp0->left  = statements->left;
+      pp0->right = pp1->id;
+      pp1->left  = ast_call(m, lexer_undef_token(), joint_symbol, ast_node_null(m))->id; // statements->right;
+
+      statements->left  = joint_continuation->id;
+      statements->right = pp0->id;
+
+      statements = pp0;
+
       Context* branch_ctx = context_copy(ctx);
 
-      program_point_cps_conversion(conv, p, ast_manager_get_relative(m, statement, statement->right), branch_ctx);
+      program_point_cps_conversion(conv, p, ast_manager_get_relative(m, statement, statement->right), branch_ctx, joint_symbol);
 
       context_merge(p, ctx, branch_ctx);
 
@@ -176,6 +219,28 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
     }
 
     if (statement->kind == AST_CTRL_FLOW_IF_ELSE) {
+      AST_Node* old_joint = joint_continuation;
+      AST_Node* joint_continuation =
+          create_continuation_function(conv, p, ast_node_null(m), ast_type_any(m, lexer_undef_token()), ast_program_point_get_tail(m, statements), joint_continuation);
+      AST_Node* joint_bind    = ast_bind_get_type_bind(m, joint_continuation);
+      AST_Node* joint_symbol  = ast_type_bind_get_symbol(m, joint_bind);
+      AST_Node* joint_literal = ast_bind_get_expr(m, joint_continuation);
+      AST_Node* joint_body    = ast_function_literal_get_body(m, joint_literal);
+      // function_literal_cps_conversion(conv, p, ctx, joint_literal);
+      program_point_cps_conversion(conv, p, joint_body, ctx, old_joint);
+
+      AST_Node* pp0 = ast_program_point(m, lexer_undef_token());
+      AST_Node* pp1 = ast_program_point(m, lexer_undef_token());
+
+      pp0->left  = statements->left;
+      pp0->right = pp1->id;
+      pp1->left  = ast_call(m, lexer_undef_token(), joint_symbol, ast_node_null(m))->id; // statements->right;
+
+      statements->left  = joint_continuation->id;
+      statements->right = pp0->id;
+
+      statements = pp0;
+
       Context* branch_ctx = context_copy(ctx);
 
       while (statement->kind == AST_CTRL_FLOW_IF_ELSE) {
@@ -185,7 +250,7 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
 
         AST_Node* body = ast_manager_get_relative(m, if_statement, if_statement->right);
 
-        program_point_cps_conversion(conv, p, body, _branch_ctx);
+        program_point_cps_conversion(conv, p, body, _branch_ctx, joint_symbol);
 
         statement = ast_manager_get_relative(m, statement, statement->right);
 
@@ -194,25 +259,30 @@ void program_point_cps_conversion(Local_Continuations_Set& conv, Parser* p, AST_
         context_destroy(_branch_ctx);
       }
 
-      if (!ast_is_null_node(statement)) { program_point_cps_conversion(conv, p, statement, branch_ctx); }
+      if (!ast_is_null_node(statement)) { program_point_cps_conversion(conv, p, statement, branch_ctx, joint_symbol); }
 
       context_replace(ctx, branch_ctx);
 
       context_destroy(branch_ctx);
     }
 
+    previous   = statements;
     statements = ast_program_point_get_tail(m, statements);
+  }
+
+  if (!ast_is_null_node(previous)) {
+    AST_Node* joint_point = ast_program_point(m, lexer_undef_token());
+    joint_point->left     = ast_call(m, lexer_undef_token(), joint_continuation, ast_node_null(m))->id;
+    previous->right       = joint_point->id;
   }
 }
 
 AST_Node* function_call_cps_conversion(
-    Local_Continuations_Set& continuations, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind) {
+    Local_Continuations_Set& continuations, Parser* p, Context* ctx, AST_Node* program_point, AST_Node* call, AST_Node* continuation, AST_Node* bind, AST_Node* joint) {
   AST_Manager* m = &p->ast_man;
 
-  AST_Node* function = ast_fun_call_get_call_sym(m, call);
-
+  // AST_Node* function = ast_fun_call_get_call_sym(m, call);
   // Declaration* local = context_declaration_of(ctx, p, function);
-
   // AST_Node* local = scope_find(scope, p, function);
 
   Token undefined = lexer_undef_token();
@@ -223,14 +293,18 @@ AST_Node* function_call_cps_conversion(
   if (!ast_is_null_node(continuation)) {
     AST_Node* type = ast_type_any(m, undefined); // TODO: use a global context to find function and the type
 
-    declaration = create_continuation_function(continuations, p, bind, type, continuation);
+    declaration = create_continuation_function(continuations, p, bind, type, continuation, joint);
 
     AST_Node* continuation_bind = ast_bind_get_type_bind(m, declaration);
 
     continuation_symbol = ast_type_bind_get_symbol(m, continuation_bind);
   }
+  // program_point_cps_conversion(continuations, p, continuation, ctx, joint);
 
-  if (ast_is_null_node(continuation)) { return program_point; }
+  if (ast_is_null_node(continuation)) {
+    if (!ast_is_null_node(joint)) { ast_call_push_argument(m, undefined, call, joint); }
+    return program_point;
+  }
 
   ast_call_push_argument(m, undefined, call, continuation_symbol);
 
@@ -270,7 +344,7 @@ void function_literal_cps_conversion(Local_Continuations_Set& continuations, Par
 
   replace_return_with_continuation_call(p, statements, continuation_symbol);
 
-  program_point_cps_conversion(continuations, p, statements, ctx);
+  program_point_cps_conversion(continuations, p, statements, ctx, ast_node_null(m));
 }
 
 void cps_conversion(Local_Continuations_Set& continuations, Parser* p, AST_Node* root) {

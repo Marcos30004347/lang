@@ -35,14 +35,14 @@
 
 typedef struct Context Context;
 
-struct Assignment {
-  // Value being assigned
-  AST_Node* value;
-  // The program point in which the assignment happen
-  AST_Node* point;
+// struct Assignment {
+//   // Value being assigned
+//   AST_Node* value;
+//   // The program point in which the assignment happen
+//   AST_Node* point;
+// };
 
-  Assignment* previous;
-};
+typedef std::unordered_set< AST_Node* > Assignments;
 
 struct Declaration {
   AST_Node* symbol;
@@ -51,7 +51,7 @@ struct Declaration {
 
   Context* context;
 
-  Assignment*  assignments;
+  Assignments  assignments;
   Declaration* previous_declaration;
 };
 
@@ -71,7 +71,7 @@ Declaration* context_declaration_of(Context* ctx, Parser* p, AST_Node* symbol, b
 
 AST_Node* context_type_of(Context* ctx, Parser* p, AST_Node* symbol);
 
-Assignment* context_values_of(Context* ctx, Parser* p, AST_Node* symbol);
+Assignments* context_values_of(Context* ctx, Parser* p, AST_Node* symbol);
 
 void     context_merge(Parser* p, Context* a, Context* b);
 void     context_replace(Context* a, Context* b);

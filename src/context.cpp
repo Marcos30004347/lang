@@ -13,23 +13,66 @@ Context* context_create(Context* parent) {
   return ctx;
 }
 
-void assignment_destroy(Assignment* b) {
-  while (b) {
-    Assignment* a = b->previous;
-    delete b;
-    b = a;
-  }
+// void assignment_destroy(Assignment* b) {
+//   while (b) {
+//     Assignment* a = b->previous;
+//     delete b;
+//     b = a;
+//   }
+// }
+
+Declaration* declaration_create(AST_Node* declaration, AST_Node* symbol, AST_Node* type) {
+  assert(declaration->kind == AST_BIND_TYPE);
+
+  Declaration* d = new Declaration();
+
+  d->bind                 = declaration;
+  d->symbol               = symbol;
+  d->type                 = type;
+  d->assignments          = Assignments();
+  d->context              = NULL;
+  d->previous_declaration = NULL;
+
+  return d;
+}
+
+void assignment_create(Declaration* d, AST_Node* value, AST_Node* program_point) {
+  d->assignments = Assignments();
+  d->assignments.insert(value);
 }
 
 void context_merge(Parser* p, Context* a, Context* b) {
+  AST_Manager* m = &p->ast_man;
+
   Declaration* b_decl = b->last_declaration;
 
   while (b_decl) {
     Declaration* a_decl = context_declaration_of(a, p, b_decl->symbol);
 
     if (a_decl != NULL) {
-      b_decl->assignments->previous = a_decl->assignments;
-      b_decl->assignments           = NULL;
+      if (a_decl->context) {
+        assert(b_decl->context);
+        context_merge(p, a_decl->context, b_decl->context);
+      } else {
+        for (Assignments::iterator assignment = b_decl->assignments.begin(); assignment != b_decl->assignments.end(); assignment++) {
+          a_decl->assignments.insert(*assignment);
+        }
+      }
+    } else {
+      Declaration* d = declaration_create(b_decl->bind, b_decl->symbol, b_decl->type);
+      if (b_decl->context) {
+        d->context = context_copy(b_decl->context);
+      } else {
+
+        d->assignments = b_decl->assignments;
+
+        for (Assignments::iterator assignment = b_decl->assignments.begin(); assignment != b_decl->assignments.end(); assignment++) {
+          d->assignments.insert(*assignment);
+        }
+
+        d->previous_declaration = a->last_declaration;
+      }
+      a->last_declaration = d;
     }
 
     b_decl = b_decl->previous_declaration;
@@ -42,7 +85,7 @@ Context* context_destroy(Context* ctx) {
   while (ctx->last_declaration) {
     Declaration* t = ctx->last_declaration->previous_declaration;
 
-    assignment_destroy(ctx->last_declaration->assignments);
+    // assignment_destroy(ctx->last_declaration->assignments);
 
     if (ctx->last_declaration->context) { context_destroy(ctx->last_declaration->context); }
 
@@ -54,31 +97,6 @@ Context* context_destroy(Context* ctx) {
   delete ctx;
 
   return p;
-}
-
-Declaration* declaration_create(AST_Node* declaration, AST_Node* symbol, AST_Node* type) {
-  assert(declaration->kind == AST_BIND_TYPE);
-
-  Declaration* d = new Declaration();
-
-  d->bind        = declaration;
-  d->symbol      = symbol;
-  d->type        = type;
-  d->assignments = NULL;
-  d->context     = NULL;
-
-  return d;
-}
-
-Assignment* assignment_create(AST_Node* value, AST_Node* program_point, Assignment* prev) {
-
-  Assignment* a = new Assignment();
-
-  a->previous = prev;
-  a->value    = value;
-  a->point    = program_point;
-
-  return a;
 }
 
 void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node* type, AST_Node* value, AST_Node* program_point) {
@@ -95,8 +113,8 @@ void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node*
     AST_Node* struct_type    = type_declaration->type;
     AST_Node* struct_members = ast_manager_get_relative(m, struct_type, struct_type->left);
 
-    d->assignments = NULL;
-    d->context     = context_create(NULL);
+    d->context = context_create(NULL);
+    assignment_create(d, NULL, program_point);
 
     while (!ast_is_null_node(struct_members)) {
       AST_Node* member = ast_program_point_get_decl(m, struct_members);
@@ -106,8 +124,8 @@ void setup_declaration_values(Context* ctx, Parser* p, Declaration* d, AST_Node*
       struct_members = ast_program_point_get_tail(m, struct_members);
     }
   } else {
-    d->context     = NULL;
-    d->assignments = assignment_create(value, program_point, NULL);
+    d->context = NULL;
+    assignment_create(d, value, program_point);
   }
 }
 
@@ -165,13 +183,16 @@ void context_assign(Context* ctx, Parser* p, AST_Node* assignment, AST_Node* pro
 
   Declaration* decl = context_declaration_of(ctx, p, left);
 
-  assignment_destroy(decl->assignments);
+  // assignment_destroy(decl->assignments);
 
-  decl->assignments = assignment_create(ast_manager_get_relative(m, assignment, assignment->right), program_point, NULL);
+  assignment_create(decl, ast_manager_get_relative(m, assignment, assignment->right), program_point);
 }
 
 Declaration* context_declaration_of_rec(Context* ctx, Parser* p, AST_Node* symbol, Context* _c, b8* is_local) {
-  if (ctx == NULL) return NULL;
+  if (ctx == NULL) {
+    if (is_local) *is_local = false;
+    return NULL;
+  }
 
   AST_Manager* m = &p->ast_man;
 
@@ -180,8 +201,8 @@ Declaration* context_declaration_of_rec(Context* ctx, Parser* p, AST_Node* symbo
   assert(ast_is_temporary(m, symbol) || symbol->kind == AST_SYMBOL_LITERAL);
 
   Declaration* declaration = ctx->last_declaration;
-
   while (declaration) {
+
     if (parser_is_same_symbol(p, symbol, declaration->symbol)) {
 
       if (is_local) { *is_local = ctx == _c; }
@@ -192,7 +213,7 @@ Declaration* context_declaration_of_rec(Context* ctx, Parser* p, AST_Node* symbo
     declaration = declaration->previous_declaration;
   }
 
-  return context_declaration_of(ctx->parent, p, symbol);
+  return context_declaration_of_rec(ctx->parent, p, symbol, _c, is_local);
 }
 
 Declaration* context_declaration_of(Context* ctx, Parser* p, AST_Node* symbol, b8* is_local) { return context_declaration_of_rec(ctx, p, symbol, ctx, is_local); }
@@ -207,20 +228,20 @@ AST_Node* context_type_of(Context* ctx, Parser* p, AST_Node* symbol) {
   return declaration->type;
 }
 
-Assignment* context_values_of(Context* ctx, Parser* p, AST_Node* symbol) {
+Assignments* context_values_of(Context* ctx, Parser* p, AST_Node* symbol) {
   Declaration* declaration = context_declaration_of(ctx, p, symbol);
 
   AST_Manager* m = &p->ast_man;
 
   if (declaration == NULL) return NULL;
 
-  return declaration->assignments;
+  return &declaration->assignments;
 }
 
-Assignment* assignment_copy(Assignment* a) {
-  if (a == NULL) return NULL;
-  return assignment_create(a->value, a->point, assignment_copy(a->previous));
-}
+// Assignment* assignment_copy(Assignment* a) {
+//   if (a == NULL) return NULL;
+//   return assignment_create(a->value, a->point, assignment_copy(a->previous));
+// }
 
 Declaration* declaration_copy(Declaration* d) {
 
@@ -230,7 +251,7 @@ Declaration* declaration_copy(Declaration* d) {
 
   r->previous_declaration = declaration_copy(d->previous_declaration);
 
-  r->assignments = assignment_copy(d->assignments);
+  r->assignments = d->assignments; // assignment_copy(d->assignments);
 
   return r;
 }
@@ -259,19 +280,18 @@ void context_replace(Context* a, Context* b) {
   b->last_declaration = t;
 }
 
-void assignment_print(Assignment* a, Parser* p, int tabs) {
+void assignment_print(Assignments* a, Parser* p, int tabs) {
   if (a == NULL) return;
   AST_Manager* m = &p->ast_man;
 
-  AST_Node* v = a->value;
-
-  if (v->kind == AST_FUNCTION_LITERAL) v = ast_function_literal_get_signature(m, v);
-  if (v->kind == AST_TYPE_STRUCT) printf("struct");
-  else print_ast_to_program(p, v, tabs);
-
-  if (a->previous) {
-    printf(", ");
-    assignment_print(a->previous, p, tabs);
+  u64 i = 0;
+  for (Assignments::iterator it = a->begin(); it != a->end(); it++) {
+    i           = i + 1;
+    AST_Node* v = *it;
+    if (v->kind == AST_FUNCTION_LITERAL) v = ast_function_literal_get_signature(m, v);
+    if (v->kind == AST_TYPE_STRUCT) printf("struct");
+    else print_ast_to_program(p, v, tabs);
+    if (i < a->size()) { printf("\n "); }
   }
 }
 
@@ -283,7 +303,7 @@ void declaration_print(Declaration* d, Parser* p, int tabs) {
   if (d->context) {
     context_print(d->context, p, tabs);
   } else {
-    assignment_print(d->assignments, p, tabs);
+    assignment_print(&d->assignments, p, tabs);
   }
   printf(" )\n");
 }
