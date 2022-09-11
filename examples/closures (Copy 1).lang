@@ -2,48 +2,6 @@
 // for things to work all typing information needs to be
 // statically available.
 
-A :: () {
-	w : i32 = 0;
-	x : i32 = 0;
-	
-	B :: () {
-		y : i32 = 0;
-		z : i32 = 0;
-
-		C :: () {
-			t :: w + y;
-			return t;
-		}
-
-		E :: () {
-			t :: x + z;
-			return t;
-		}
-
-		F :: () {
-			t :: w + x;
-			return t;
-		}
-		
-		G :: () {
-			t :: y + z;
-			return t;
-		}
-
-		t :: 0;
-		
-		if t {
-			return C, E;
-		}
-
-		return F, G;
-	}
-
-	H :: B();
-
-	return H;
-}
-
 f : any : (x:i32) -> i32 {
 	return 0;
 }

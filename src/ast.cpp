@@ -94,18 +94,24 @@ const char* ast_kind_strs[] = {
     "__AST_CALL_OPERATION_END",
 
     "__AST_INTERNAL_START",
-    "_AST_BUILD_STACK_CLOSURE_OBJECT",
-    "_AST_BUILD_HEAP_CLOSURE_OBJECT",
     "_AST_GET_CLOSURE_HANDLER",
     "_AST_GET_CLOSURE_ENVIRONMENT",
     "_AST_SIZE_OF",
+    "_AST_TYPE_OF",
     "_AST_BITSET",
     "_AST_BITSET_SET_BIT_ON",
     "_AST_BITSET_SET_BIT_OFF",
     "_AST_BITSET_BINARY_UNION",
     "_AST_BITSET_BINARY_INTERSECTION",
     "_AST_BITSET_IS_BIT_UP",
+    "_AST_REALLOCATE_HEAP_BUFFER",
+    "_AST_ALLOCATE_HEAP_BUFFER",
+    "_AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT",
+    "_AST_BORROW_VARIABLE_INTO_ENVIRONMENT",
+    "_AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER",
+    "_AST_BUILD_CLOSURE_OBJECT",
     "__AST_INTERNAL_END",
+    "__AST_KIND_END",
 
     "__AST_KIND_END",
 };
@@ -483,6 +489,7 @@ AST_Node* _internal_ast_reallocate_heap_buffer(AST_Manager* m, AST_Node* buffer,
 AST_Node* _internal_ast_allocate_heap_buffer(AST_Manager* m, AST_Node* size) {
   return ast_manager_alloc(m, lexer_undef_token(), _AST_ALLOCATE_HEAP_BUFFER, size->id, ast_node_null(m)->id);
 }
+
 AST_Node* _internal_ast_capture_variable_into_environment(
     AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env) {
 
@@ -497,6 +504,7 @@ AST_Node* _internal_ast_capture_variable_into_environment(
 
   return ast_manager_alloc(m, lexer_undef_token(), _AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT, l0->id, ast_node_null(m)->id);
 }
+
 AST_Node* _internal_ast_borrow_variable_into_environment(
     AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env) {
   Token undef = lexer_undef_token();
@@ -509,6 +517,20 @@ AST_Node* _internal_ast_borrow_variable_into_environment(
   AST_Node* l0 = ast_decl_args(m, undef, env_type, l1);
 
   return ast_manager_alloc(m, lexer_undef_token(), _AST_BORROW_VARIABLE_INTO_ENVIRONMENT, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node*
+_internal_ast_setup_closure_environment_buffer_header(AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* incc, AST_Node* local_env) {
+
+  Token undef = lexer_undef_token();
+
+  AST_Node* l5 = ast_decl_args(m, undef, local_env, ast_node_null(m));
+  AST_Node* l4 = ast_decl_args(m, undef, incc, l5);
+  AST_Node* l2 = ast_decl_args(m, undef, buffer, l4);
+  AST_Node* l1 = ast_decl_args(m, undef, header_type, l2);
+  AST_Node* l0 = ast_decl_args(m, undef, env_type, l2);
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER, l0->id, ast_node_null(m)->id);
 }
 
 AST_Node* _internal_ast_bitset(AST_Manager* m, u64 size) {

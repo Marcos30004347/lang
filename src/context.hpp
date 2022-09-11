@@ -77,3 +77,4 @@ void     context_merge(Parser* p, Context* a, Context* b);
 void     context_replace(Context* a, Context* b);
 Context* context_copy(Context* a);
 void     context_print(Context* ctx, Parser* p, int tabs = 0);
+Context* declaration_arguments_to_context(Parser* p, AST_Node* node, Context* parent = NULL);

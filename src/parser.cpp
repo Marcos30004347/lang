@@ -1046,6 +1046,14 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == _AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER) {
+    printf("_setup_closure_buffer_header(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+
   if (n->kind == _AST_BITSET) {
     printf("_bitset(%lu)", n->tok.buf);
     return;
@@ -1068,6 +1076,13 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     printf("_bitset_test_bit(");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
     printf(", %lu)", n->tok.buf);
+    return;
+  }
+
+  if (n->kind == _AST_BUILD_CLOSURE_OBJECT) {
+    printf("_build_closure_object(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
     return;
   }
 

@@ -88,8 +88,6 @@ enum AST_Kind {
   __AST_CALL_OPERATION_END,
 
   __AST_INTERNAL_START,
-  // _AST_BUILD_STACK_CLOSURE_OBJECT,
-  // _AST_BUILD_HEAP_CLOSURE_OBJECT,
   _AST_GET_CLOSURE_HANDLER,
   _AST_GET_CLOSURE_ENVIRONMENT,
   _AST_SIZE_OF,
@@ -104,8 +102,8 @@ enum AST_Kind {
   _AST_ALLOCATE_HEAP_BUFFER,
   _AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT,
   _AST_BORROW_VARIABLE_INTO_ENVIRONMENT,
-  // _AST_CAPTURE_ENVRITONMENT_VARIABLES_BITSET,
-
+  _AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER,
+  _AST_BUILD_CLOSURE_OBJECT,
   __AST_INTERNAL_END,
   __AST_KIND_END,
 };
@@ -236,7 +234,8 @@ AST_Node* _internal_ast_sizeof(AST_Manager* m, AST_Node* n);
 AST_Node* _internal_ast_typeof(AST_Manager* m, AST_Node* n);
 AST_Node* _internal_ast_reallocate_heap_buffer(AST_Manager* m, AST_Node* buffer, AST_Node* size);
 AST_Node* _internal_ast_allocate_heap_buffer(AST_Manager* m, AST_Node* size);
-
+AST_Node*
+_internal_ast_setup_closure_environment_buffer_header(AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* incc, AST_Node* local_env);
 AST_Node* _internal_ast_capture_variable_into_environment(
     AST_Manager* m, AST_Node* env_type, AST_Node* buff_header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env);
 AST_Node* _internal_ast_borrow_variable_into_environment(

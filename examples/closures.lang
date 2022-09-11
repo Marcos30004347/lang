@@ -1,28 +1,44 @@
 
 
-t :: () {
-	x: i32 = 0;
-	y: i32 = 0;
+A :: () {
+	w : i32 = 0;
+	x : i32 = 0;
 	
-	if x {
-		f();
+	B :: () {
+		y : i32 = 0;
+		z : i32 = 0;
 
-		k : i32 = 0;
+		C :: () {
+			t :: w + y;
+			return t;
+		}
+
+		E :: () {
+			t :: x + z;
+			return t;
+		}
+
+		F :: () {
+			t :: w + x;
+			return t;
+		}
 		
-		g();
-		u();
-		w();
-	} else {
-		j : i32 = 0;
+		G :: () {
+			t :: y + z;
+			return t;
+		}
+
+		t :: 0;
+		
+		if t {
+			return C, E;
+		}
+
+		return F, G;
 	}
 
-	if y {
-		f();
-		k : i32 = 0;
-	}
+	H :: B();
 
-	i : i32 = i + 1;
-
-	return i;
+	return H;
 }
 

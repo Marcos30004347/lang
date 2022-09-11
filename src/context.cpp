@@ -331,6 +331,28 @@ void context_print(Context* ctx, Parser* p, int tabs) {
   printf("\n");
 }
 
+Context* declaration_arguments_to_context(Parser* p, AST_Node* node, Context* parent) {
+  Context* ctx = context_create(parent);
+
+  if (ast_is_null_node(node)) { return ctx; }
+
+  AST_Manager* m = &p->ast_man;
+
+  assert(node->kind == AST_DECL_ARGS_LIST);
+
+  while (!ast_is_null_node(node)) {
+    AST_Node* arg = ast_decl_list_get_elem(m, node);
+    if (!ast_is_null_node(arg)) {
+      if (arg->kind == AST_BIND_CONSTANT || arg->kind == AST_BIND_VARIABLE) { arg = ast_manager_get_relative(m, arg, arg->left); }
+      assert(arg->kind == AST_BIND_TYPE);
+      context_declare(ctx, p, arg, node);
+    }
+
+    node = ast_decl_list_get_tail(m, node);
+  }
+  return ctx;
+}
+
 // Context* context_push(Context* r, AST_Node* n) {
 //   assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONSTANT || n->kind == AST_BIND_VARIABLE);
 
