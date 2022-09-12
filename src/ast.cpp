@@ -209,7 +209,8 @@ AST_Node* ast_manager_get_relative(AST_Manager* m, AST_Node* root, AST_Id child_
 
 AST_Node* ast_manager_alloc(AST_Manager* m, Token tok, u64 kind, AST_Id l, AST_Id r) { return ast_manager_get(m, ast_manager_reserve(m, tok, kind, l, r)); }
 
-void      ast_change_kind(AST_Node* m, AST_Kind kind) { m->kind = kind; }
+void ast_change_kind(AST_Node* m, AST_Kind kind) { m->kind = kind; }
+
 AST_Node* ast_symbol(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_SYMBOL_LITERAL, 0, 0); }
 
 AST_Node* ast_i32_lit(AST_Manager* m, Token tok) { return ast_manager_alloc(m, tok, AST_NATURAL_LITERAL, 0, 0); }
@@ -465,9 +466,14 @@ AST_Node* _internal_ast_get_closure_handler(AST_Manager* m, AST_Node* closure) {
 
   return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_HANDLER, closure->id, ast_node_null(m)->id);
 }
-AST_Node* _internal_ast_get_closure_environment(AST_Manager* m, AST_Node* closure) {
-  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_ENVIRONMENT, closure->id, ast_node_null(m)->id);
+
+AST_Node* _internal_ast_get_closure_environment_buffer(AST_Manager* m, AST_Node* closure) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_ENVIRONMENT_BUFFER, closure->id, ast_node_null(m)->id);
 }
+AST_Node* _internal_ast_get_closure_environment_buffer_size(AST_Manager* m, AST_Node* closure) {
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_ENVIRONMENT_BUFFER_SIZE, closure->id, ast_node_null(m)->id);
+}
+
 AST_Node* ast_copy(AST_Manager* m, AST_Node* node) {
   if (ast_is_null_node(node)) return ast_node_null(m);
 
@@ -531,6 +537,45 @@ _internal_ast_setup_closure_environment_buffer_header(AST_Manager* m, AST_Node* 
   AST_Node* l0 = ast_decl_args(m, undef, env_type, l2);
 
   return ast_manager_alloc(m, lexer_undef_token(), _AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node*
+_internal_ast_update_closure_environment_buffer_header(AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* incc, AST_Node* local_env) {
+
+  Token undef = lexer_undef_token();
+
+  AST_Node* l5 = ast_decl_args(m, undef, local_env, ast_node_null(m));
+  AST_Node* l4 = ast_decl_args(m, undef, incc, l5);
+  AST_Node* l2 = ast_decl_args(m, undef, buffer, l4);
+  AST_Node* l1 = ast_decl_args(m, undef, header_type, l2);
+  AST_Node* l0 = ast_decl_args(m, undef, env_type, l2);
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_UPDATE_CLOSURE_ENVIRONMENT_BUFFER_HEADER, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_set_closure_object_extern(AST_Manager* m, AST_Node* closure) {
+  Token undef = lexer_undef_token();
+
+  AST_Node* l0 = ast_decl_args(m, undef, closure, ast_node_null(m));
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_SET_CLOSURE_OBJECT_EXTERN, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_get_closure_object_bitset(AST_Manager* m, AST_Node* closure) {
+  Token undef = lexer_undef_token();
+
+  AST_Node* l0 = ast_decl_args(m, undef, closure, ast_node_null(m));
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_GET_CLOSURE_OBJECT_BITSET, l0->id, ast_node_null(m)->id);
+}
+
+AST_Node* _internal_ast_is_closure_object_local(AST_Manager* m, AST_Node* closure) {
+
+  Token undef = lexer_undef_token();
+
+  AST_Node* l0 = ast_decl_args(m, undef, closure, ast_node_null(m));
+
+  return ast_manager_alloc(m, lexer_undef_token(), _AST_IS_CLOSURE_OBJECT_LOCAL, l0->id, ast_node_null(m)->id);
 }
 
 AST_Node* _internal_ast_bitset(AST_Manager* m, u64 size) {

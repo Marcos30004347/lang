@@ -9,11 +9,11 @@
 #include "stdlib.h"
 #include "string.h"
 
-// void debug_print_token(Parser* p, Token t) {
-// 	i8 buf[256];
-// 	token_get_id(&p->lex, t, buf);
-// 	printf("%s\n", buf);
-// }
+void debug_print_token(Parser* p, Token t) {
+  i8 buf[256];
+  token_get_id(&p->lex, t, buf);
+  printf("%s\n", buf);
+}
 
 AST_Node* parser_parse_expr(Parser* p);
 AST_Node* parser_parse_statements(Parser* p);
@@ -1038,8 +1038,23 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT) {
-    printf("_get_closure_object_environment(");
+  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT_BUFFER) {
+    printf("_get_closure_object_environment_buffer(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+
+  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT_BUFFER_SIZE) {
+    printf("_get_closure_object_environment_buffer_size(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(")");
+
+    return;
+  }
+  if (n->kind == _AST_UPDATE_CLOSURE_ENVIRONMENT_BUFFER_HEADER) {
+    printf("_update_closure_buffer_header(");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf(")");
 
@@ -1111,6 +1126,27 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == _AST_IS_CLOSURE_OBJECT_LOCAL) {
+    printf("_is_closure_local(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_GET_CLOSURE_OBJECT_BITSET) {
+    printf("_get_closure_bitset(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
+  if (n->kind == _AST_SET_CLOSURE_OBJECT_EXTERN) {
+    printf("_set_closure_object_as_extern(");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
+    printf(")");
+    return;
+  }
+
   if (n->kind == _AST_REALLOCATE_HEAP_BUFFER) {
     printf("_realloc(");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left));
@@ -1140,13 +1176,32 @@ void print_ast_to_program(Parser* p, AST_Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_OP_BIN_EQ) {
+  if (n->kind == AST_OP_BIN_NE) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" != ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+  if (n->kind == AST_OP_BIN_GT) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" > ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
+  if (n->kind == AST_OP_BIN_GE) {
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
+    printf(" >= ");
+    print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
+    return;
+  }
 
+  if (n->kind == AST_OP_BIN_EQ) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf(" == ");
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->right), scope);
     return;
   }
+
   if (ast_is_binary_operation(n)) {
     print_ast_to_program(p, ast_manager_get_relative(&p->ast_man, n, n->left), scope);
     printf(" op ");

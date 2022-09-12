@@ -58,18 +58,18 @@ AST_Node* create_continuation_function(AST_Set&  continuation_arguments,
     if (ast_is_null_node(argument_type)) { argument->right = ast_type_any(m, undefined)->id; }
   }
 
-  AST_Node* last = body;
+  // AST_Node* last = body;
 
-  assert(last->kind == AST_PROGRAM_POINT);
+  // assert(last->kind == AST_PROGRAM_POINT);
 
-  while (!ast_is_null_node(last)) {
-    AST_Node* next = ast_program_point_get_tail(m, last);
-    if (!ast_is_null_node(next)) last = next;
-    else break;
-  }
+  // while (!ast_is_null_node(last)) {
+  //   AST_Node* next = ast_program_point_get_tail(m, last);
+  //   if (!ast_is_null_node(next)) last = next;
+  //   else break;
+  // }
 
-  assert(last->kind == AST_PROGRAM_POINT);
-  AST_Node* statement = ast_program_point_get_decl(m, last);
+  // assert(last->kind == AST_PROGRAM_POINT);
+  // AST_Node* statement = ast_program_point_get_decl(m, last);
 
   AST_Node* arguments   = !ast_is_null_node(argument) ? ast_decl_args(m, undefined, argument, ast_node_null(m)) : ast_node_null(m);
   AST_Node* signature   = ast_function_signature(m, undefined, arguments, return_type);
@@ -81,16 +81,16 @@ AST_Node* create_continuation_function(AST_Set&  continuation_arguments,
 
   continuation_declarations.insert(bind->id);
 
-  if (statement->kind == AST_FUNCTION_CALL) {
-    AST_Node* symbol = ast_fun_call_get_call_sym(m, statement);
+  // if (statement->kind == AST_FUNCTION_CALL) {
+  //   AST_Node* symbol = ast_fun_call_get_call_sym(m, statement);
 
-    Declaration* declaration = context_declaration_of(ctx, p, symbol);
+  //   Declaration* declaration = context_declaration_of(ctx, p, symbol);
 
-    if (declaration && continuation_arguments.count(declaration->bind->id)) {
-      AST_Node* bind = ast_type_bind(m, lexer_undef_token(), ast_copy(m, symbol), ast_type_any(m, lexer_undef_token()));
-      ast_function_literal_push_argument(m, lexer_undef_token(), function, bind);
-    }
-  }
+  //   if (declaration && continuation_arguments.count(declaration->bind->id)) {
+  //     AST_Node* bind = ast_type_bind(m, lexer_undef_token(), ast_copy(m, symbol), ast_type_any(m, lexer_undef_token()));
+  //     ast_function_literal_push_argument(m, lexer_undef_token(), function, bind);
+  //   }
+  // }
 
   return declaration;
 }
@@ -243,7 +243,7 @@ void program_point_cps_conversion(AST_Set&  continuation_arguments,
 
       pp0->left  = statements->left;
       pp0->right = pp1->id;
-      pp1->left  = ast_call(m, lexer_undef_token(), joint_symbol, ast_copy(m, cont_symbol))->id; // statements->right;
+      pp1->left  = ast_call(m, lexer_undef_token(), joint_symbol, ast_node_null(m) /*ast_copy(m, cont_symbol)*/)->id; // statements->right;
 
       statements->left  = joint_continuation->id;
       statements->right = pp0->id;
@@ -321,6 +321,8 @@ void program_point_cps_conversion(AST_Set&  continuation_arguments,
   }
 
   if (!ast_is_null_node(previous) && !ast_is_null_node(joint_continuation)) {
+    AST_Node* last_statement = ast_manager_get_relative(m, previous, previous->left);
+    if (last_statement->kind == AST_FUNCTION_CALL) return;
     AST_Node* joint_point = ast_program_point(m, lexer_undef_token());
 
     joint_point->left = ast_call(m, lexer_undef_token(), joint_continuation, ast_copy(m, cont_symbol))->id;

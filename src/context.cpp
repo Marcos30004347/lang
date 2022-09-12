@@ -189,12 +189,22 @@ void context_assign(Context* ctx, Parser* p, AST_Node* assignment, AST_Node* pro
 }
 
 Declaration* context_declaration_of_rec(Context* ctx, Parser* p, AST_Node* symbol, Context* _c, b8* is_local) {
+
   if (ctx == NULL) {
     if (is_local) *is_local = false;
     return NULL;
   }
 
   AST_Manager* m = &p->ast_man;
+
+  if (symbol->kind == AST_OP_MEMBER_ACCESS) {
+    AST_Node* first  = ast_manager_get_relative(m, symbol, symbol->left);
+    AST_Node* second = ast_manager_get_relative(m, symbol, symbol->left);
+
+    Declaration* decl = context_declaration_of_rec(ctx, p, first, _c, is_local);
+
+    return context_declaration_of_rec(decl->context, p, second, _c, is_local);
+  }
 
   if (symbol->kind == AST_BIND_TYPE) { symbol = ast_type_bind_get_symbol(m, symbol); }
 
