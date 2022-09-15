@@ -98,6 +98,8 @@ Token lexer_read_token(Lexer*);
 
 Token lexer_undef_token();
 
+Token lexer_i32_token(i32 nat);
+
 b8 lexer_is_eof(Lexer*);
 
 void token_get_id(Lexer* t, Token tok, i8* buf);

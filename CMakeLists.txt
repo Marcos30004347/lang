@@ -3,13 +3,17 @@ cmake_minimum_required(VERSION 3.1O)
 project(magic)
 
 add_library(magic
+	src/ast/ast_manager.cpp
+	src/compiler/compiler.cpp
+	src/compiler/file_manager.cpp
+	src/compiler/symbol_table.cpp
 	src/error.cpp
 	src/utils.cpp
 	src/lexer.cpp
 	src/ast.cpp
 	src/parser.cpp
 	src/crc64.cpp
-	src/context.cpp
+	#src/context.cpp
 )
 
 target_include_directories(magic PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")

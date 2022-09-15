@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lexer.hpp"
 #include "types.hpp"
 
 namespace ast {
@@ -11,18 +10,12 @@ typedef u32 Id;
 // Data Store for nodes
 typedef struct Bucket Bucket;
 
-#define BUCKET_SIZE 128
+#define AST_BUCKET_SIZE 128
 
 struct Node {
   Id id;
 
   u64 kind;
-
-  // TODO(marcos): this node can use less bytes
-  // if we take this token away and just store
-  // a reference to it here, like a TokenId ref
-  // as we do for the AST_Node childs.
-  Token tok;
 
   Id left;
   Id right;
@@ -32,7 +25,7 @@ struct Node {
 
 struct Bucket {
   u64     id;
-  Node    data[BUCKET_SIZE];
+  Node    data[AST_BUCKET_SIZE];
   Bucket* prev;
   Bucket* next;
 };
@@ -52,11 +45,29 @@ struct Manager {
 
 Node* manager_push_decl(Manager* m, Node* decl);
 
-void manager_init(Manager* m);
-void manager_free(Manager* m);
+Manager* manager_create();
+
+void manager_destroy(Manager* m);
 
 Node* manager_get(Manager* m, Id id);
+
 Node* manager_get_relative(Manager* m, Node* from, Id id);
-Node* manager_alloc(Manager* m, Token tok, u64 kind, Id l, Id r);
+
+Node* manager_alloc(Manager* m, u64 kind, Id l, Id r);
+
+Node* left_of(Manager* m, Node* n);
+
+Node* right_of(Manager* m, Node* n);
+
+Id left_id_of(Manager* m, Node* n);
+
+Id right_id_of(Manager* m, Node* n);
+
+Node* deep_copy(Manager* m, Node* n);
+
+template < typename A > A is_instance(Node* node);
+template < typename A > A as(Node* node) {
+  return (A)node;
+}
 
 } // namespace ast
