@@ -8,6 +8,14 @@ using namespace compiler;
 
 namespace ast {
 
+template <> ProgramPoint_List_Node* is_instance<>(Node* node) {
+  return node->kind == AST_PROGRAM_POINT ? as< ProgramPoint_List_Node* >(node) : 0;
+}
+
+template <> Declarations_List_Node* is_instance<>(Node* node) {
+  return node->kind == AST_DECL_ARGS_LIST ? as< Declarations_List_Node* >(node) : 0;
+}
+
 ProgramPoint_List_Node* ProgramPoint_List_Node::get_next_program_point(parser::Parser* parser) {
   return is_instance< ProgramPoint_List_Node* >(right_of(parser->ast_manager, this));
 }

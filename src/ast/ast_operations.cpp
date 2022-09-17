@@ -4,6 +4,50 @@
 
 namespace ast {
 
+template <> Arithmetic_Operation_Add_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_ADD ? (Arithmetic_Operation_Add_Node*)node : 0;
+}
+
+template <> Arithmetic_Operation_Sub_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_SUB ? (Arithmetic_Operation_Sub_Node*)node : 0;
+}
+
+template <> Arithmetic_Operation_Div_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_DIV ? (Arithmetic_Operation_Div_Node*)node : 0;
+}
+
+template <> Logical_Operation_Greater_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_GT ? (Logical_Operation_Greater_Node*)node : 0;
+}
+
+template <> Logical_Operation_GreaterEqual_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_GE ? (Logical_Operation_GreaterEqual_Node*)node : 0;
+}
+
+template <> Logical_Operation_Less_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_LT ? (Logical_Operation_Less_Node*)node : 0;
+}
+
+template <> Logical_Operation_LessEqual_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_LE ? (Logical_Operation_LessEqual_Node*)node : 0;
+}
+
+template <> Logical_Operation_Equal_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_EQ ? (Logical_Operation_Equal_Node*)node : 0;
+}
+
+template <> Logical_Operation_NotEqual_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_NE ? (Logical_Operation_NotEqual_Node*)node : 0;
+}
+
+template <> Variable_Assignment_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_BIN_ASSIGN ? (Variable_Assignment_Node*)node : 0;
+}
+
+template <> Member_Access_Node* is_instance<>(Node* node) {
+  return node->kind == AST_OP_MEMBER_ACCESS ? (Member_Access_Node*)node : 0;
+}
+
 Arithmetic_Operation_Add_Node* create_node_arithmetic_add(parser::Parser* parser, Node* a, Node* b) {
   assert(a && b);
   return as< Arithmetic_Operation_Add_Node* >(ast::manager_alloc(parser->ast_manager, AST_OP_BIN_ADD, a->id, b->id));

@@ -137,7 +137,7 @@ void manager_destroy(Manager* m) {
   delete m;
 }
 
-Symbol manager_alloc_symbol(Manager* m, const i8* c_str, u64 n, u64 crc, u64 row = -1, u64 col = -1) {
+Symbol manager_alloc_symbol(Manager* m, const i8* c_str, u64 n, u64 crc) {
   u64     id = m->used_chars_count;
   Bucket* b  = m->bucket_last;
 
@@ -154,7 +154,7 @@ Symbol manager_alloc_symbol(Manager* m, const i8* c_str, u64 n, u64 crc, u64 row
     m->used_chars_count += 1;
   }
 
-  Symbol s = {.id = id, .size = n, .crc64 = crc, .row = row, .col = col, .bucket = b};
+  Symbol s = {.id = id, .size = n, .crc64 = crc, .bucket = b};
 
   return s;
 }
@@ -246,7 +246,7 @@ b8 exist_entry(Symbol_Table* table, const i8* c_str) {
   return exist_entry(table, c_str, strlen(c_str));
 }
 
-Symbol set_entry(Symbol_Table* table, const i8* str, u64 n, u64 row, u64 col) {
+Symbol set_entry(Symbol_Table* table, const i8* str, u64 n) {
   Symbol symbol = get_entry(table, str, n);
 
   if (symbol.id != 0) {
@@ -257,9 +257,10 @@ Symbol set_entry(Symbol_Table* table, const i8* str, u64 n, u64 row, u64 col) {
 
   if (table->table[crc % TABLE_SIZE] == 0) {
     table->table[crc % TABLE_SIZE]         = new Symbol_Table_Node();
-    table->table[crc % TABLE_SIZE]->symbol = manager_alloc_symbol(table->manager, str, n, crc, row, col);
+    table->table[crc % TABLE_SIZE]->symbol = manager_alloc_symbol(table->manager, str, n, crc);
     table->table[crc % TABLE_SIZE]->prev   = 0;
-    table->crc64_map                       = create_id_to_crc64_map_node(table->table[crc % TABLE_SIZE]->symbol.id, crc);
+
+    table->crc64_map = insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
 
     return table->table[crc % TABLE_SIZE]->symbol;
   } else {
@@ -267,16 +268,16 @@ Symbol set_entry(Symbol_Table* table, const i8* str, u64 n, u64 row, u64 col) {
     node->prev                     = table->table[crc % TABLE_SIZE];
     table->table[crc % TABLE_SIZE] = node;
 
-    node->symbol = manager_alloc_symbol(table->manager, str, n, crc, row, col);
+    node->symbol = manager_alloc_symbol(table->manager, str, n, crc);
 
-    table->crc64_map = create_id_to_crc64_map_node(node->symbol.id, crc);
+    table->crc64_map = insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
 
     return node->symbol;
   }
 }
 
-Symbol set_entry(Symbol_Table* table, const i8* str, u64 row, u64 col) {
-  return set_entry(table, str, strlen(str), row, col);
+Symbol set_entry(Symbol_Table* table, const i8* str) {
+  return set_entry(table, str, strlen(str));
 }
 
 Symbol_Table* symbol_table_create() {
@@ -319,7 +320,7 @@ Symbol get_symbol(Symbol_Table* table, Id id) {
   if (node == 0)
     return empty(table);
 
-  Symbol_Table_Node* n = table->table[node->crc];
+  Symbol_Table_Node* n = table->table[node->crc % TABLE_SIZE];
 
   while (n && n->symbol.id != id) {
     n = n->prev;
@@ -329,11 +330,13 @@ Symbol get_symbol(Symbol_Table* table, Id id) {
 }
 
 Symbol from_token(Symbol_Table* table, Lexer* lexer, Token token) {
-  char buffer[token.size];
+  i8 buffer[token.size + 1];
 
   token_get_id(lexer, token, buffer);
 
-  return set_entry(table, buffer, token.size, token.row, token.col);
+  buffer[token.size] = '\0';
+
+  return set_entry(table, buffer, token.size);
 }
 
 } // namespace symbol

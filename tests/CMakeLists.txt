@@ -14,6 +14,13 @@ target_link_libraries(SymbolTableTests magic)
 target_include_directories(SymbolTableTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME SymbolTableTests COMMAND SymbolTableTests)
 
+project(ParserTests)
+add_executable(ParserTests parser/parser.cpp)
+target_link_libraries(ParserTests magic)
+target_include_directories(ParserTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME ParserTests COMMAND ParserTests)
+
+
 # project(ParserTests)
 # add_executable(ParserTests parser-tests.cpp)
 # target_link_libraries(ParserTests magic)

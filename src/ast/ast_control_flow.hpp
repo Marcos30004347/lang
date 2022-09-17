@@ -23,17 +23,9 @@ struct Elif_List_Node : Node {
   Elif_List_Node*    get_elif(parser::Parser* parser);
 };
 
-template <> If_Node_Statement* is_instance<>(Node* node) {
-  return node->kind == AST_CTRL_FLOW_IF ? (If_Node_Statement*)node : 0;
-}
-
-template <> Elif_List_Node* is_instance<>(Node* node) {
-  return node->kind == AST_CTRL_FLOW_IF_ELSE ? (Elif_List_Node*)node : 0;
-}
-
-template <> Return_Node_Statement* is_instance<>(Node* node) {
-  return node->kind == AST_CTRL_FLOW_RETURN ? (Return_Node_Statement*)node : 0;
-}
+template <> If_Node_Statement*     is_instance<>(Node* node);
+template <> Elif_List_Node*        is_instance<>(Node* node);
+template <> Return_Node_Statement* is_instance<>(Node* node);
 
 b8 is_branching(Node* node);
 

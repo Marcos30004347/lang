@@ -14,12 +14,12 @@ struct Symbol {
   Id  id;
   u64 size;
   u64 crc64;
-  u64 row;
-  u64 col;
 
   Bucket* bucket;
 };
 
+// TODO(marcos): This truct can be allocated inside linear buckets to speedup allocations like AST or symbol
+// characters.
 struct Id_To_CRC64_Map_Node {
   Id                    key;
   u64                   crc;
@@ -79,8 +79,8 @@ b8 exist_entry(Symbol_Table* table, const i8* c_str);
 Symbol get_entry(Symbol_Table* table, const i8* c_str, u64 n);
 Symbol get_entry(Symbol_Table* table, const i8* c_str);
 
-Symbol set_entry(Symbol_Table* table, const i8* c_str, u64 n, u64 row = -1, u64 col = -1);
-Symbol set_entry(Symbol_Table* table, const i8* c_str, u64 row = -1, u64 col = -1);
+Symbol set_entry(Symbol_Table* table, const i8* c_str, u64 n);
+Symbol set_entry(Symbol_Table* table, const i8* c_str);
 
 Symbol from_token(Symbol_Table* table, Lexer* lexer, Token token);
 Symbol empty(Symbol_Table* table);

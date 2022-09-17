@@ -5,6 +5,14 @@
 
 namespace ast {
 
+template <> Function_Literal_Node* is_instance<>(Node* node) {
+  return node->kind == AST_FUNCTION_LITERAL ? as< Function_Literal_Node* >(node) : 0;
+}
+
+template <> Function_Call_Node* is_instance<>(Node* node) {
+  return node->kind == AST_FUNCTION_CALL ? as< Function_Call_Node* >(node) : 0;
+}
+
 Function_Literal_Node*
 create_node_function_literal(parser::Parser* parser, Declarations_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body) {
   Node* signature = ast::manager_alloc(parser->ast_manager, AST_FUN_SIGNATURE, arguments->id, return_type->id);

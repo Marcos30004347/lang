@@ -15,12 +15,12 @@ typedef struct Bucket Bucket;
 struct Node {
   Id id;
 
-  u32 kind;
+  u64 kind;
 
   Id left;
   Id right;
 
-  // Bucket* bucket;
+  Bucket* bucket;
 };
 
 struct Bucket {

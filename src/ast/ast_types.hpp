@@ -1,10 +1,10 @@
 #pragma once
 
-#include "ast.hpp"
 #include "ast/ast_literals.hpp"
 #include "ast_manager.hpp"
 
 #include "ast/ast_program_point.hpp"
+
 #include "compiler/compiler.hpp"
 #include "parser/parser.hpp"
 
@@ -28,33 +28,13 @@ struct Type_Variable_Node : Node {
   Literal_Symbol_Node* get_symbol(parser::Parser* parser);
 };
 
-template <> Type_Any_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_ANY ? as< Type_Any_Node* >(node) : 0;
-}
-
-template <> Type_Arrow_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_ARROW ? as< Type_Arrow_Node* >(node) : 0;
-}
-
-template <> Type_Int32_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_ARROW ? as< Type_Int32_Node* >(node) : 0;
-}
-
-template <> Type_Pointer_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_ARROW ? as< Type_Pointer_Node* >(node) : 0;
-}
-
-template <> Type_Unit_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_UNIT ? as< Type_Unit_Node* >(node) : 0;
-}
-
-template <> Type_Struct_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_STRUCT ? as< Type_Struct_Node* >(node) : 0;
-}
-
-template <> Type_Variable_Node* is_instance<>(Node* node) {
-  return node->kind == AST_TYPE_VARIABLE ? as< Type_Variable_Node* >(node) : 0;
-}
+template <> Type_Any_Node*      is_instance<>(Node* node);
+template <> Type_Arrow_Node*    is_instance<>(Node* node);
+template <> Type_Int32_Node*    is_instance<>(Node* node);
+template <> Type_Pointer_Node*  is_instance<>(Node* node);
+template <> Type_Unit_Node*     is_instance<>(Node* node);
+template <> Type_Struct_Node*   is_instance<>(Node* node);
+template <> Type_Variable_Node* is_instance<>(Node* node);
 
 Type_Any_Node* create_node_type_any(parser::Parser* parser);
 

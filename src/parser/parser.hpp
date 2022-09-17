@@ -13,7 +13,7 @@ struct Parser {
   compiler::symbol::Symbol_Table* symbol_table;
 };
 
-Parser* parser_create(u64 id, i8* buffer, u64 size);
+Parser* parser_create(u64 id, const i8* buffer, u64 size);
 void    parser_destroy(Parser* p);
 
 void print_ast(Parser* p, ast::Node* n);

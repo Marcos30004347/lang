@@ -24,9 +24,8 @@ struct Function_Call_Node : Node {
   ProgramPoint_List_Node* get_arguments(parser::Parser* parser);
 };
 
-template <> Function_Literal_Node* is_instance<>(Node* node) {
-  return node->kind == AST_FUNCTION_LITERAL ? as< Function_Literal_Node* >(node) : 0;
-}
+template <> Function_Literal_Node* is_instance<>(Node* node);
+template <> Function_Call_Node*    is_instance<>(Node* node);
 
 Function_Literal_Node*
 create_node_function_literal(parser::Parser* parser, Declarations_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body);

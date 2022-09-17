@@ -3,50 +3,68 @@
 
 #include "stdlib.h"
 
-b8 is_numeric(i8 c) { return c >= '0' && c <= '9'; }
+b8 is_numeric(i8 c) {
+  return c >= '0' && c <= '9';
+}
 
-b8 is_alphanumeric(i8 c) { return is_numeric(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+b8 is_alphanumeric(i8 c) {
+  return is_numeric(c) || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
 
-i8 lexer_current(Lexer* t) { return t->file_buf[t->file_pos]; }
+i8 lexer_current(Lexer* t) {
+  return t->file_buf[t->file_pos];
+}
 
-b8 lexer_is_eof(Lexer* t) { return t->file_pos == t->file_size || lexer_current(t) == '\0'; }
+b8 lexer_is_eof(Lexer* t) {
+  return t->file_pos == t->file_size || lexer_current(t) == '\0';
+}
 
 u8 lexer_eat(Lexer* t) {
+  if (t->file_buf[t->file_pos] == '\n') {
+    t->file_col = 0;
+    t->file_row += 1;
+  }
+
   t->file_pos += 1;
-  t->file_col += 1;
 
   return LEXER_OK;
 }
 
-u8 lexer_move_next_line(Lexer* t) {
-  if (lexer_current(t) != '\n') { return LEXER_OK; }
+// u8 lexer_move_next_line(Lexer* t) {
+//   if (lexer_current(t) != '\n') {
+//     return LEXER_OK;
+//   }
 
-  lexer_eat(t);
+//   lexer_eat(t);
 
-  t->file_col = 0;
-  t->file_row += 1;
+//   t->file_col = 0;
+//   t->file_row += 1;
 
-  return LEXER_OK;
-}
+//   return LEXER_OK;
+// }
 
 i8 lexer_look_ahead(Lexer* t) {
-  if (t->file_pos + 1 != t->file_size) { return t->file_buf[t->file_pos + 1]; }
+  if (t->file_pos + 1 != t->file_size) {
+    return t->file_buf[t->file_pos + 1];
+  }
 
   return '\0';
 }
 
 u8 lexer_skip_whitespaces(Lexer* t) {
   // TODO(marcos): there should probably be a '\n' and '\r' here.
-  while (!lexer_is_eof(t) && (lexer_current(t) == ' ' || lexer_current(t) == '\t')) {
+  while (!lexer_is_eof(t) &&
+         (lexer_current(t) == ' ' || lexer_current(t) == '\t' || lexer_current(t) == '\n')) {
     lexer_eat(t);
   }
 
-  if (lexer_is_eof(t)) return LEXER_EOF;
+  if (lexer_is_eof(t))
+    return LEXER_EOF;
 
-  if (lexer_current(t) == '\n') {
-    lexer_move_next_line(t);
-    lexer_skip_whitespaces(t);
-  }
+  // if (lexer_current(t) == '\n') {
+  //   lexer_move_next_line(t);
+  //   lexer_skip_whitespaces(t);
+  // }
 
   return LEXER_OK;
 }
@@ -57,12 +75,7 @@ u8 lexer_skip_comments(Lexer* t) {
       lexer_eat(t);
     }
 
-    lexer_eat(t);
-  }
-
-  if (lexer_current(t) == '\n') {
-    lexer_move_next_line(t);
-    lexer_skip_comments(t);
+    lexer_skip_whitespaces(t);
   }
 
   lexer_skip_whitespaces(t);
@@ -105,7 +118,8 @@ Token lexer_read_i32lit(Lexer* t) {
 }
 
 b8 lexer_can_read_word(Lexer* t, const char* word, u64* size = 0) {
-  if (word == 0) return false;
+  if (word == 0)
+    return false;
 
   u64 i = 0;
 
@@ -113,16 +127,20 @@ b8 lexer_can_read_word(Lexer* t, const char* word, u64* size = 0) {
     i = i + 1;
   }
 
-  if (size) *size = i;
+  if (size)
+    *size = i;
 
-  if (word[i] == '\0') { return true; }
+  if (word[i] == '\0') {
+    return true;
+  }
 
   return false;
 }
 
 u8 lexer_eat_next_n(Lexer* t, u64 n) {
   for (u64 i = 0; i < n; i++) {
-    if (lexer_is_eof(t)) return LEXER_EOF;
+    if (lexer_is_eof(t))
+      return LEXER_EOF;
     lexer_eat(t);
   }
 
@@ -144,7 +162,7 @@ Token lexer_read_id(Lexer* t) {
   return token_create(TOKEN_ID, pos, col, row, t->file_id, len, buf);
 }
 
-void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size) {
+void lexer_init(Lexer* t, u64 id, const i8* buffer, u64 size) {
   t->file_buf  = buffer;
   t->file_col  = 1;
   t->file_row  = 1;
@@ -158,7 +176,8 @@ void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size) {
   lexer_read_token(t);
 }
 
-void lexer_destroy(Lexer* t) { free(t->file_buf); }
+void lexer_destroy(Lexer* t) { /*free(t->file_buf);*/
+}
 
 Token lexer_set_curr(Lexer* lex, Token tok) {
   lex->prev = lex->curr;
@@ -166,13 +185,17 @@ Token lexer_set_curr(Lexer* lex, Token tok) {
   return tok;
 }
 
-Token eof(Lexer* lex) { return token_create(TOKEN_EOF, lex->file_pos, lex->file_col, lex->file_row, lex->file_id, 0); }
+Token eof(Lexer* lex) {
+  return token_create(TOKEN_EOF, lex->file_pos, lex->file_col, lex->file_row, lex->file_id, 0);
+}
 
 Token lexer_read_token(Lexer* t) {
   lexer_skip_whitespaces(t);
   lexer_skip_comments(t);
 
-  if (lexer_is_eof(t)) { return lexer_set_curr(t, eof(t)); }
+  if (lexer_is_eof(t)) {
+    return lexer_set_curr(t, eof(t));
+  }
 
   u64 col = t->file_col;
   u64 row = t->file_row;
@@ -180,13 +203,16 @@ Token lexer_read_token(Lexer* t) {
 
   if (lexer_current(t) == '\'' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_APHOSTROPHE, pos, col, row, t->file_id, 1));
-  if (lexer_current(t) == ':' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_COLON, pos, col, row, t->file_id, 1));
-  if (lexer_current(t) == ',' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_COMMA, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == ':' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_COLON, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == ',' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_COMMA, pos, col, row, t->file_id, 1));
   if (lexer_current(t) == '!' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_EXCLAMATION, pos, col, row, t->file_id, 1));
   if (lexer_current(t) == ';' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_SEMI_COLON, pos, col, row, t->file_id, 1));
-  if (lexer_current(t) == '.' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_DOT, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == '.' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_DOT, pos, col, row, t->file_id, 1));
   if (lexer_current(t) == '{' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_OPEN_CURLY_BRACE, pos, col, row, t->file_id, 1));
   if (lexer_current(t) == '}' && lexer_eat(t))
@@ -196,7 +222,8 @@ Token lexer_read_token(Lexer* t) {
   if (lexer_current(t) == ')' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_CLOSE_PARENTHESIS, pos, col, row, t->file_id, 1));
 
-  if (lexer_current(t) == '+' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_PLUS, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == '+' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_PLUS, pos, col, row, t->file_id, 1));
 
   if (lexer_current(t) == '-' && lexer_eat(t)) {
     if (lexer_current(t) == '>' && lexer_eat(t)) {
@@ -206,12 +233,14 @@ Token lexer_read_token(Lexer* t) {
     return lexer_set_curr(t, token_create(TOKEN_MINUS, pos, col, row, t->file_id, 1));
   }
 
-  if (lexer_current(t) == '|' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_PIPE, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == '|' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_PIPE, pos, col, row, t->file_id, 1));
 
   if (lexer_current(t) == '*' && lexer_eat(t))
     return lexer_set_curr(t, token_create(TOKEN_ASTERISK, pos, col, row, t->file_id, 1));
 
-  if (lexer_current(t) == '/' && lexer_eat(t)) return lexer_set_curr(t, token_create(TOKEN_SLASH, pos, col, row, t->file_id, 1));
+  if (lexer_current(t) == '/' && lexer_eat(t))
+    return lexer_set_curr(t, token_create(TOKEN_SLASH, pos, col, row, t->file_id, 1));
 
   if (lexer_current(t) == '<' && lexer_eat(t)) {
     if (lexer_current(t) == '=' && lexer_eat(t)) {
@@ -247,7 +276,8 @@ Token lexer_read_token(Lexer* t) {
 
   // TODO: next character after a numeric literal cannot be alphanumeric
   // unless it is a indicator of the literal type like 10f, 0.5f, 10U.
-  if (is_numeric(lexer_current(t))) return lexer_set_curr(t, lexer_read_i32lit(t));
+  if (is_numeric(lexer_current(t)))
+    return lexer_set_curr(t, lexer_read_i32lit(t));
 
   u64 size = 0;
 
@@ -306,9 +336,13 @@ void token_get_id(Lexer* t, Token tok, i8* buf) {
   buf[i] = '\0';
 }
 
-const i8* lexer_get_token_file_buff_ptr(Lexer* l, Token t) { return l->file_buf + t.pos; }
+const i8* lexer_get_token_file_buff_ptr(Lexer* l, Token t) {
+  return l->file_buf + t.pos;
+}
 
-Token lexer_undef_token() { return token_create(UNDEF_TOKEN, -1, -1, -1, -1, 0); }
+Token lexer_undef_token() {
+  return token_create(UNDEF_TOKEN, -1, -1, -1, -1, 0);
+}
 
 Token lexer_i32_token(i32 nat) {
   Token t;

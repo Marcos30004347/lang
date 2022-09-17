@@ -30,21 +30,12 @@ struct Literal_Struct_Node : Node {
   ProgramPoint_List_Node* get_members(parser::Parser* parser);
 };
 
-template <> Literal_Undefined_Node* is_instance<>(Node* node) {
-  return node->kind == AST_UNDEFINED_NODE ? (Literal_Undefined_Node*)node : 0;
-}
-
-template <> Literal_Nothing_Node* is_instance<>(Node* node) {
-  return node->kind == AST_NULL_NODE ? (Literal_Nothing_Node*)node : 0;
-}
-
-template <> Literal_Symbol_Node* is_instance<>(Node* node) {
-  return node->kind == AST_SYMBOL_LITERAL ? (Literal_Symbol_Node*)node : 0;
-}
-
-template <> Literal_Natural_Node* is_instance<>(Node* node) {
-  return node->kind == AST_NATURAL_LITERAL ? (Literal_Natural_Node*)node : 0;
-}
+template <> Literal_Undefined_Node* is_instance<>(Node* node);
+template <> Literal_Nothing_Node*   is_instance<>(Node* node);
+template <> Literal_Symbol_Node*    is_instance<>(Node* node);
+template <> Literal_Natural_Node*   is_instance<>(Node* node);
+template <> Literal_True_Node*      is_instance<>(Node* node);
+template <> Literal_False_Node*     is_instance<>(Node* node);
 
 Literal_True_Node* create_node_literal_true(parser::Parser* parser);
 
@@ -54,7 +45,7 @@ Literal_Undefined_Node* create_node_literal_undefined(parser::Parser* parser);
 
 Literal_Nothing_Node* create_node_literal_nothing(parser::Parser* parser);
 
-Literal_Natural_Node* create_node_literal_int32(parser::Parser* parser, compiler::symbol::Symbol val);
+Literal_Natural_Node* create_node_literal_natural(parser::Parser* parser, compiler::symbol::Symbol val);
 
 Literal_Symbol_Node* create_node_literal_symbol(parser::Parser* parser, compiler::symbol::Symbol val);
 

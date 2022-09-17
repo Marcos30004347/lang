@@ -81,7 +81,7 @@ struct Lexer {
   Token curr;
   Token prev;
 
-  i8* file_buf;
+  const i8* file_buf;
 
   u32 file_pos;
   u32 file_id;
@@ -90,7 +90,7 @@ struct Lexer {
   u32 file_size;
 };
 
-void lexer_init(Lexer* t, u64 id, i8* buffer, u64 size);
+void lexer_init(Lexer* t, u64 id, const i8* buffer, u64 size);
 
 void lexer_destroy(Lexer*);
 

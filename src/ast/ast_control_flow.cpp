@@ -4,6 +4,19 @@
 #include "parser/parser.hpp"
 
 namespace ast {
+
+template <> If_Node_Statement* is_instance<>(Node* node) {
+  return node->kind == AST_CTRL_FLOW_IF ? (If_Node_Statement*)node : 0;
+}
+
+template <> Elif_List_Node* is_instance<>(Node* node) {
+  return node->kind == AST_CTRL_FLOW_IF_ELSE ? (Elif_List_Node*)node : 0;
+}
+
+template <> Return_Node_Statement* is_instance<>(Node* node) {
+  return node->kind == AST_CTRL_FLOW_RETURN ? (Return_Node_Statement*)node : 0;
+}
+
 If_Node_Statement* create_node_if_statement(parser::Parser* parser, Node* condition, Node* body) {
   return as< If_Node_Statement* >(ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_IF, condition->id, body->id));
 }

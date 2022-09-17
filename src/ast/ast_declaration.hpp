@@ -20,13 +20,8 @@ struct Declaration_Variable_Node : Node {
   Node* get_type(parser::Parser* parser);
 };
 
-template <> Declaration_Constant_Node* is_instance<>(Node* node) {
-  return node->kind == AST_DECLARATION_CONSTANT ? as< Declaration_Constant_Node* >(node) : 0;
-}
-
-template <> Declaration_Variable_Node* is_instance<>(Node* node) {
-  return node->kind == AST_DECLARATION_VARIABLE ? as< Declaration_Variable_Node* >(node) : 0;
-}
+template <> Declaration_Constant_Node* is_instance<>(Node* node);
+template <> Declaration_Variable_Node* is_instance<>(Node* node);
 
 Declaration_Constant_Node* create_constant_declaration(parser::Parser* parser, Literal_Symbol_Node* name, Node* type);
 Declaration_Variable_Node* create_variable_declaration(parser::Parser* parser, Literal_Symbol_Node* name, Node* type);

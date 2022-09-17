@@ -11,7 +11,7 @@ using namespace compiler;
 
 namespace ast {
 
-Manager* manager_create(compiler::Compiler* compiler) {
+Manager* manager_create() {
   Manager* m = new Manager();
 
   m->size = 1;
@@ -42,10 +42,8 @@ Manager* manager_create(compiler::Compiler* compiler) {
 void manager_destroy(Manager* m) {
   while (m->root) {
     Bucket* tmp = m->root;
-
-    delete m;
-    m->root = m->root->next;
-    free(tmp);
+    m->root     = m->root->next;
+    delete tmp;
   }
 
   delete m;

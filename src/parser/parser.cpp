@@ -1,9 +1,9 @@
 #include "parser.hpp"
 
-#include "ast.hpp"
 #include "ast/ast_control_flow.hpp"
 #include "ast/ast_declaration.hpp"
 #include "ast/ast_function.hpp"
+#include "ast/ast_kind.hpp"
 #include "ast/ast_literals.hpp"
 #include "ast/ast_manager.hpp"
 #include "ast/ast_operations.hpp"
@@ -23,6 +23,7 @@
 using namespace compiler;
 
 namespace parser {
+using ast::AST_OP_MEMBER_ACCESS;
 
 void parser_error(Parser* p, Token tok, const i8* msg) {
   printf("Error: '%s' at line %u and column %u!\n", msg, tok.row, tok.col);
@@ -40,11 +41,14 @@ ast::Node* parser_parse_statements(Parser* p);
 ast::Node* parser_parse_decl(Parser* p);
 ast::Node* parser_parse_arrow(Parser* p);
 
-Parser* parser_create(u64 id, i8* buffer, u64 size) {
+Parser* parser_create(u64 id, const i8* buffer, u64 size) {
   Parser* p = new Parser();
 
-  p->ast_manager = ast::manager_create();
+  p->ast_manager  = ast::manager_create();
+  p->symbol_table = symbol::symbol_table_create();
 
+  // TODO(marcos): refactor this to lexer_create function
+  p->lexer = new Lexer();
   lexer_init(p->lexer, id, buffer, size);
 
   return p;
@@ -52,7 +56,11 @@ Parser* parser_create(u64 id, i8* buffer, u64 size) {
 
 void parser_destroy(Parser* p) {
   ast::manager_destroy(p->ast_manager);
+
+  symbol::symbol_table_destroy(p->symbol_table);
+
   lexer_destroy(p->lexer);
+
   delete p;
 }
 
@@ -79,7 +87,8 @@ ast::Node* parser_parse_symbol(Parser* p) {
 
   parser_read_token(p, TOKEN_ID);
 
-  ast::Literal_Symbol_Node* root = ast::create_node_literal_symbol(p, symbol::from_token(p->symbol_table, p->lexer, token));
+  ast::Literal_Symbol_Node* root =
+      ast::create_node_literal_symbol(p, symbol::from_token(p->symbol_table, p->lexer, token));
 
   if (parser_curr_tok(p).type == TOKEN_APHOSTROPHE) {
     parser_read_token(p, TOKEN_APHOSTROPHE);
@@ -156,10 +165,9 @@ ast::Node* parser_parse_lit(Parser* p) {
   // if (parser_curr_tok(p).type == TOKEN_KEYWORD_HANDLER) {
   //   return parser_parse_handler_literal(p);
   // }
-
   if (tok.type == TOKEN_I32_LIT) {
     parser_read_token(p, TOKEN_I32_LIT);
-    return ast::create_node_literal_int32(p, symbol::from_token(p->symbol_table, p->lexer, tok));
+    return ast::create_node_literal_natural(p, symbol::from_token(p->symbol_table, p->lexer, tok));
   }
 
   if (tok.type == TOKEN_UNIT) {
@@ -197,8 +205,10 @@ ast::Node* parser_parse_primary(Parser* p) {
 
     parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
 
-    if (ast::is_instance< ast::Declarations_List_Node* >(root) || ast::is_instance< ast::Declaration_Constant_Node* >(root)
-        || ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
+    if (ast::is_instance< ast::Literal_Nothing_Node* >(root) ||
+        ast::is_instance< ast::Declarations_List_Node* >(root) ||
+        ast::is_instance< ast::Declaration_Constant_Node* >(root) ||
+        ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
 
       ast::Declarations_List_Node* arguments = NULL;
 
@@ -218,11 +228,12 @@ ast::Node* parser_parse_primary(Parser* p) {
 
       ast::Node* body = parser_parse_statements(p);
 
-      if (ast::is_instance< ast::ProgramPoint_List_Node* >(body) || ast::is_instance< ast::Literal_Nothing_Node* >(body)) {
+      if (!ast::is_instance< ast::ProgramPoint_List_Node* >(body)) {
         parser_error(p, p->lexer->curr, "Expecting function body");
       }
 
-      return ast::create_node_function_literal(p, arguments, type, ast::is_instance< ast::ProgramPoint_List_Node* >(body));
+      return ast::create_node_function_literal(
+          p, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
     }
 
     return root;
@@ -286,7 +297,8 @@ ast::Node* parser_parse_call_tail(Parser* p, ast::Node* head) {
     parser_error(p, p->lexer->curr, "Expecting arguments");
   }
 
-  ast::Node* call = ast::create_node_function_call(p, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  ast::Node* call =
+      ast::create_node_function_call(p, head, ast::as< ast::Declarations_List_Node* >(arguments));
 
   if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     return parser_parse_call_tail(p, call);
@@ -315,7 +327,8 @@ ast::Node* parser_parse_call(Parser* p) {
       parser_error(p, p->lexer->curr, "Expecting arguments");
     }
 
-    ast::Node* call = ast::create_node_function_call(p, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    ast::Node* call =
+        ast::create_node_function_call(p, root, ast::as< ast::Declarations_List_Node* >(arguments));
 
     if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
       return parser_parse_call_tail(p, call);
@@ -618,7 +631,8 @@ ast::Node* parser_parse_if_statement(Parser* p) {
       elif = ast::create_node_elif_list(p, ast::as< ast::If_Node_Statement* >(elif), NULL);
     }
 
-    return ast::create_node_elif_list(p, ast::as< ast::If_Node_Statement* >(statement), ast::as< ast::Elif_List_Node* >(elif));
+    return ast::create_node_elif_list(
+        p, ast::as< ast::If_Node_Statement* >(statement), ast::as< ast::Elif_List_Node* >(elif));
   }
 
   return statement;
@@ -628,6 +642,14 @@ ast::Node* parser_parse_ret_statement(Parser* p) {
   Token tok = parser_curr_tok(p);
 
   parser_read_token(p, TOKEN_KEYWORD_RETURN);
+
+  if (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+    while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+      parser_read_token(p, TOKEN_SEMI_COLON);
+    }
+
+    return ast::create_node_return_statement(p, ast::create_node_literal_nothing(p));
+  }
 
   ast::Node* ret = ast::create_node_return_statement(p, parser_parse_expr(p));
 
@@ -661,7 +683,6 @@ ast::Node* parser_parse_statement(Parser* p) {
 }
 
 ast::Node* parser_parse_statements(Parser* p) {
-
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
 
   ast::Node* root = ast::create_node_program_point(p, NULL, NULL);
@@ -669,7 +690,8 @@ ast::Node* parser_parse_statements(Parser* p) {
   ast::Node* iterator = root;
 
   while (parser_curr_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
-    iterator->left = parser_parse_statement(p)->id;
+    ast::Node* statement = parser_parse_statement(p);
+    iterator->left       = statement->id;
 
     if (parser_curr_tok(p).type == TOKEN_CLOSE_CURLY_BRACE) {
       break;
@@ -700,8 +722,10 @@ ast::Node* parser_parse_assignment(Parser* p) {
 
     parser_read_token(p, TOKEN_COLON);
 
-    ast::Node* type = (parser_curr_tok(p).type != TOKEN_COLON && parser_curr_tok(p).type != TOKEN_EQUAL) ? parser_parse_arrow(p)
-                                                                                                         : ast::create_node_literal_nothing(p);
+    ast::Node* type = (parser_curr_tok(p).type != TOKEN_COLON && parser_curr_tok(p).type != TOKEN_EQUAL)
+                        ? parser_parse_arrow(p)
+                        : ast::create_node_literal_nothing(p);
+
     if (parser_curr_tok(p).type == TOKEN_COLON) {
       if (!ast::is_instance< ast::Literal_Symbol_Node* >(root)) {
         parser_error(p, root_token, "Constant identifier is not a symbol!");
@@ -710,6 +734,8 @@ ast::Node* parser_parse_assignment(Parser* p) {
       parser_read_token(p, TOKEN_COLON);
 
       root = ast::create_constant_declaration(p, ast::as< ast::Literal_Symbol_Node* >(root), type);
+
+      return ast::create_node_assignment(p, root, parser_parse_expr(p));
     }
 
     if (parser_curr_tok(p).type == TOKEN_EQUAL) {
@@ -720,15 +746,11 @@ ast::Node* parser_parse_assignment(Parser* p) {
       parser_read_token(p, TOKEN_EQUAL);
 
       root = ast::create_variable_declaration(p, ast::as< ast::Literal_Symbol_Node* >(root), type);
+
+      return ast::create_node_assignment(p, root, parser_parse_expr(p));
     }
-  }
 
-  if (parser_curr_tok(p).type == TOKEN_EQUAL) {
-    parser_read_token(p, TOKEN_EQUAL);
-
-    ast::Node* expression = parser_parse_decl(p);
-
-    root = ast::create_node_assignment(p, root, expression);
+    return ast::create_variable_declaration(p, ast::as< ast::Literal_Symbol_Node* >(root), type);
   }
 
   return root;
@@ -737,6 +759,7 @@ ast::Node* parser_parse_assignment(Parser* p) {
 // EXPRESSION → IDENTIFIER ('=' | '|=' | '&=' | '+=' | '-=' ) ASSIGNMENT |
 // EQUALITY | EXPRESSION ? EXPRESSION : EXPRESSION
 ast::Node* parser_parse_expr(Parser* p) {
+
   ast::Node* root = parser_parse_assignment(p);
 
   if (parser_curr_tok(p).type == TOKEN_COMMA) {
@@ -792,29 +815,37 @@ void print_ast_rec(i8* prefix, Parser* p, ast::Node* a, b8 is_left, b8 f = 1) {
 
   i8* st = ast::kind_to_cstr(a->kind);
 
-  if (a->kind >= __AST_KIND_END)
+  if (a->kind >= ast::__AST_KIND_END)
     printf("AST:{ temporary: %s", st);
   else
     printf("AST:{ kind: %s", st);
 
   free(st);
 
-  if (a->kind == AST_NATURAL_LITERAL) {
-    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
+  if (a->kind == ast::AST_NATURAL_LITERAL) {
     printf(",val: ");
+    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
     }
+
+    printf(" }\n");
+    return;
   }
 
-  if (a->kind == AST_SYMBOL_LITERAL) {
-    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
+  if (a->kind == ast::AST_SYMBOL_LITERAL) {
     printf(",sym: ");
+
+    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
     }
+
+    printf(" }\n");
+
+    return;
   }
 
   printf(" }\n");
@@ -852,8 +883,8 @@ b8 parser_is_same_symbol(Parser* p, ast::Node* a, ast::Node* b) {
     return a->kind == b->kind;
   }
 
-  assert(a->kind == AST_SYMBOL_LITERAL);
-  assert(b->kind == AST_SYMBOL_LITERAL);
+  assert(a->kind == ast::AST_SYMBOL_LITERAL);
+  assert(b->kind == ast::AST_SYMBOL_LITERAL);
 
   symbol::Symbol s0 = symbol::get_symbol(p->symbol_table, a->left);
   symbol::Symbol s1 = symbol::get_symbol(p->symbol_table, b->left);
@@ -874,13 +905,13 @@ b8 parser_is_same_symbol(Parser* p, ast::Node* a, ast::Node* b) {
 void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
 
   if (ast::is_temporary(n)) {
-    i8* st = ast::kind_to_cstr(n->kind, __AST_KIND_END);
+    i8* st = ast::kind_to_cstr(n->kind, ast::__AST_KIND_END);
     printf("t%s", st);
     free(st);
     return;
   }
 
-  if (n->kind == AST_NATURAL_LITERAL) {
+  if (n->kind == ast::AST_NATURAL_LITERAL) {
     symbol::Symbol s = symbol::get_symbol(p->symbol_table, n->left);
 
     for (u64 i = 0; i < s.size; i++) {
@@ -889,7 +920,7 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_SYMBOL_LITERAL) {
+  if (n->kind == ast::AST_SYMBOL_LITERAL) {
     symbol::Symbol s = symbol::get_symbol(p->symbol_table, n->left);
 
     for (u64 i = 0; i < s.size; i++) {
@@ -898,35 +929,35 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_DECL_ARGS_LIST) {
+  if (n->kind == ast::AST_DECL_ARGS_LIST) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     if (n->right)
       printf(", ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
-  if (n->kind == AST_TYPE_UNIT) {
+  if (n->kind == ast::AST_TYPE_UNIT) {
     printf("unit");
     return;
   }
 
-  if (n->kind == AST_TYPE_I32) {
+  if (n->kind == ast::AST_TYPE_I32) {
     printf("i32");
     return;
   }
-  if (n->kind == AST_TYPE_ARROW) {
+  if (n->kind == ast::AST_TYPE_ARROW) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" -> ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_TYPE_ANY) {
+  if (n->kind == ast::AST_TYPE_ANY) {
     printf("any");
     return;
   }
 
-  if (n->kind == AST_FUN_SIGNATURE) {
+  if (n->kind == ast::AST_FUN_SIGNATURE) {
     printf("(");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(")");
@@ -936,7 +967,7 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_FUNCTION_LITERAL) {
+  if (n->kind == ast::AST_FUNCTION_LITERAL) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" {\n");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
@@ -947,7 +978,7 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_PROGRAM_POINT) {
+  if (n->kind == ast::AST_PROGRAM_POINT) {
     for (i32 i = 0; i < scope; i++)
       printf(" ");
 
@@ -958,39 +989,33 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_BIND_CONSTANT) {
+  if (n->kind == ast::AST_DECLARATION_CONSTANT) {
+    printf("#constant ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(" :: ");
+    printf(" : ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
-    printf("");
+
     return;
   }
 
-  if (n->kind == AST_BIND_VARIABLE) {
+  if (n->kind == ast::AST_DECLARATION_VARIABLE) {
+    printf("#variable ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(" := ");
+    printf(" : ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
-    printf("");
+
     return;
   }
 
-  if (n->kind == AST_BIND_TYPE) {
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    // if (n->right) printf(" : ");
-    // else printf(" :");
-    // print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
-    return;
-  }
-
-  if (n->kind == AST_OP_BIN_ASSIGN) {
+  if (n->kind == ast::AST_OP_BIN_ASSIGN) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" = ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
-    printf("");
+
     return;
   }
 
-  if (n->kind == AST_FUNCTION_CALL) {
+  if (n->kind == ast::AST_FUNCTION_CALL) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf("(");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
@@ -998,14 +1023,14 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_CTRL_FLOW_RETURN) {
+  if (n->kind == ast::AST_CTRL_FLOW_RETURN) {
     printf("return ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf("");
     return;
   }
 
-  if (n->kind == AST_CTRL_FLOW_IF) {
+  if (n->kind == ast::AST_CTRL_FLOW_IF) {
     printf("if ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" {\n");
@@ -1017,7 +1042,7 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_CTRL_FLOW_IF_ELSE) {
+  if (n->kind == ast::AST_CTRL_FLOW_IF_ELSE) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
@@ -1034,44 +1059,44 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_OP_BIN_ASSIGN) {
+  if (n->kind == ast::AST_OP_BIN_ASSIGN) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" = ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_OP_BIN_ADD) {
+  if (n->kind == ast::AST_OP_BIN_ADD) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" + ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_OP_BIN_SUB) {
+  if (n->kind == ast::AST_OP_BIN_SUB) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" - ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_OP_BIN_MUL) {
+  if (n->kind == ast::AST_OP_BIN_MUL) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" * ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_UNDEFINED_NODE) {
+  if (n->kind == ast::AST_UNDEFINED_NODE) {
     printf("undefined");
     return;
   }
-  if (n->kind == AST_UNITIALIZED_NODE) {
+  if (n->kind == ast::AST_UNITIALIZED_NODE) {
     printf(".{}");
     return;
   }
 
-  if (n->kind == AST_TYPE_POINTER) {
+  if (n->kind == ast::AST_TYPE_POINTER) {
     printf("ptr");
     printf("[");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
@@ -1079,14 +1104,14 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_OP_MEMBER_ACCESS) {
+  if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(".");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_CTRL_FLOW_CASE) {
+  if (n->kind == ast::AST_CTRL_FLOW_CASE) {
     printf("case ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" {\n");
@@ -1097,7 +1122,7 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_CTRL_FLOW_MATCH) {
+  if (n->kind == ast::AST_CTRL_FLOW_MATCH) {
     printf("match ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" {\n");
@@ -1107,14 +1132,14 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     printf("}");
     return;
   }
-  if (n->kind == AST_OP_MEMBER_ACCESS) {
+  if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(".");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_TYPE_STRUCT) {
+  if (n->kind == ast::AST_TYPE_STRUCT) {
     printf("struct {\n");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope + 2);
     for (i32 i = 0; i < scope; i++)
@@ -1124,13 +1149,13 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == AST_OP_POINTER_LOAD) {
+  if (n->kind == ast::AST_OP_POINTER_LOAD) {
     printf("ld[");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf("]");
     return;
   }
-  if (n->kind == AST_OP_ADDRESS_OF) {
+  if (n->kind == ast::AST_OP_ADDRESS_OF) {
     printf("$");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf("");
@@ -1156,160 +1181,26 @@ void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
   //   return;
   // }
 
-  if (n->kind == _AST_GET_CLOSURE_HANDLER) {
-    printf("_get_closure_object_handler(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-  if (n->kind == _AST_CAPTURE_VARIABLE_INTO_ENVIRONMENT) {
-    printf("_capture_variable_into_environment(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_BORROW_VARIABLE_INTO_ENVIRONMENT) {
-    printf("_borrow_variable_into_environment(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT_BUFFER) {
-    printf("_get_closure_object_environment_buffer(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-
-  if (n->kind == _AST_GET_CLOSURE_ENVIRONMENT_BUFFER_SIZE) {
-    printf("_get_closure_object_environment_buffer_size(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-  if (n->kind == _AST_UPDATE_CLOSURE_ENVIRONMENT_BUFFER_HEADER) {
-    printf("_update_closure_buffer_header(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-
-  if (n->kind == _AST_SETUP_CLOSURE_ENVIRONMENT_BUFFER_HEADER) {
-    printf("_setup_closure_buffer_header(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-
-  if (n->kind == _AST_BUILD_CLOSURE_OBJECT) {
-    printf("_build_closure_object(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_BITSET_BINARY_UNION) {
-    printf("_bitset_binary_union(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(", ");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_BITSET_BINARY_INTERSECTION) {
-    printf("_bitset_binary_intersection(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(", ");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_ALLOCATE_HEAP_BUFFER) {
-    printf("_malloc(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_IS_CLOSURE_OBJECT_LOCAL) {
-    printf("_is_closure_local(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_GET_CLOSURE_OBJECT_BITSET) {
-    printf("_get_closure_bitset(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_SET_CLOSURE_OBJECT_EXTERN) {
-    printf("_set_closure_object_as_extern(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_REALLOCATE_HEAP_BUFFER) {
-    printf("_realloc(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_SIZE_OF) {
-    printf("_size_of(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_TYPE_OF) {
-    printf("_type_of(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left));
-    printf(")");
-    return;
-  }
-
-  if (n->kind == _AST_SIZE_OF) {
-    printf("_size_of(");
-    print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
-    printf(")");
-
-    return;
-  }
-
-  if (n->kind == AST_OP_BIN_NE) {
+  if (n->kind == ast::AST_OP_BIN_NE) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" != ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
-  if (n->kind == AST_OP_BIN_GT) {
+  if (n->kind == ast::AST_OP_BIN_GT) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" > ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
-  if (n->kind == AST_OP_BIN_GE) {
+  if (n->kind == ast::AST_OP_BIN_GE) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" >= ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
     return;
   }
 
-  if (n->kind == AST_OP_BIN_EQ) {
+  if (n->kind == ast::AST_OP_BIN_EQ) {
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
     printf(" == ");
     print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
