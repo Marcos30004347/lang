@@ -76,6 +76,9 @@ b8 is_equal(Manager* m, Symbol* a, const i8* b);
 b8 exist_entry(Symbol_Table* table, const i8* c_str, u64 n);
 b8 exist_entry(Symbol_Table* table, const i8* c_str);
 
+Symbol get_entry(Symbol_Table* table, const i8* c_str, u64 n);
+Symbol get_entry(Symbol_Table* table, const i8* c_str);
+
 Symbol set_entry(Symbol_Table* table, const i8* c_str, u64 n, u64 row = -1, u64 col = -1);
 Symbol set_entry(Symbol_Table* table, const i8* c_str, u64 row = -1, u64 col = -1);
 

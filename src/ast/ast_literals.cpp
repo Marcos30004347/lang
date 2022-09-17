@@ -50,8 +50,8 @@ compiler::symbol::Symbol Literal_Natural_Node::get_symbol(parser::Parser* parser
   return sym;
 }
 
-Literal_Symbol_Node* create_node_struct_symbol(parser::Parser* parser, ProgramPoint_List_Node* members) {
-  return as< Literal_Symbol_Node* >(ast::manager_alloc(parser->ast_manager, AST_STRUCT_LITERAL, members->id, 0));
+Literal_Struct_Node* create_node_literal_struct(parser::Parser* parser, ProgramPoint_List_Node* members) {
+  return as< Literal_Struct_Node* >(ast::manager_alloc(parser->ast_manager, AST_STRUCT_LITERAL, members->id, members ? members->id : 0));
 }
 
 } // namespace ast

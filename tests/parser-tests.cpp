@@ -1,16 +1,18 @@
 #include "ast.hpp"
-#include "error.hpp"
-#include "parser.hpp"
+#include "parser/parser.hpp"
 #include "tests.hpp"
 #include "utils.hpp"
 #include <cstring>
+
+using namespace parser;
+using namespace ast;
 
 i8* buf;
 
 void should_parse_expressions() {
   Parser* p = parser_create(0, buf, strlen(buf));
 
-  AST_Node* root = parser_parse(p);
+  Node* root = parser_parse(p);
 
   print_ast(p, root);
 

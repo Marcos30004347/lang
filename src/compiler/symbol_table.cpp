@@ -4,6 +4,7 @@
 #include "lexer.hpp"
 #include "stdlib.h"
 #include <assert.h>
+#include <cstring>
 #include <strings.h>
 
 namespace compiler {
@@ -128,9 +129,7 @@ Manager* manager_create() {
 
 void manager_destroy(Manager* m) {
   while (m->bucket_first) {
-    Bucket* tmp = m->bucket_first;
-
-    delete m;
+    Bucket* tmp     = m->bucket_first;
     m->bucket_first = m->bucket_first->next;
     free(tmp);
   }
@@ -142,11 +141,11 @@ Symbol manager_alloc_symbol(Manager* m, const i8* c_str, u64 n, u64 crc, u64 row
   u64     id = m->used_chars_count;
   Bucket* b  = m->bucket_last;
 
-  for (u64 i = 0; i < n; i++) {
+  for (u64 i = 0; i < n + 1; i++) {
     if (m->used_chars_count + i == m->allocated_chars_count) {
       m->bucket_last->next = new Bucket();
-      m->bucket_last->id   = m->allocated_chars_count;
       m->bucket_last       = m->bucket_last->next;
+      m->bucket_last->id   = m->allocated_chars_count;
       m->allocated_chars_count += BUCKET_SIZE;
     }
 
@@ -165,7 +164,7 @@ i8 char_at(Symbol* it, u64 i) {
 
   Bucket* b = it->bucket;
 
-  for (u64 j = 0; j< it->id + i > b->id; j++) {
+  for (u64 j = 0; j< it->id + i > b->id + BUCKET_SIZE; j++) {
     b = b->next;
   }
 
@@ -175,12 +174,14 @@ i8 char_at(Symbol* it, u64 i) {
 b8 is_equal(Manager* m, Symbol* a, const i8* b, u64 n) {
   if (a->size != n)
     return false;
+
   u64 crc = crc64(b, n);
+
   if (a->crc64 != crc)
     return false;
 
   for (u64 i = 0; i < a->size; i++) {
-    if (char_at(a, i) - b[i] != 0) {
+    if (char_at(a, i) != b[i]) {
       return false;
     }
   }
@@ -207,7 +208,26 @@ b8 is_equal(Manager* m, Symbol* a, Symbol* b) {
   return true;
 }
 
-b8 exist_entry(Symbol_Table* table, const i8* c_str, i32 n) {
+Symbol get_entry(Symbol_Table* table, const i8* c_str, u64 n) {
+  u64                id   = crc64(c_str, n);
+  Symbol_Table_Node* node = table->table[id % TABLE_SIZE];
+
+  while (node) {
+    if (is_equal(table->manager, &node->symbol, c_str, n)) {
+      return node->symbol;
+    }
+
+    node = node->prev;
+  }
+
+  return empty(table);
+}
+
+Symbol get_entry(Symbol_Table* table, const i8* c_str) {
+  return get_entry(table, c_str, strlen(c_str));
+}
+
+b8 exist_entry(Symbol_Table* table, const i8* c_str, u64 n) {
   u64                id   = crc64(c_str, n);
   Symbol_Table_Node* node = table->table[id % TABLE_SIZE];
 
@@ -222,33 +242,48 @@ b8 exist_entry(Symbol_Table* table, const i8* c_str, i32 n) {
   return false;
 }
 
+b8 exist_entry(Symbol_Table* table, const i8* c_str) {
+  return exist_entry(table, c_str, strlen(c_str));
+}
+
 Symbol set_entry(Symbol_Table* table, const i8* str, u64 n, u64 row, u64 col) {
+  Symbol symbol = get_entry(table, str, n);
+
+  if (symbol.id != 0) {
+    return symbol;
+  }
+
   u64 crc = crc64(str, n);
 
   if (table->table[crc % TABLE_SIZE] == 0) {
     table->table[crc % TABLE_SIZE]         = new Symbol_Table_Node();
     table->table[crc % TABLE_SIZE]->symbol = manager_alloc_symbol(table->manager, str, n, crc, row, col);
     table->table[crc % TABLE_SIZE]->prev   = 0;
-
-    table->table[crc % TABLE_SIZE]->symbol = manager_alloc_symbol(table->manager, str, n, crc, row, col);
     table->crc64_map                       = create_id_to_crc64_map_node(table->table[crc % TABLE_SIZE]->symbol.id, crc);
+
     return table->table[crc % TABLE_SIZE]->symbol;
   } else {
-
     Symbol_Table_Node* node        = new Symbol_Table_Node();
     node->prev                     = table->table[crc % TABLE_SIZE];
     table->table[crc % TABLE_SIZE] = node;
 
-    node->symbol     = manager_alloc_symbol(table->manager, str, n, crc, row, col);
+    node->symbol = manager_alloc_symbol(table->manager, str, n, crc, row, col);
+
     table->crc64_map = create_id_to_crc64_map_node(node->symbol.id, crc);
 
     return node->symbol;
   }
 }
 
+Symbol set_entry(Symbol_Table* table, const i8* str, u64 row, u64 col) {
+  return set_entry(table, str, strlen(str), row, col);
+}
+
 Symbol_Table* symbol_table_create() {
   Symbol_Table* table = new Symbol_Table();
-  table->manager      = manager_create();
+
+  table->manager = manager_create();
+
   for (u64 i = 0; i < TABLE_SIZE; i++) {
     table->table[i] = 0;
   }
@@ -260,15 +295,17 @@ Symbol_Table* symbol_table_create() {
 
 void symbol_table_destroy(Symbol_Table* table) {
   for (u64 i = 0; i < TABLE_SIZE; i++) {
-
     while (table->table[i]) {
       Symbol_Table_Node* tmp = table->table[i]->prev;
+
       delete table->table[i];
+
       table->table[i] = tmp;
     }
   }
 
   manager_destroy(table->manager);
+
   delete table;
 }
 

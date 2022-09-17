@@ -6,12 +6,12 @@
 namespace ast {
 
 Function_Literal_Node*
-create_node_function_literal(parser::Parser* parser, ProgramPoint_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body) {
+create_node_function_literal(parser::Parser* parser, Declarations_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body) {
   Node* signature = ast::manager_alloc(parser->ast_manager, AST_FUN_SIGNATURE, arguments->id, return_type->id);
   return as< Function_Literal_Node* >(ast::manager_alloc(parser->ast_manager, AST_FUNCTION_LITERAL, signature->id, body->id));
 }
 
-Function_Call_Node* create_node_function_call(parser::Parser* parser, Node* function, ProgramPoint_List_Node* arguments) {
+Function_Call_Node* create_node_function_call(parser::Parser* parser, Node* function, Declarations_List_Node* arguments) {
   return as< Function_Call_Node* >(ast::manager_alloc(parser->ast_manager, AST_FUNCTION_LITERAL, function->id, arguments->id));
 }
 

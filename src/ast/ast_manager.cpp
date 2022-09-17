@@ -60,7 +60,7 @@ void ast_init(Bucket* b, Node* a, u64 kind, Id id, Id l = 0, Id r = 0) {
   a->bucket = b;
 }
 
-Id manager_reserve(Manager* m, u64 kind, Id l, Id r) {
+Id manager_reserve(Manager* m, u32 kind, Id l, Id r) {
   Id id = m->size;
 
   if (id % BUCKET_SIZE == 0) {
@@ -77,7 +77,7 @@ Id manager_reserve(Manager* m, u64 kind, Id l, Id r) {
   return id;
 }
 
-Node* manager_alloc(Manager* m, u64 kind, Id l, Id r) {
+Node* manager_alloc(Manager* m, u32 kind, Id l, Id r) {
   return manager_get(m, manager_reserve(m, kind, l, r));
 }
 
@@ -111,7 +111,7 @@ Node* manager_get_relative(Manager* m, Node* root, Id child_id) {
   return &b->data[child_id % BUCKET_SIZE];
 }
 
-Node* ast_manager_alloc(Manager* m, u64 kind, Id l, Id r) {
+Node* ast_manager_alloc(Manager* m, u32 kind, Id l, Id r) {
   return manager_get(m, manager_reserve(m, kind, l, r));
 }
 
@@ -140,5 +140,27 @@ Node* deep_copy(Manager* m, Node* node) {
   Node* c = manager_alloc(m, node->kind, l->id, r->id);
 
   return c;
+}
+
+Node* manager_push_decl(Manager* m, Node* decl) {
+  Node* root = ast::manager_alloc(m, AST_PROGRAM_POINT, decl->id, 0);
+
+  if (m->statements_list_root_id == 0) {
+    m->statements_list_root_id = root->id;
+    m->statements_list_tail_id = root->id;
+
+    m->statement_list_tail_ptr = root;
+
+    return root;
+  }
+
+  m->statement_list_tail_ptr->right = root->id;
+  m->statement_list_tail_ptr        = root;
+
+  return root;
+}
+
+b8 is_temporary(ast::Node* node) {
+  return node->kind > __AST_KIND_END;
 }
 } // namespace ast

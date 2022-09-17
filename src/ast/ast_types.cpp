@@ -21,10 +21,12 @@ Type_Unit_Node* create_node_type_unit(parser::Parser* parser) {
 }
 
 Type_Pointer_Node* create_node_type_pointer(parser::Parser* parser, Node* type) {
+  assert(type);
   return as< Type_Pointer_Node* >(ast::manager_alloc(parser->ast_manager, AST_TYPE_POINTER, type->id, 0));
 }
 
 Type_Arrow_Node* create_node_type_arrow(parser::Parser* parser, Node* from, Node* to) {
+  assert(from && to);
   return as< Type_Arrow_Node* >(ast::manager_alloc(parser->ast_manager, AST_TYPE_ARROW, from->id, to->id));
 }
 
@@ -33,7 +35,8 @@ Type_Struct_Node* create_node_type_struct(parser::Parser* parser) {
 }
 
 Type_Variable_Node* create_node_type_variable(parser::Parser* parser, Literal_Symbol_Node* symbol) {
-  return as< Type_Variable_Node* >(ast::manager_alloc(parser->ast_manager, AST_TYPE_VARIABLE, symbol->left, 0));
+  assert(symbol);
+  return as< Type_Variable_Node* >(ast::manager_alloc(parser->ast_manager, AST_TYPE_VARIABLE, symbol->id, 0));
 }
 
 Node* Type_Pointer_Node::get_type(parser::Parser* parser) {

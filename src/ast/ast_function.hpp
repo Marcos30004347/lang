@@ -29,8 +29,8 @@ template <> Function_Literal_Node* is_instance<>(Node* node) {
 }
 
 Function_Literal_Node*
-create_node_function_literal(parser::Parser* parser, ProgramPoint_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
+create_node_function_literal(parser::Parser* parser, Declarations_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
 
-Function_Call_Node* create_node_function_call(parser::Parser* parser, Node* function, ProgramPoint_List_Node* body);
+Function_Call_Node* create_node_function_call(parser::Parser* parser, Node* function, Declarations_List_Node* arguments);
 
 } // namespace ast

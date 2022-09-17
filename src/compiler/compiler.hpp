@@ -10,6 +10,6 @@ struct Compiler {
   parser::Parser* parser;
 };
 
-Compiler* compiler_create();
+Compiler* compiler_create(i8* buffer, u64 n);
 
 } // namespace compiler

@@ -58,6 +58,6 @@ Literal_Natural_Node* create_node_literal_int32(parser::Parser* parser, compiler
 
 Literal_Symbol_Node* create_node_literal_symbol(parser::Parser* parser, compiler::symbol::Symbol val);
 
-Literal_Symbol_Node* create_node_struct_symbol(parser::Parser* parser, ProgramPoint_List_Node* members);
+Literal_Struct_Node* create_node_literal_struct(parser::Parser* parser, ProgramPoint_List_Node* members);
 
 } // namespace ast

@@ -122,3 +122,30 @@ w :: () {
 	return z;
 }
 
+
+
+f :: #inline (x:int32) -> #no_state unit -> i32 {
+	return #no_state (y: i32) {
+		return y;
+	}
+}
+
+k :: (x: i32) -> #state(x) i32 -> i32 {
+	h :: #state(x) (y: i32) -> i32 {
+		return x + y;
+	}
+	
+	return h;
+}
+
+g :: #pure (x:int32) -> (x:i32, #state(x) & int32) {
+	r : #state(5) & ... = k(5);
+	x := r(10);
+	return (5, r);
+}
+
+t :: () {
+	y : #pure int32 = g(2);
+	k : #inline i32 = f(4);
+}
+
