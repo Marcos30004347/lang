@@ -36,6 +36,7 @@ template <> Literal_Symbol_Node*    is_instance<>(Node* node);
 template <> Literal_Natural_Node*   is_instance<>(Node* node);
 template <> Literal_True_Node*      is_instance<>(Node* node);
 template <> Literal_False_Node*     is_instance<>(Node* node);
+template <> Literal_Struct_Node*    is_instance<>(Node* node);
 
 Literal_True_Node* create_node_literal_true(parser::Parser* parser);
 

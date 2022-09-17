@@ -24,8 +24,10 @@ Node* ProgramPoint_List_Node::get_statement(parser::Parser* parser) {
   return left_of(parser->ast_manager, this);
 }
 
-ProgramPoint_List_Node* create_node_program_point(parser::Parser* parser, Node* point, ProgramPoint_List_Node* tail) {
-  return as< ProgramPoint_List_Node* >(ast::manager_alloc(parser->ast_manager, AST_PROGRAM_POINT, point ? point->id : 0, tail ? tail->id : 0));
+ProgramPoint_List_Node*
+create_node_program_point(parser::Parser* parser, Node* point, ProgramPoint_List_Node* tail) {
+  return as< ProgramPoint_List_Node* >(
+      ast::manager_alloc(parser->ast_manager, AST_PROGRAM_POINT, point ? point->id : 0, tail ? tail->id : 0));
 }
 
 Declarations_List_Node* Declarations_List_Node::get_next_declaration(parser::Parser* parser) {
@@ -36,8 +38,44 @@ Node* Declarations_List_Node::get_declaration(parser::Parser* parser) {
   return left_of(parser->ast_manager, this);
 }
 
-Declarations_List_Node* create_node_declarations_list(parser::Parser* parser, Node* point, Declarations_List_Node* tail) {
-  return as< Declarations_List_Node* >(ast::manager_alloc(parser->ast_manager, AST_DECL_ARGS_LIST, point ? point->id : 0, tail ? tail->id : 0));
+Declarations_List_Node*
+create_node_declarations_list(parser::Parser* parser, Node* point, Declarations_List_Node* tail) {
+  return as< Declarations_List_Node* >(ast::manager_alloc(
+      parser->ast_manager, AST_DECL_ARGS_LIST, point ? point->id : 0, tail ? tail->id : 0));
+}
+
+void ProgramPoint_List_Node::insert(parser::Parser* parser, Node* node) {
+  ProgramPoint_List_Node* pp = create_node_program_point(parser, node, NULL);
+
+  pp->right   = this->right;
+  this->right = pp->id;
+}
+
+void ProgramPoint_List_Node::push(parser::Parser* parser, Node* node) {
+  ProgramPoint_List_Node* tail = this;
+
+  while (this->right) {
+    tail = tail->get_next_program_point(parser);
+  }
+
+  tail->insert(parser, node);
+}
+
+void Declarations_List_Node::push(parser::Parser* parser, Node* node) {
+  Declarations_List_Node* tail = this;
+
+  while (this->right) {
+    tail = tail->get_next_declaration(parser);
+  }
+
+  tail->insert(parser, node);
+}
+
+void Declarations_List_Node::insert(parser::Parser* parser, Node* node) {
+  ProgramPoint_List_Node* pp = create_node_program_point(parser, node, NULL);
+
+  pp->right   = this->right;
+  this->right = pp->id;
 }
 
 } // namespace ast

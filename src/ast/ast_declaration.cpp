@@ -41,4 +41,9 @@ Node* Declaration_Variable_Node::get_type(parser::Parser* parser) {
   return right_of(parser->ast_manager, this);
 }
 
+b8 is_declaration_node(ast::Node* node) {
+  return ast::is_instance< ast::Declaration_Constant_Node* >(node) ||
+         ast::is_instance< ast::Declaration_Variable_Node* >(node);
+}
+
 } // namespace ast

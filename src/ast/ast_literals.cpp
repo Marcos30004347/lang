@@ -1,6 +1,7 @@
 #include "ast_literals.hpp"
 #include "ast/ast_kind.hpp"
 #include "ast/ast_manager.hpp"
+#include "ast/ast_program_point.hpp"
 #include "compiler/symbol_table.hpp"
 #include "lexer.hpp"
 #include "parser/parser.hpp"
@@ -32,6 +33,10 @@ template <> Literal_True_Node* is_instance<>(Node* node) {
 
 template <> Literal_False_Node* is_instance<>(Node* node) {
   return node->kind == AST_FALSE_LITERAL ? (Literal_False_Node*)node : 0;
+}
+
+template <> Literal_Struct_Node* is_instance<>(Node* node) {
+  return node->kind == AST_STRUCT_LITERAL ? (Literal_Struct_Node*)node : 0;
 }
 
 Literal_False_Node* create_node_literal_false(parser::Parser* parser) {
@@ -77,6 +82,18 @@ compiler::symbol::Symbol Literal_Natural_Node::get_symbol(parser::Parser* parser
 Literal_Struct_Node* create_node_literal_struct(parser::Parser* parser, ProgramPoint_List_Node* members) {
   return as< Literal_Struct_Node* >(
       ast::manager_alloc(parser->ast_manager, AST_STRUCT_LITERAL, members->id, members ? members->id : 0));
+}
+
+ProgramPoint_List_Node* Literal_Struct_Node::get_members(parser::Parser* parser) {
+  if (this->left == 0) {
+    return NULL;
+  }
+
+  ProgramPoint_List_Node* members = is_instance< ProgramPoint_List_Node* >(left_of(parser->ast_manager, this));
+
+  assert(members);
+
+  return members;
 }
 
 } // namespace ast

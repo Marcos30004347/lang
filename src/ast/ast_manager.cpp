@@ -158,7 +158,7 @@ Node* manager_push_decl(Manager* m, Node* decl) {
   return root;
 }
 
-b8 is_temporary(ast::Node* node) {
-  return node->kind > __AST_KIND_END;
-}
+// b8 is_temporary(ast::Node* node) {
+//   return node->kind > __AST_KIND_END;
+// }
 } // namespace ast

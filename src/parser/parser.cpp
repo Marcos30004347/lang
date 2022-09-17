@@ -205,10 +205,10 @@ ast::Node* parser_parse_primary(Parser* p) {
 
     parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
 
-    if (ast::is_instance< ast::Literal_Nothing_Node* >(root) ||
-        ast::is_instance< ast::Declarations_List_Node* >(root) ||
-        ast::is_instance< ast::Declaration_Constant_Node* >(root) ||
-        ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
+    if (ast::is_instance< ast::Literal_Nothing_Node* >(root)
+        || ast::is_instance< ast::Declarations_List_Node* >(root)
+        || ast::is_instance< ast::Declaration_Constant_Node* >(root)
+        || ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
 
       ast::Declarations_List_Node* arguments = NULL;
 
@@ -232,8 +232,7 @@ ast::Node* parser_parse_primary(Parser* p) {
         parser_error(p, p->lexer->curr, "Expecting function body");
       }
 
-      return ast::create_node_function_literal(
-          p, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
+      return ast::create_node_function_literal(p, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
     }
 
     return root;
@@ -297,8 +296,7 @@ ast::Node* parser_parse_call_tail(Parser* p, ast::Node* head) {
     parser_error(p, p->lexer->curr, "Expecting arguments");
   }
 
-  ast::Node* call =
-      ast::create_node_function_call(p, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  ast::Node* call = ast::create_node_function_call(p, head, ast::as< ast::Declarations_List_Node* >(arguments));
 
   if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     return parser_parse_call_tail(p, call);
@@ -327,8 +325,7 @@ ast::Node* parser_parse_call(Parser* p) {
       parser_error(p, p->lexer->curr, "Expecting arguments");
     }
 
-    ast::Node* call =
-        ast::create_node_function_call(p, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    ast::Node* call = ast::create_node_function_call(p, root, ast::as< ast::Declarations_List_Node* >(arguments));
 
     if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
       return parser_parse_call_tail(p, call);
@@ -879,9 +876,9 @@ b8 parser_is_same_symbol(Parser* p, ast::Node* a, ast::Node* b) {
   if (a->kind != b->kind)
     return false;
 
-  if (ast::is_temporary(a) && ast::is_temporary(b)) {
-    return a->kind == b->kind;
-  }
+  // if (ast::is_temporary(a) && ast::is_temporary(b)) {
+  //   return a->kind == b->kind;
+  // }
 
   assert(a->kind == ast::AST_SYMBOL_LITERAL);
   assert(b->kind == ast::AST_SYMBOL_LITERAL);
@@ -904,12 +901,12 @@ b8 parser_is_same_symbol(Parser* p, ast::Node* a, ast::Node* b) {
 
 void print_ast_to_program(Parser* p, ast::Node* n, u32 scope) {
 
-  if (ast::is_temporary(n)) {
-    i8* st = ast::kind_to_cstr(n->kind, ast::__AST_KIND_END);
-    printf("t%s", st);
-    free(st);
-    return;
-  }
+  // if (ast::is_temporary(n)) {
+  //   i8* st = ast::kind_to_cstr(n->kind, ast::__AST_KIND_END);
+  //   printf("t%s", st);
+  //   free(st);
+  //   return;
+  // }
 
   if (n->kind == ast::AST_NATURAL_LITERAL) {
     symbol::Symbol s = symbol::get_symbol(p->symbol_table, n->left);

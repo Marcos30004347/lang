@@ -71,6 +71,6 @@ template < typename A > A as(Node* node) {
   return (A)node;
 }
 
-b8 is_temporary(ast::Node* node);
+// b8 is_temporary(ast::Node* node);
 
 } // namespace ast

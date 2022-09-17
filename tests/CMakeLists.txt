@@ -20,16 +20,9 @@ target_link_libraries(ParserTests magic)
 target_include_directories(ParserTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME ParserTests COMMAND ParserTests)
 
-
-# project(ParserTests)
-# add_executable(ParserTests parser-tests.cpp)
-# target_link_libraries(ParserTests magic)
-# target_include_directories(ParserTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-# add_test(NAME ParserTests COMMAND ParserTests)
-
-# project(ClosConvTests)
-# add_executable(ClosConvTests closure-conversion-tests.cpp)
-# target_link_libraries(ClosConvTests magic)
-# target_include_directories(ClosConvTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-# add_test(NAME ClosConvTests COMMAND ClosConvTests)
+project(ContextTests)
+add_executable(ContextTests context/context.cpp)
+target_link_libraries(ContextTests magic)
+target_include_directories(ContextTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME ContextTests COMMAND ContextTests)
 

@@ -20,6 +20,7 @@ add_library(magic
 	src/utils.cpp
 	src/lexer.cpp
 	src/crc64.cpp
+	src/context.cpp
 	#src/context.cpp
 )
 
