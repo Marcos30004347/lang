@@ -4,6 +4,8 @@
 #include "ast/ast_manager.hpp"
 #include "parser/parser.hpp"
 
+#include "assert.h"
+
 using namespace compiler;
 
 namespace ast {

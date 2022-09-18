@@ -6,7 +6,7 @@ namespace compiler {
 Compiler* compiler_create() {
   Compiler* compiler = new Compiler();
 
-  compiler->parser = NULL; // parser::parser_create(-1, buffer, n);
+  compiler->parser = 0; // parser::parser_create(-1, buffer, n);
 
   return compiler;
 }

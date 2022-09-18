@@ -1,8 +1,8 @@
 #pragma once
 
 #include "lexer.hpp"
+#include "lib/table.hpp"
 #include "types.hpp"
-#include "unordered_set"
 
 namespace compiler {
 namespace symbol {
@@ -16,16 +16,6 @@ struct Symbol {
   u64 crc64;
 
   Bucket* bucket;
-};
-
-// TODO(marcos): This truct can be allocated inside linear buckets to speedup allocations like AST or symbol
-// characters.
-struct Id_To_CRC64_Map_Node {
-  Id                    key;
-  u64                   crc;
-  Id_To_CRC64_Map_Node* left;
-  Id_To_CRC64_Map_Node* right;
-  i32                   height;
 };
 
 #define BUCKET_SIZE 4096
@@ -55,10 +45,10 @@ struct Symbol_Table_Node {
 };
 
 struct Symbol_Table {
-  Symbol                empty;
-  Manager*              manager;
-  Id_To_CRC64_Map_Node* crc64_map;
-  Symbol_Table_Node*    table[TABLE_SIZE];
+  Symbol             empty;
+  Manager*           manager;
+  lib::Table< u64 >* crc64_map;
+  Symbol_Table_Node* table[TABLE_SIZE];
 };
 
 Manager* manager_create();

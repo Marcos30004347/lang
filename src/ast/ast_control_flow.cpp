@@ -3,6 +3,8 @@
 #include "ast/ast_manager.hpp"
 #include "parser/parser.hpp"
 
+#include "assert.h"
+
 namespace ast {
 
 template <> If_Node_Statement* is_instance<>(Node* node) {
@@ -18,17 +20,20 @@ template <> Return_Node_Statement* is_instance<>(Node* node) {
 }
 
 If_Node_Statement* create_node_if_statement(parser::Parser* parser, Node* condition, Node* body) {
-  return as< If_Node_Statement* >(ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_IF, condition->id, body->id));
+  return as< If_Node_Statement* >(
+      ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_IF, condition->id, body->id));
 }
 
 Elif_List_Node* create_node_elif_list(parser::Parser* parser, If_Node_Statement* branch, Elif_List_Node* tail) {
   assert(branch && is_instance< If_Node_Statement* >(branch));
 
-  return as< Elif_List_Node* >(ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_IF_ELSE, branch->id, tail ? tail->id : 0));
+  return as< Elif_List_Node* >(
+      ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_IF_ELSE, branch->id, tail ? tail->id : 0));
 }
 
 Return_Node_Statement* create_node_return_statement(parser::Parser* parser, Node* expression) {
-  return as< Return_Node_Statement* >(ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_RETURN, expression->id, 0));
+  return as< Return_Node_Statement* >(
+      ast::manager_alloc(parser->ast_manager, AST_CTRL_FLOW_RETURN, expression->id, 0));
 }
 
 Node* If_Node_Statement::get_condition(parser::Parser* parser) {

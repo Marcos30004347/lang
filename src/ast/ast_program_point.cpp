@@ -4,6 +4,8 @@
 #include "compiler/symbol_table.hpp"
 #include "parser/parser.hpp"
 
+#include "assert.h"
+
 using namespace compiler;
 
 namespace ast {
@@ -40,8 +42,8 @@ Node* Declarations_List_Node::get_declaration(parser::Parser* parser) {
 
 Declarations_List_Node*
 create_node_declarations_list(parser::Parser* parser, Node* point, Declarations_List_Node* tail) {
-  return as< Declarations_List_Node* >(ast::manager_alloc(
-      parser->ast_manager, AST_DECL_ARGS_LIST, point ? point->id : 0, tail ? tail->id : 0));
+  return as< Declarations_List_Node* >(
+      ast::manager_alloc(parser->ast_manager, AST_DECL_ARGS_LIST, point ? point->id : 0, tail ? tail->id : 0));
 }
 
 void ProgramPoint_List_Node::insert(parser::Parser* parser, Node* node) {

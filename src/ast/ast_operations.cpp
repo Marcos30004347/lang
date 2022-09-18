@@ -2,6 +2,8 @@
 #include "ast/ast_kind.hpp"
 #include "parser/parser.hpp"
 
+#include "assert.h"
+
 namespace ast {
 
 template <> Arithmetic_Operation_Add_Node* is_instance<>(Node* node) {

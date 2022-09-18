@@ -6,6 +6,8 @@
 #include "lexer.hpp"
 #include "parser/parser.hpp"
 
+#include "assert.h"
+
 using namespace compiler;
 using namespace parser;
 
@@ -97,3 +99,5 @@ ProgramPoint_List_Node* Literal_Struct_Node::get_members(parser::Parser* parser)
 }
 
 } // namespace ast
+
+#include "assert.h"

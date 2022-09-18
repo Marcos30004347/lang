@@ -2,6 +2,7 @@
 #include "crc64.hpp"
 
 #include "lexer.hpp"
+#include "lib/table.hpp"
 #include "stdlib.h"
 #include <assert.h>
 #include <cstring>
@@ -10,106 +11,6 @@
 namespace compiler {
 
 namespace symbol {
-
-int max(int a, int b) {
-  return (a > b) ? a : b;
-}
-
-int height(Id_To_CRC64_Map_Node* N) {
-  if (N == 0) {
-    return 0;
-  }
-
-  return N->height;
-}
-
-Id_To_CRC64_Map_Node* create_id_to_crc64_map_node(Id key, u64 crc) {
-  Id_To_CRC64_Map_Node* node = new Id_To_CRC64_Map_Node();
-  node->key                  = key;
-  node->left                 = NULL;
-  node->right                = NULL;
-  node->height               = 1;
-  node->crc                  = crc;
-  return (node);
-}
-
-Id_To_CRC64_Map_Node* right_rotate(Id_To_CRC64_Map_Node* y) {
-  Id_To_CRC64_Map_Node* x  = y->left;
-  Id_To_CRC64_Map_Node* T2 = x->right;
-
-  x->right = y;
-  y->left  = T2;
-
-  y->height = max(height(y->left), height(y->right)) + 1;
-  x->height = max(height(x->left), height(x->right)) + 1;
-
-  return x;
-}
-
-Id_To_CRC64_Map_Node* left_rotate(Id_To_CRC64_Map_Node* x) {
-  Id_To_CRC64_Map_Node* y  = x->right;
-  Id_To_CRC64_Map_Node* T2 = y->left;
-
-  y->left  = x;
-  x->right = T2;
-
-  x->height = max(height(x->left), height(x->right)) + 1;
-  y->height = max(height(y->left), height(y->right)) + 1;
-
-  return y;
-}
-
-int getBalance(Id_To_CRC64_Map_Node* N) {
-  if (N == NULL)
-    return 0;
-  return height(N->left) - height(N->right);
-}
-
-Id_To_CRC64_Map_Node* insert(Id_To_CRC64_Map_Node* node, Id key, u64 crc) {
-  if (node == NULL)
-    return (create_id_to_crc64_map_node(key, crc));
-
-  if (key < node->key) {
-    node->left = insert(node->left, key, crc);
-  } else if (key > node->key) {
-    node->right = insert(node->right, key, crc);
-  } else {
-    return node;
-  }
-  node->height = 1 + max(height(node->left), height(node->right));
-
-  int balance = getBalance(node);
-
-  if (balance > 1 && key < node->left->key) {
-    return right_rotate(node);
-  }
-  if (balance < -1 && key > node->right->key) {
-    return left_rotate(node);
-  }
-
-  if (balance > 1 && key > node->left->key) {
-    node->left = left_rotate(node->left);
-    return right_rotate(node);
-  }
-
-  if (balance < -1 && key < node->right->key) {
-    node->right = right_rotate(node->right);
-    return left_rotate(node);
-  }
-
-  return node;
-}
-
-Id_To_CRC64_Map_Node* search(struct Id_To_CRC64_Map_Node* root, Id key) {
-  if (root == NULL || root->key == key) {
-    return root;
-  }
-
-  if (root->key < key) {
-    return search(root->right, key);
-  }
-  return search(root->left, key);
-}
 
 Manager* manager_create() {
   Manager* m = new Manager();
@@ -315,12 +216,13 @@ Symbol empty(Symbol_Table* table) {
 }
 
 Symbol get_symbol(Symbol_Table* table, Id id) {
-  Id_To_CRC64_Map_Node* node = search(table->crc64_map, id);
+  u64 crc = *lib::search(table->crc64_map, id);
 
-  if (node == 0)
+  if (crc == 0) {
     return empty(table);
+  }
 
-  Symbol_Table_Node* n = table->table[node->crc % TABLE_SIZE];
+  Symbol_Table_Node* n = table->table[crc % TABLE_SIZE];
 
   while (n && n->symbol.id != id) {
     n = n->prev;
