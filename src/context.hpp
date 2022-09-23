@@ -8,7 +8,7 @@
 
 typedef struct Context Context;
 
-typedef std::unordered_set< ast::Node* > Assignments;
+// typedef std::unordered_set< ast::Node* > Assignments;
 
 struct Declaration {
   ast::Node* symbol;
@@ -17,7 +17,7 @@ struct Declaration {
 
   Context* context;
 
-  Assignments  assignments;
+  // Assignments  assignments;
   Declaration* previous_declaration;
 };
 
@@ -31,16 +31,15 @@ Context* context_create(Context* parent);
 
 Context* context_destroy(Context* ctx);
 
-Declaration*
-context_declare(Context* ctx, parser::Parser* p, ast::Node* declaration, ast::Node* program_point);
+Declaration* context_declare(Context* ctx, parser::Parser* p, ast::Node* declaration);
 
-void context_assign(Context* ctx, parser::Parser* p, ast::Node* assignment, ast::Node* program_point);
+// void context_assign(Context* ctx, parser::Parser* p, ast::Node* assignment);
 
 Declaration* context_declaration_of(Context* ctx, parser::Parser* p, ast::Node* symbol, b8* is_local = NULL);
 
 ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol);
 
-Assignments* context_values_of(Context* ctx, parser::Parser* p, ast::Node* symbol);
+// Assignments* context_values_of(Context* ctx, parser::Parser* p, ast::Node* symbol);
 
 void context_merge(parser::Parser* p, Context* a, Context* b);
 

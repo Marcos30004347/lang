@@ -1,9 +1,10 @@
 #pragma once
 
+#include "ast.hpp"
+#include "ast/ast_operations.hpp"
 #include "ast_declaration.hpp"
 #include "ast_kind.hpp"
 #include "ast_manager.hpp"
-#include "ast_program_point.hpp"
 
 #include "compiler/compiler.hpp"
 #include "parser/parser.hpp"
@@ -11,25 +12,29 @@
 namespace ast {
 
 struct Function_Literal_Node : Node {
-  Node* get_return_type(parser::Parser* parser);
+  Node* get_return_type(ast::Manager* manager);
 
-  ProgramPoint_List_Node* get_arguments(parser::Parser* parser);
+  void push_argument(ast::Manager* manager, Declaration_Variable_Node* var);
 
-  ProgramPoint_List_Node* get_body(parser::Parser* parser);
+  Declarations_List_Node* get_arguments(ast::Manager* manager);
+
+  ProgramPoint_List_Node* get_body(ast::Manager* manager);
 };
 
 struct Function_Call_Node : Node {
-  Node* get_function(parser::Parser* parser);
+  Node* get_function(ast::Manager* manager);
 
-  ProgramPoint_List_Node* get_arguments(parser::Parser* parser);
+  void push_argument(ast::Manager* manager, Node* var);
+
+  Declarations_List_Node* get_arguments(ast::Manager* manager);
 };
 
 template <> Function_Literal_Node* is_instance<>(Node* node);
 template <> Function_Call_Node*    is_instance<>(Node* node);
 
-Function_Literal_Node*
-create_node_function_literal(parser::Parser* parser, Declarations_List_Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
+Function_Literal_Node* create_node_function_literal(
+    ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
 
-Function_Call_Node* create_node_function_call(parser::Parser* parser, Node* function, Declarations_List_Node* arguments);
+Function_Call_Node* create_node_function_call(ast::Manager* manager, Node* function, Node* arguments);
 
 } // namespace ast

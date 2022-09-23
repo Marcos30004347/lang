@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include <assert.h>
 #include <cstring>
+#include <stdio.h>
 #include <strings.h>
 
 namespace compiler {
@@ -161,7 +162,7 @@ Symbol set_entry(Symbol_Table* table, const i8* str, u64 n) {
     table->table[crc % TABLE_SIZE]->symbol = manager_alloc_symbol(table->manager, str, n, crc);
     table->table[crc % TABLE_SIZE]->prev   = 0;
 
-    table->crc64_map = insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
+    insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
 
     return table->table[crc % TABLE_SIZE]->symbol;
   } else {
@@ -171,7 +172,7 @@ Symbol set_entry(Symbol_Table* table, const i8* str, u64 n) {
 
     node->symbol = manager_alloc_symbol(table->manager, str, n, crc);
 
-    table->crc64_map = insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
+    insert(table->crc64_map, table->table[crc % TABLE_SIZE]->symbol.id, crc);
 
     return node->symbol;
   }
@@ -183,6 +184,8 @@ Symbol set_entry(Symbol_Table* table, const i8* str) {
 
 Symbol_Table* symbol_table_create() {
   Symbol_Table* table = new Symbol_Table();
+
+  table->crc64_map = lib::table_create< u64, u64 >();
 
   table->manager = manager_create();
 
@@ -206,6 +209,8 @@ void symbol_table_destroy(Symbol_Table* table) {
     }
   }
 
+  lib::table_delete(table->crc64_map);
+
   manager_destroy(table->manager);
 
   delete table;
@@ -216,11 +221,13 @@ Symbol empty(Symbol_Table* table) {
 }
 
 Symbol get_symbol(Symbol_Table* table, Id id) {
-  u64 crc = *lib::search(table->crc64_map, id);
+  u64* crc_ref = lib::search(table->crc64_map, id);
 
-  if (crc == 0) {
+  if (crc_ref == 0) {
     return empty(table);
   }
+
+  u64 crc = *crc_ref;
 
   Symbol_Table_Node* n = table->table[crc % TABLE_SIZE];
 
@@ -241,6 +248,17 @@ Symbol from_token(Symbol_Table* table, Lexer* lexer, Token token) {
   return set_entry(table, buffer, token.size);
 }
 
+Symbol number_to_symbol(Symbol_Table* table, u64 x, const i8* prefix) {
+  u64 length = snprintf(NULL, 0, "%lu", x);
+
+  length += strlen(prefix);
+
+  i8* str = (i8*)malloc(length + 1);
+
+  snprintf(str, length + 1, "%s%lu", prefix, x);
+
+  return set_entry(table, str, length);
+}
 } // namespace symbol
 
 } // namespace compiler

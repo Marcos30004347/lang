@@ -73,16 +73,15 @@ void ast_init(Bucket* b, Node* a, u64 kind, Id id, Id l = 0, Id r = 0) {
 Id manager_reserve(Manager* m, u32 kind, Id l, Id r) {
   Id id = m->size;
 
-  if (id % AST_BUCKET_SIZE == 0) {
-    m->tail->next       = new Bucket();
-    m->tail->next->next = 0;
+  if (id % BUCKET_SIZE == 0) {
+    m->tail->next       = (Bucket*)malloc(sizeof(Bucket));
     m->tail->next->prev = m->tail;
     m->tail->next->id   = m->tail->id + 1;
-
-    m->tail = m->tail->next;
+    m->tail->next->next  = 0;
+    m->tail             = m->tail->next;
   }
 
-  ast_init(m->tail, &m->tail->data[id % AST_BUCKET_SIZE], kind, id, l, r);
+  ast_init(m->tail, &m->tail->data[id % BUCKET_SIZE], kind, id, l, r);
 
   m->size = m->size + 1;
 
@@ -96,31 +95,31 @@ Node* manager_alloc(Manager* m, u32 kind, Id l, Id r) {
 Node* manager_get(Manager* m, Id id) {
   Bucket* b = m->root;
 
-  for (u64 i = 0; i < id / AST_BUCKET_SIZE; i++) {
+  for (u64 i = 0; i < id / BUCKET_SIZE; i++) {
     b = b->next;
   }
 
-  return &b->data[id % AST_BUCKET_SIZE];
+  return &b->data[id % BUCKET_SIZE];
 }
 
 Node* manager_get_relative(Manager* m, Node* root, Id child_id) {
   assert(root);
   Bucket* b = root->bucket;
 
-  u32 w = round_down(root->id, AST_BUCKET_SIZE);
-  u32 s = round_down(child_id, AST_BUCKET_SIZE);
+  u32 w = round_down(root->id, BUCKET_SIZE);
+  u32 s = round_down(child_id, BUCKET_SIZE);
 
   while (s > w) {
-    w += AST_BUCKET_SIZE;
+    w += BUCKET_SIZE;
     b = b->next;
   }
 
   while (w > s) {
-    w -= AST_BUCKET_SIZE;
+    w -= BUCKET_SIZE;
     b = b->prev;
   }
 
-  return &b->data[child_id % AST_BUCKET_SIZE];
+  return &b->data[child_id % BUCKET_SIZE];
 }
 
 Node* ast_manager_alloc(Manager* m, u32 kind, Id l, Id r) {

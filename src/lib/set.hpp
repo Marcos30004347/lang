@@ -5,29 +5,29 @@
 
 namespace lib {
 
-template < typename K, typename T > struct TableNode {
-  K          key;
-  T          val;
-  TableNode* left;
-  TableNode* right;
-  i64        height;
-  u64        size;
+template < typename T > struct SetNode {
+  T        key;
+  SetNode* left;
+  SetNode* right;
+  i64      height;
+  u64      size;
 };
-template < typename K, typename T > void table_delete(TableNode< K, T >* t, void (*destroy_value)(T) = 0) {
+
+template < typename T > void setnode_delete(SetNode< T >* t, void (*destroy_key)(T) = 0) {
   if (t == 0)
     return;
 
-  table_delete(t->left);
-  table_delete(t->right);
+  setnode_delete(t->left);
+  setnode_delete(t->right);
 
-  if (destroy_value) {
-    destroy_value(t->val);
+  if (destroy_key) {
+    destroy_key(t->key);
   }
 
   delete t;
 }
 
-template < typename K, typename T > i64 height(TableNode< K, T >* N) {
+template < typename T > i64 height(SetNode< T >* N) {
   if (N == 0) {
     return 0;
   }
@@ -35,18 +35,17 @@ template < typename K, typename T > i64 height(TableNode< K, T >* N) {
   return N->height;
 }
 
-template < typename K, typename T > TableNode< K, T >* create_table_node(K key, T val) {
-  TableNode< K, T >* node = new TableNode< K, T >();
-  node->key               = key;
-  node->left              = 0;
-  node->right             = 0;
-  node->height            = 1;
-  node->val               = val;
-  node->size              = 1;
+template < typename T > SetNode< T >* create_set_node(T key) {
+  SetNode< T >* node = new SetNode< T >();
+  node->key          = key;
+  node->left         = 0;
+  node->right        = 0;
+  node->height       = 1;
+  node->size         = 1;
   return node;
 }
 
-template < typename K, typename T > void update_size(TableNode< K, T >* x) {
+template < typename T > void update_size(SetNode< T >* x) {
   x->size = 1;
 
   if (x->left) {
@@ -56,13 +55,12 @@ template < typename K, typename T > void update_size(TableNode< K, T >* x) {
     x->size += x->right->size;
   }
 }
-
-template < typename K, typename T > TableNode< K, T >* right_rotate(TableNode< K, T >* y) {
-  TableNode< K, T >* x  = y->left;
-  TableNode< K, T >* T2 = x->right;
+template < typename T > SetNode< T >* right_rotate(SetNode< T >* y) {
+  SetNode< T >* x = y->left;
+  SetNode< T >* t = x->right;
 
   x->right = y;
-  y->left  = T2;
+  y->left  = t;
 
   y->height = max(height(y->left), height(y->right)) + 1;
   x->height = max(height(x->left), height(x->right)) + 1;
@@ -73,35 +71,39 @@ template < typename K, typename T > TableNode< K, T >* right_rotate(TableNode< K
   return x;
 }
 
-template < typename K, typename T > TableNode< K, T >* left_rotate(TableNode< K, T >* x) {
-  TableNode< K, T >* y  = x->right;
-  TableNode< K, T >* T2 = y->left;
+template < typename T > SetNode< T >* left_rotate(SetNode< T >* x) {
+  SetNode< T >* y = x->right;
+  SetNode< T >* t = y->left;
 
   y->left  = x;
-  x->right = T2;
+  x->right = t;
 
   x->height = max(height(x->left), height(x->right)) + 1;
   y->height = max(height(y->left), height(y->right)) + 1;
 
+  update_size(x);
+  update_size(y);
+
   return y;
 }
 
-template < typename K, typename T > i64 getBalance(TableNode< K, T >* N) {
+template < typename T > i64 getBalance(SetNode< T >* N) {
   if (N == 0) {
     return 0;
   }
+
   return height(N->left) - height(N->right);
 }
 
-template < typename K, typename T > TableNode< K, T >* insert(TableNode< K, T >* node, K key, T crc) {
+template < typename T > SetNode< T >* insert(SetNode< T >* node, T key) {
   if (node == 0) {
-    return (create_table_node(key, crc));
+    return (create_set_node(key));
   }
 
   if (is_smaller(key, node->key)) {
-    node->left = insert(node->left, key, crc);
+    node->left = insert(node->left, key);
   } else if (is_greater(key, node->key)) {
-    node->right = insert(node->right, key, crc);
+    node->right = insert(node->right, key);
   } else {
     return node;
   }
@@ -132,7 +134,7 @@ template < typename K, typename T > TableNode< K, T >* insert(TableNode< K, T >*
   return node;
 }
 
-template < typename K, typename T > T* search(struct TableNode< K, T >* root, K key) {
+template < typename T > T* search(struct SetNode< T >* root, T key) {
   if (root == 0) {
     return 0;
   }
@@ -148,8 +150,8 @@ template < typename K, typename T > T* search(struct TableNode< K, T >* root, K 
   return search(root->left, key);
 }
 
-template < typename K, typename T > TableNode< K, T >* min_value_node(TableNode< K, T >* node) {
-  TableNode< K, T >* current = node;
+template < typename T > SetNode< T >* min_value_node(SetNode< T >* node) {
+  SetNode< T >* current = node;
 
   while (current->left != 0) {
     current = current->left;
@@ -158,7 +160,7 @@ template < typename K, typename T > TableNode< K, T >* min_value_node(TableNode<
   return current;
 }
 
-template < typename K, typename T > TableNode< K, T >* remove(TableNode< K, T >* root, K key) {
+template < typename T > SetNode< T >* remove(SetNode< T >* root, T key) {
 
   if (root == 0) {
     return root;
@@ -171,7 +173,7 @@ template < typename K, typename T > TableNode< K, T >* remove(TableNode< K, T >*
     root->right = remove< T >(root->right, key);
   } else {
     if ((root->left == 0) || (root->right == 0)) {
-      TableNode< K, T >* temp = root->left ? root->left : root->right;
+      SetNode< T >* temp = root->left ? root->left : root->right;
 
       if (temp == 0) {
         temp = root;
@@ -181,7 +183,7 @@ template < typename K, typename T > TableNode< K, T >* remove(TableNode< K, T >*
 
       free(temp);
     } else {
-      TableNode< K, T >* temp = min_value_node< T >(root->right);
+      SetNode< T >* temp = min_value_node< T >(root->right);
 
       root->key = temp->key;
 
@@ -189,8 +191,9 @@ template < typename K, typename T > TableNode< K, T >* remove(TableNode< K, T >*
     }
   }
 
-  if (root == 0)
+  if (root == 0) {
     return root;
+  }
 
   root->height = 1 + max(height(root->left), height(root->right));
 
@@ -217,38 +220,23 @@ template < typename K, typename T > TableNode< K, T >* remove(TableNode< K, T >*
   return root;
 }
 
-template < typename K, typename T > u64 size(TableNode< K, T >* node) {
+template < typename T > u64 size(SetNode< T >* node) {
   if (node == 0) {
     return 0;
   }
   return node->size;
 }
 
-template < typename K, typename T > struct KeyValuePair {
-  K key;
-  T val;
-};
-
-template < typename K, typename T > KeyValuePair< K, T* >* get_ith(TableNode< K, T >* node, u64 index) {
+template < typename T > T* get_ith(SetNode< T >* node, u64 index) {
   if (node == 0)
     return 0;
 
   if (!node->left && index == 0) {
-    KeyValuePair< K, T* > pair;
-
-    pair.key = node->key;
-    pair.val = &node->val;
-
-    return pair;
+    return &node->key;
   }
 
   if (node->left && node->left->size == index) {
-    KeyValuePair< K, T* > pair;
-
-    pair.key = node->key;
-    pair.val = &node->val;
-
-    return pair;
+    return &node->key;
   }
 
   if (node->left && index > node->left->size) {
@@ -258,8 +246,8 @@ template < typename K, typename T > KeyValuePair< K, T* >* get_ith(TableNode< K,
   return get_ith(node->left, index - 1);
 }
 
-template < typename K, typename T > TableNode< K, T >* copy(TableNode< K, T >* node) {
-  TableNode< K, T >* c = new TableNode< K, T >();
+template < typename T > SetNode< T >* copy(SetNode< T >* node) {
+  SetNode< T >* c = new SetNode< T >();
 
   c->left  = copy(node->left);
   c->right = copy(node->right);
@@ -267,46 +255,43 @@ template < typename K, typename T > TableNode< K, T >* copy(TableNode< K, T >* n
   c->size   = node->size;
   c->key    = node->key;
   c->height = node->height;
-  c->val    = node->val;
 
   return c;
 }
+template < typename T > struct Set { SetNode< T >* root; };
 
-template < typename K, typename T > struct Table { TableNode< K, T >* root; };
-
-template < typename K, typename T > void table_delete(Table< K, T >* t, void (*destroy_value)(T) = 0) {
+template < typename T > void set_delete(Set< T >* t, void (*destroy_value)(T) = 0) {
   if (t->root) {
-    table_delete(t->root, destroy_value);
+    setnode_delete(t->root, destroy_value);
   }
   delete t;
 }
 
-template < typename K, typename T > Table< K, T >* table_create() {
-  Table< K, T >* h = new Table< K, T >();
-  h->root          = 0;
+template < typename T > Set< T >* set_create() {
+  Set< T >* h = new Set< T >();
+  h->root     = 0;
   return h;
 }
 
-template < typename K, typename T > Table< K, T >* copy(Table< K, T >* t) {
-  Table< K, T >* h = new Table< K, T >();
-  h->root          = copy(t);
+template < typename T > Set< T >* copy(Set< T >* t) {
+  Set< T >* h = new Set< T >();
+  h->root     = copy(t);
   return h;
 }
 
-template < typename K, typename T > void insert(Table< K, T >* node, K key, T val) {
-  node->root = insert(node->root, key, val);
+template < typename T > void insert(Set< T >* node, T val) {
+  node->root = insert(node->root, val);
 }
 
-template < typename K, typename T > void remove(Table< K, T >* node, K key) {
+template < typename T > void remove(Set< T >* node, T key) {
   node->root = remove(node->root, key);
 }
 
-template < typename K, typename T > T* search(Table< K, T >* node, K key) {
+template < typename T > T* search(Set< T >* node, T key) {
   return search(node->root, key);
 }
 
-template < typename K, typename T > u64 size(Table< K, T >* node) {
+template < typename T > u64 size(Set< T >* node) {
   return size(node->root);
 }
-
 } // namespace lib

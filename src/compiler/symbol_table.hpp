@@ -45,10 +45,10 @@ struct Symbol_Table_Node {
 };
 
 struct Symbol_Table {
-  Symbol             empty;
-  Manager*           manager;
-  lib::Table< u64 >* crc64_map;
-  Symbol_Table_Node* table[TABLE_SIZE];
+  Symbol                  empty;
+  Manager*                manager;
+  lib::Table< u64, u64 >* crc64_map;
+  Symbol_Table_Node*      table[TABLE_SIZE];
 };
 
 Manager* manager_create();
@@ -75,5 +75,8 @@ Symbol set_entry(Symbol_Table* table, const i8* c_str);
 Symbol from_token(Symbol_Table* table, Lexer* lexer, Token token);
 Symbol empty(Symbol_Table* table);
 Symbol get_symbol(Symbol_Table* table, Id id);
+
+Symbol number_to_symbol(Symbol_Table* table, u64 num, const i8* prefix);
+
 } // namespace symbol
 } // namespace compiler

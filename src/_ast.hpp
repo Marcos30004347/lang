@@ -38,7 +38,6 @@ enum AST_Kind {
   AST_FUNCTION_LITERAL,
   AST_HANDLER_LITERAL,
   __AST_LITERAL_END,
-
   AST_FUN_SIGNATURE,
 
   // Types
@@ -239,19 +238,42 @@ AST_Node* _internal_ast_sizeof(AST_Manager* m, AST_Node* n);
 AST_Node* _internal_ast_typeof(AST_Manager* m, AST_Node* n);
 AST_Node* _internal_ast_reallocate_heap_buffer(AST_Manager* m, AST_Node* buffer, AST_Node* size);
 AST_Node* _internal_ast_allocate_heap_buffer(AST_Manager* m, AST_Node* size);
-AST_Node*
-_internal_ast_setup_closure_environment_buffer_header(AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* incc, AST_Node* local_env);
-AST_Node*
-_internal_ast_update_closure_environment_buffer_header(AST_Manager* m, AST_Node* env_type, AST_Node* header_type, AST_Node* buffer, AST_Node* incc, AST_Node* local_env);
+AST_Node* _internal_ast_setup_closure_environment_buffer_header(
+    AST_Manager* m,
+    AST_Node*    env_type,
+    AST_Node*    header_type,
+    AST_Node*    buffer,
+    AST_Node*    incc,
+    AST_Node*    local_env);
+AST_Node* _internal_ast_update_closure_environment_buffer_header(
+    AST_Manager* m,
+    AST_Node*    env_type,
+    AST_Node*    header_type,
+    AST_Node*    buffer,
+    AST_Node*    incc,
+    AST_Node*    local_env);
 AST_Node* _internal_ast_capture_variable_into_environment(
-    AST_Manager* m, AST_Node* env_type, AST_Node* buff_header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env);
+    AST_Manager* m,
+    AST_Node*    env_type,
+    AST_Node*    buff_header_type,
+    AST_Node*    buffer,
+    AST_Node*    var,
+    AST_Node*    incc,
+    AST_Node*    local_env);
 AST_Node* _internal_ast_borrow_variable_into_environment(
-    AST_Manager* m, AST_Node* env_type, AST_Node* buff_header_type, AST_Node* buffer, AST_Node* var, AST_Node* incc, AST_Node* local_env);
+    AST_Manager* m,
+    AST_Node*    env_type,
+    AST_Node*    buff_header_type,
+    AST_Node*    buffer,
+    AST_Node*    var,
+    AST_Node*    incc,
+    AST_Node*    local_env);
 AST_Node* _internal_ast_set_closure_object_extern(AST_Manager* m, AST_Node* closure);
 AST_Node* _internal_ast_is_closure_object_local(AST_Manager* m, AST_Node* closure);
 AST_Node* _internal_ast_get_closure_object_bitset(AST_Manager* m, AST_Node* closure);
 AST_Node* _internal_ast_get_closure_environment_buffer_size(AST_Manager* m, AST_Node* closure);
-// AST_Node* _internal_ast_capture_environment_bitset(AST_Manager* m, AST_Node* type, AST_Node* buffer, AST_Node* bitset, AST_Node* variables);
+// AST_Node* _internal_ast_capture_environment_bitset(AST_Manager* m, AST_Node* type, AST_Node* buffer, AST_Node*
+// bitset, AST_Node* variables);
 
 i8*       ast_kind_to_cstr(u64 k, u64 x = 0);
 AST_Node* ast_copy(AST_Manager* m, AST_Node* node);
