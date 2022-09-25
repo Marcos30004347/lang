@@ -364,7 +364,13 @@ ast::Node* parser_parse_member_access(Parser* p) {
 
   if (parser_curr_tok(p).type == TOKEN_DOT) {
     parser_read_token(p, TOKEN_DOT);
-    return ast::create_node_member_access(p->ast_manager, root, parser_parse_member_access(p));
+    ast::Node* access = parser_parse_member_access(p);
+
+    if (ast::is_semantic_node(access) && !ast::is_instance< ast::Member_Access_Node* >(access)) {
+      access = ast::create_node_member_access(p->ast_manager, access, NULL);
+    }
+
+    return ast::create_node_member_access(p->ast_manager, root, access);
   }
 
   return root;
@@ -1190,6 +1196,17 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
     printf("");
     return;
   }
+
+  if (n->kind == ast::AST_TRUE_LITERAL) {
+    printf("true");
+    return;
+  }
+
+  if (n->kind == ast::AST_FALSE_LITERAL) {
+    printf("false");
+    return;
+  }
+
   // if (n->kind == _AST_BUILD_STACK_CLOSURE_OBJECT) {
   //   printf("_build_stack_closure(");
   //   print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);

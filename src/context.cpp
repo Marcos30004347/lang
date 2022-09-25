@@ -6,292 +6,238 @@
 #include "ast/ast_operations.hpp"
 #include "ast/ast_program_point.hpp"
 #include "ast/ast_types.hpp"
+#include "compiler/symbol_table.hpp"
+#include "lib/table.hpp"
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unordered_map>
 
+struct Declaration {
+  b8 constant;
+
+  ast::Literal_Symbol_Node* symbol;
+
+  ast::Node* type;
+
+  ast::Node* bind;
+};
+
+struct Context {
+  lib::Table< compiler::symbol::Id, Declaration* >* scope;
+
+  lib::Table< compiler::symbol::Id, ast::Literal_Struct_Node* >* structures;
+
+  Context* parent;
+};
+
 Context* context_create(Context* parent) {
-  Context* ctx          = new Context();
-  ctx->parent           = parent;
-  ctx->last_declaration = NULL;
-  return ctx;
+  Context* context = new Context();
+
+  context->parent = parent;
+
+  context->scope = lib::table_create< compiler::symbol::Id, Declaration* >();
+
+  context->structures = lib::table_create< compiler::symbol::Id, ast::Literal_Struct_Node* >();
+
+  return context;
 }
 
-// void assignment_destroy(Assignment* b) {
-//   while (b) {
-//     Assignment* a = b->previous;
-//     delete b;
-//     b = a;
-//   }
-// }
-
-Declaration* declaration_create(ast::Node* declaration, ast::Node* symbol, ast::Node* type) {
-  assert(
-      ast::is_instance< ast::Variable_Assignment_Node* >(declaration)
-      || ast::is_instance< ast::Declaration_Constant_Node* >(declaration));
-
-  Declaration* d = new Declaration();
-
-  d->bind   = declaration;
-  d->symbol = symbol;
-  d->type   = type;
-  // d->assignments          = Assignments();
-  d->context              = NULL;
-  d->previous_declaration = NULL;
-
-  return d;
-}
-
-// void assignment_create(Declaration* d, ast::Node* value, ast::Node* program_point) {
-//   d->assignments = Assignments();
-//   d->assignments.insert(value);
-// }
-
-void context_merge(parser::Parser* p, Context* a, Context* b) {
-  ast::Manager* m = p->ast_manager;
-
-  Declaration* b_decl = b->last_declaration;
-
-  while (b_decl) {
-    Declaration* a_decl = context_declaration_of(a, p, b_decl->symbol);
-
-    if (a_decl != NULL) {
-      if (a_decl->context) {
-        assert(b_decl->context);
-        context_merge(p, a_decl->context, b_decl->context);
-      } else {
-        // for (Assignments::iterator assignment = b_decl->assignments.begin();
-        //      assignment != b_decl->assignments.end();
-        //      assignment++) {
-        //   a_decl->assignments.insert(*assignment);
-        // }
-      }
-    } else {
-      Declaration* d = declaration_create(b_decl->bind, b_decl->symbol, b_decl->type);
-      if (b_decl->context) {
-        d->context = context_copy(b_decl->context);
-      } else {
-
-        // d->assignments = b_decl->assignments;
-
-        // for (Assignments::iterator assignment = b_decl->assignments.begin();
-        //      assignment != b_decl->assignments.end();
-        //      assignment++) {
-        //   d->assignments.insert(*assignment);
-        // }
-
-        d->previous_declaration = a->last_declaration;
-      }
-
-      a->last_declaration = d;
-    }
-
-    b_decl = b_decl->previous_declaration;
-  }
-}
-
-Context* context_destroy(Context* ctx) {
-  Context* p = ctx->parent;
-
-  while (ctx->last_declaration) {
-    Declaration* t = ctx->last_declaration->previous_declaration;
-
-    // assignment_destroy(ctx->last_declaration->assignments);
-
-    if (ctx->last_declaration->context) {
-      context_destroy(ctx->last_declaration->context);
-    }
-
-    delete ctx->last_declaration;
-
-    ctx->last_declaration = t;
-  }
-
-  delete ctx;
-
-  return p;
-}
-
-// void setup_declaration_values(
-//     Context* ctx, parser::Parser* p, Declaration* d, ast::Node* type, ast::Node* value, ast::Node*
-//     program_point) {
-//   ast::Node*    type_symbol = type;
-//   ast::Manager* m           = p->ast_manager;
-
-//   if (ast::is_instance< ast::Type_Pointer_Node* >(type_symbol)) {
-//     type_symbol = ast::manager_get_relative(m, type_symbol, type_symbol->left);
-//   }
-
-//   Declaration* type_decl = NULL;
-
-//   if (ast::is_instance< ast::Literal_Symbol_Node* >(type_symbol)) {
-//     type_decl = context_declaration_of(ctx, p, type_symbol);
-//   }
-
-//   if (type_decl && ast::is_instance< ast::Type_Struct_Node* >(type_decl->type)) {
-//     assert(ast::is_instance< ast::Declaration_Constant_Node* >(type_decl->bind));
-
-//     assert(type_decl->assignments.size() == 1);
-
-//     ast::Node* value = *type_decl->assignments.begin();
-
-//     assert(ast::is_instance< ast::Literal_Struct_Node* >(value));
-
-//     ast::Literal_Struct_Node* struct_literal = ast::as< ast::Literal_Struct_Node* >(value);
-
-//     ast::ProgramPoint_List_Node* struct_members = struct_literal->get_members(p->ast_manager);
-
-//     d->context = context_create(NULL);
-
-//     assignment_create(d, NULL, program_point);
-
-//     while (struct_members) {
-//       ast::Node* member = struct_members->get_statement(p->ast_manager);
-
-//       context_declare(d->context, p, member, program_point);
-
-//       struct_members = struct_members->get_next_program_point(p->ast_manager);
-//     }
-//   } else {
-//     d->context = NULL;
-
-//     assignment_create(d, value, program_point);
-//   }
-// }
-
-Declaration* context_declare(Context* ctx, parser::Parser* p, ast::Node* declaration, ast::Node* program_point) {
+Declaration* declaration_create(ast::Node* declaration, ast::Literal_Symbol_Node* symbol, ast::Node* type) {
   assert(ast::is_declaration_node(declaration));
 
+  Declaration* data = new Declaration();
+
+  data->bind   = declaration;
+  data->symbol = symbol;
+  data->type   = type;
+
+  data->constant = ast::is_instance< ast::Declaration_Constant_Node* >(declaration);
+
+  return data;
+}
+
+Context* context_destroy(Context* context) {
+  Context* parent = context->parent;
+
+  lib::table_delete(context->scope);
+  lib::table_delete(context->structures);
+
+  delete context;
+
+  return parent;
+}
+
+void context_declare(Context* ctx, parser::Parser* p, ast::Node* declaration) {
   ast::Manager* m = p->ast_manager;
 
+  if (ast::Variable_Assignment_Node* assignment =
+          ast::is_instance< ast::Variable_Assignment_Node* >(declaration)) {
+    ast::Node* left  = assignment->get_left_operand(p->ast_manager);
+    ast::Node* right = assignment->get_right_operand(p->ast_manager);
+
+    context_declare(ctx, p, left);
+
+    if (ast::Literal_Struct_Node* structure = ast::is_instance< ast::Literal_Struct_Node* >(right)) {
+      assert(ast::is_instance< ast::Declaration_Constant_Node* >(left));
+
+      ast::Declaration_Constant_Node* decl   = ast::as< ast::Declaration_Constant_Node* >(left);
+      ast::Literal_Symbol_Node*       symbol = decl->get_symbol(p->ast_manager);
+
+      lib::insert(ctx->structures, symbol->get_symbol(p->ast_manager).id, structure);
+    }
+
+    return;
+  }
+
   if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(declaration)) {
-    ast::Node* symbol = var->get_symbol(p->ast_manager);
-    ast::Node* type   = var->get_type(p->ast_manager);
+    ast::Literal_Symbol_Node* symbol = var->get_symbol(p->ast_manager);
+    ast::Node*                type   = var->get_type(p->ast_manager);
 
-    Declaration* d = declaration_create(declaration, symbol, type);
+    Declaration* data = declaration_create(declaration, symbol, type);
 
-    // setup_declaration_values(ctx, p, d, type, ast::create_node_literal_undefined(p->ast_manager),
-    // program_point);
+    lib::insert(ctx->scope, symbol->get_symbol(p->ast_manager).id, data);
 
-    d->previous_declaration = ctx->last_declaration;
-
-    ctx->last_declaration = d;
-
-    return d;
+    return;
   }
 
   if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(declaration)) {
-    ast::Node* symbol = var->get_symbol(p->ast_manager);
-    ast::Node* type   = var->get_type(p->ast_manager);
+    ast::Literal_Symbol_Node* symbol = var->get_symbol(p->ast_manager);
+    ast::Node*                type   = var->get_type(p->ast_manager);
 
-    Declaration* d = declaration_create(declaration, symbol, type);
+    Declaration* data = declaration_create(declaration, symbol, type);
 
     // setup_declaration_values(ctx, p, d, type, ast::create_node_literal_undefined(p->ast_manager),
     // program_point);
 
-    d->previous_declaration = ctx->last_declaration;
+    lib::insert(ctx->scope, symbol->get_symbol(p->ast_manager).id, data);
 
-    ctx->last_declaration = d;
-
-    return d;
+    return;
   }
-
-  return NULL;
 }
 
-// void context_assign(Context* ctx, parser::Parser* p, ast::Node* node, ast::Node* program_point) {
-//   assert(ast::is_instance< ast::Variable_Assignment_Node* >(node));
-
-//   ast::Variable_Assignment_Node* assignment = ast::as< ast::Variable_Assignment_Node* >(node);
-
-//   ast::Manager* m = p->ast_manager;
-
-//   ast::Node* left = assignment->get_left_operand(p->ast_manager);
-
-//   while (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(left)) {
-//     ast::Node* symbol = assignment->get_left_operand(p->ast_manager);
-
-//     Declaration* decl = context_declaration_of(ctx, p, symbol);
-
-//     assert(decl);
-
-//     ctx = decl->context;
-
-//     left = assignment->get_right_operand(p->ast_manager);
-//   }
-
-//   Declaration* decl = context_declaration_of(ctx, p, left);
-
-//   // assignment_create(decl, assignment->get_left_operand(p->ast_manager), program_point);
-// }
-
-Declaration*
-context_declaration_of_rec(Context* ctx, parser::Parser* p, ast::Node* symbol, Context* _c, b8* is_local) {
+ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Literal_Symbol_Node* symbol) {
+  ast::Manager* m = p->ast_manager;
 
   if (ctx == NULL) {
-    if (is_local)
-      *is_local = false;
-    return NULL;
+    return ast::create_node_literal_nothing(m);
   }
-
-  ast::Manager* m = p->ast_manager;
 
   if (ast::is_instance< ast::Member_Access_Node* >(symbol)) {
     ast::Member_Access_Node* access = ast::as< ast::Member_Access_Node* >(symbol);
 
-    ast::Node* first  = access->get_left_operand(p->ast_manager);
-    ast::Node* second = access->get_right_operand(p->ast_manager);
+    ast::Node* object      = access->get_object(p->ast_manager);
+    ast::Node* object_type = context_type_of(ctx, symbol);
 
-    Declaration* decl = context_declaration_of_rec(ctx, p, first, _c, is_local);
+    assert(ast::is_instance< ast::Literal_Symbol_Node* >(object_type));
 
-    return context_declaration_of_rec(decl->context, p, second, _c, is_local);
+    ast::Literal_Symbol_Node* symbol = ast::as< ast::Literal_Symbol_Node* >(object_type);
+
+    ast::Literal_Struct_Node** structure_ref = lib::search(ctx->structures, symbol->get_symbol_id());
+
+    assert(structure_ref);
+
+    ast::Node* type = *structure_ref;
+
+    while (ast::is_semantic_node(access)) {
+
+      assert(ast::is_instance< ast::Literal_Struct_Node* >(type));
+
+      ast::Literal_Struct_Node* structure = ast::as< ast::Literal_Struct_Node* >(type);
+
+      ast::ProgramPoint_List_Node* members = structure->get_members(m);
+
+      ast::Node* accessed = access->get_access(m);
+
+      assert(ast::is_instance< ast::Literal_Symbol_Node* >(accessed));
+
+      ast::Literal_Symbol_Node* symbol = ast::as< ast::Literal_Symbol_Node* >(accessed);
+
+      while (ast::is_semantic_node(members) && !ast::is_semantic_node(accessed)) {
+        ast::Node* declaration = members->get_statement(m);
+
+        if (ast::Declaration_Constant_Node* var =
+                ast::is_instance< ast::Declaration_Constant_Node* >(declaration)) {
+          ast::Literal_Symbol_Node* name = var->get_symbol(m);
+
+          compiler::symbol::Symbol symbol_a = symbol->get_symbol(m);
+          compiler::symbol::Symbol symbol_b = name->get_symbol(m);
+
+          if (compiler::symbol::is_equal(m->symbol_table, &symbol_a, &symbol_b)) {
+            accessed = declaration;
+          }
+        }
+
+        if (ast::Declaration_Variable_Node* var =
+                ast::is_instance< ast::Declaration_Variable_Node* >(declaration)) {
+          ast::Literal_Symbol_Node* name = var->get_symbol(m);
+
+          compiler::symbol::Symbol symbol_a = symbol->get_symbol(m);
+          compiler::symbol::Symbol symbol_b = name->get_symbol(m);
+
+          if (compiler::symbol::is_equal(m->symbol_table, &symbol_a, &symbol_b)) {
+            accessed = declaration;
+          }
+        }
+
+        members = members->get_next_program_point(m);
+      }
+
+      if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(accessed)) {
+        object = var->get_symbol(m);
+        type   = var->get_type(m);
+      }
+
+      if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(accessed)) {
+        object = var->get_symbol(m);
+        type   = var->get_type(m);
+      }
+
+      access = access->get_next_accesses(m);
+    }
+
+    assert(ast::is_semantic_node(type));
+
+    return type;
   }
 
   if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(symbol)) {
-    symbol = var->get_symbol(p->ast_manager);
+    symbol = var->get_symbol(m);
   }
 
   if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(symbol)) {
-    symbol = var->get_symbol(p->ast_manager);
+    symbol = var->get_symbol(m);
   }
 
   assert(ast::is_instance< ast::Literal_Symbol_Node* >(symbol));
 
-  Declaration* declaration = ctx->last_declaration;
+  Declaration** decl = lib::search(ctx->scope, symbol->get_symbol_id());
 
-  while (declaration) {
-    if (parser_is_same_symbol(p, symbol, declaration->symbol)) {
+  if (decl) {
+    Declaration* local = *decl;
 
-      if (is_local) {
-        *is_local = ctx == _c;
-      }
-
-      return declaration;
-    }
-
-    declaration = declaration->previous_declaration;
+    return local->type;
   }
 
-  return context_declaration_of_rec(ctx->parent, p, symbol, _c, is_local);
+  return context_type_of(ctx->parent, p, symbol);
 }
 
-Declaration* context_declaration_of(Context* ctx, parser::Parser* p, ast::Node* symbol, b8* is_local) {
-  return context_declaration_of_rec(ctx, p, symbol, ctx, is_local);
-}
+// Declaration* context_declaration_of(Context* ctx, parser::Parser* p, ast::Node* symbol, b8* is_local) {
+//   return context_declaration_of_rec(ctx, p, symbol, ctx, is_local);
+// }
 
-ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
-  Declaration* declaration = context_declaration_of(ctx, p, symbol);
+// ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
+//   Declaration* declaration = context_declaration_of(ctx, p, symbol);
 
-  ast::Manager* m = p->ast_manager;
+//   ast::Manager* m = p->ast_manager;
 
-  if (declaration == NULL) {
-    return ast::create_node_literal_nothing(p->ast_manager);
-  }
+//   if (declaration == NULL) {
+//     return ast::create_node_literal_nothing(p->ast_manager);
+//   }
 
-  return declaration->type;
-}
+//   return declaration->type;
+// }
 
 // Assignments* context_values_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
 //   Declaration* declaration = context_declaration_of(ctx, p, symbol);
@@ -309,44 +255,44 @@ ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
 //   return assignment_create(a->value, a->point, assignment_copy(a->previous));
 // }
 
-Declaration* declaration_copy(Declaration* d) {
+// Declaration* declaration_copy(Declaration* d) {
 
-  if (d == NULL)
-    return NULL;
+//   if (d == NULL)
+//     return NULL;
 
-  Declaration* r = declaration_create(d->bind, d->symbol, d->type);
+//   Declaration* r = declaration_create(d->bind, d->symbol, d->type);
 
-  r->previous_declaration = declaration_copy(d->previous_declaration);
+//   r->previous_declaration = declaration_copy(d->previous_declaration);
 
-  // r->assignments = d->assignments; // assignment_copy(d->assignments);
+//   // r->assignments = d->assignments; // assignment_copy(d->assignments);
 
-  return r;
-}
+//   return r;
+// }
 
-Context* context_copy(Context* a) {
-  if (a == NULL)
-    return NULL;
+// Context* context_copy(Context* a) {
+//   if (a == NULL)
+//     return NULL;
 
-  Context* c = context_create(context_copy(a->parent));
+//   Context* c = context_create(context_copy(a->parent));
 
-  c->last_declaration = declaration_copy(a->last_declaration);
+//   c->last_declaration = declaration_copy(a->last_declaration);
 
-  return c;
-}
+//   return c;
+// }
 
-void context_replace(Context* a, Context* b) {
-  if (a == NULL) {
-    assert(b == NULL);
-    return;
-  }
+// void context_replace(Context* a, Context* b) {
+//   if (a == NULL) {
+//     assert(b == NULL);
+//     return;
+//   }
 
-  context_replace(a->parent, b->parent);
+//   context_replace(a->parent, b->parent);
 
-  Declaration* t = a->last_declaration;
+//   Declaration* t = a->last_declaration;
 
-  a->last_declaration = b->last_declaration;
-  b->last_declaration = t;
-}
+//   a->last_declaration = b->last_declaration;
+//   b->last_declaration = t;
+// }
 
 // void assignment_print(Assignments* a, parser::Parser* p, int tabs) {
 //   if (a == NULL) {
@@ -377,36 +323,42 @@ void context_replace(Context* a, Context* b) {
 void declaration_print(Declaration* d, parser::Parser* p, int tabs) {
   if (d == NULL)
     return;
-  printf("[| ");
   print_ast_ir(p, d->symbol);
-  printf(" |] = ( ");
-  if (d->context) {
-    context_print(d->context, p, tabs);
-  } else {
-    // assignment_print(&d->assignments, p, tabs);
-  }
-  printf(" )\n");
+  printf("\n");
+}
+
+void context_print_rec(lib::TableNode< compiler::symbol::Id, Declaration* >* decl, parser::Parser* p, int tabs) {
+  for (u32 i = 0; i < tabs; i++)
+    printf(" ");
+
+  declaration_print(decl->val, p, tabs);
+  context_print_rec(decl->left, p, tabs);
+  context_print_rec(decl->right, p, tabs);
 }
 
 void context_print(Context* ctx, parser::Parser* p, int tabs) {
   if (ctx == NULL)
     return;
-  Declaration* declaration = ctx->last_declaration;
-  for (u32 i = 0; i < tabs; i++)
+
+  Declaration* declaration = ctx->scope->root->val;
+
+  for (u32 i = 0; i < tabs; i++) {
     printf(" ");
-  printf("context {\n");
-  tabs = tabs + 2;
-  while (declaration) {
-    for (u32 i = 0; i < tabs; i++)
-      printf(" ");
-    declaration_print(declaration, p, tabs);
-    declaration = declaration->previous_declaration;
   }
+
+  printf("context {\n");
+
+  tabs = tabs + 2;
+
+  context_print_rec(ctx->scope->root, p, tabs);
+
   tabs = tabs - 2;
+
   context_print(ctx->parent, p, tabs + 2);
 
-  for (u32 i = 0; i < tabs; i++)
+  for (u32 i = 0; i < tabs; i++) {
     printf(" ");
+  }
 
   printf("}");
   printf("\n");
@@ -430,7 +382,7 @@ Context* declaration_arguments_to_context(parser::Parser* p, ast::Node* node, Co
 
     assert(ast::is_declaration_node(arg));
 
-    context_declare(ctx, p, arg, node);
+    context_declare(ctx, p, arg);
 
     list = list->get_next_declaration(p->ast_manager);
   }

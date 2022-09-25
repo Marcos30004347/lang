@@ -62,7 +62,7 @@ void Function_Call_Node::push_argument(ast::Manager* manager, ast::Node* arg) {
     return set_right(manager, this, args);
   }
 
-  args->insert(manager, arg);
+  args->push(manager, arg);
 }
 
 void Function_Literal_Node::push_argument(ast::Manager* manager, ast::Declaration_Variable_Node* arg) {
@@ -76,7 +76,7 @@ void Function_Literal_Node::push_argument(ast::Manager* manager, ast::Declaratio
     return set_left(manager, signature, left);
   }
 
-  args->insert(manager, arg);
+  args->push(manager, arg);
 }
 
 Node* Function_Call_Node::get_function(ast::Manager* manager) {

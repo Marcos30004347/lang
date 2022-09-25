@@ -68,8 +68,10 @@ struct Logical_Operation_NotEqual_Node : Node {
 };
 
 struct Member_Access_Node : Node {
-  Node* get_left_operand(ast::Manager* manager);
-  Node* get_right_operand(ast::Manager* manager);
+  Node* get_object(ast::Manager* manager);
+  Node* get_access(ast::Manager* manager);
+
+  Member_Access_Node* get_next_accesses(ast::Manager* manager);
 };
 
 template <> Arithmetic_Operation_Add_Node*       is_instance<>(Node* node);

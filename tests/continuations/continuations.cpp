@@ -2,7 +2,7 @@
 #include "lib/set.hpp"
 #include "tests.hpp"
 
-#include "continuations.hpp"
+#include "continuations/continuations.hpp"
 #include "parser/parser.hpp"
 
 using namespace compiler;
@@ -14,21 +14,21 @@ void should_cps_convert_call_programs() {
                    "  f();"
                    "  g();"
                    "  return 0;"
-
                    "}";
 
-  CPS_Conversion_Info* info = cps_info_create();
+  cps::Conversion_Result* info = cps::cps_result_create();
 
-  Compiler* compiler = compiler_create();
+  compiler::Compiler* compiler = compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps_conversion(info, compiler, node);
+  cps::convert_to_cps_style(info, compiler, node);
 
   print_ast_ir(compiler->parser, node);
 
-  compiler_destroy(compiler);
-  cps_info_destroy(info);
+  compiler::compiler_destroy(compiler);
+
+  cps::cps_result_destroy(info);
 }
 
 void should_cps_convert_call_assignments_programs() {
@@ -39,18 +39,19 @@ void should_cps_convert_call_assignments_programs() {
                    "  return z;"
                    "}";
 
-  CPS_Conversion_Info* info = cps_info_create();
+  cps::Conversion_Result* info = cps::cps_result_create();
 
-  Compiler* compiler = compiler_create();
+  compiler::Compiler* compiler = compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps_conversion(info, compiler, node);
+  cps::convert_to_cps_style(info, compiler, node);
 
   print_ast_ir(compiler->parser, node);
 
-  compiler_destroy(compiler);
-  cps_info_destroy(info);
+  compiler::compiler_destroy(compiler);
+
+  cps::cps_result_destroy(info);
 }
 
 void should_cps_convert_branch_programs() {
@@ -62,24 +63,24 @@ void should_cps_convert_branch_programs() {
                    "    x = g(x);"
                    "    x = x + 3;"
                    "  }"
-                   "  y : i32 : g();"
+                   "  y : i32 : g(x);"
                    "  z : i32 : x + y;"
                    "  return z;"
                    "}";
 
-  CPS_Conversion_Info* info = cps_info_create();
+  cps::Conversion_Result* info = cps::cps_result_create();
 
   Compiler* compiler = compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps_conversion(info, compiler, node);
+  cps::convert_to_cps_style(info, compiler, node);
 
   print_ast_ir(compiler->parser, node);
 
-  cps_info_destroy(info);
+  cps::cps_result_destroy(info);
 
-  compiler_destroy(compiler);
+  compiler::compiler_destroy(compiler);
 }
 
 int main() {

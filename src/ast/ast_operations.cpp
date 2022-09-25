@@ -1,4 +1,5 @@
 #include "ast_operations.hpp"
+#include "ast/ast_literals.hpp"
 #include "ast_kind.hpp"
 #include "ast_manager.hpp"
 
@@ -102,8 +103,7 @@ Logical_Operation_NotEqual_Node* create_node_logical_not_equal_to(ast::Manager* 
 }
 
 Member_Access_Node* create_node_member_access(ast::Manager* manager, Node* a, Node* b) {
-  assert(a && b);
-  return as< Member_Access_Node* >(ast::manager_alloc(manager, AST_OP_MEMBER_ACCESS, a->id, b->id));
+  return as< Member_Access_Node* >(ast::manager_alloc(manager, AST_OP_MEMBER_ACCESS, get_id(a), get_id(b)));
 }
 
 Variable_Assignment_Node* create_node_assignment(ast::Manager* manager, Node* a, Node* b) {
@@ -182,12 +182,22 @@ Node* Logical_Operation_NotEqual_Node::get_right_operand(ast::Manager* manager) 
   return right_of(manager, this);
 }
 
-Node* Member_Access_Node::get_left_operand(ast::Manager* manager) {
+Node* Member_Access_Node::get_object(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
-Node* Member_Access_Node::get_right_operand(ast::Manager* manager) {
-  return right_of(manager, this);
+Node* Member_Access_Node::get_access(ast::Manager* manager) {
+  ast::Node* right = right_of(manager, this);
+
+  if (!ast::is_semantic_node(right)) {
+    return create_node_literal_nothing(manager);
+  }
+
+  return left_of(manager, right);
+}
+
+Member_Access_Node* Member_Access_Node::get_next_accesses(ast::Manager* manager) {
+  return ast::is_instance< Member_Access_Node* >(right_of(manager, this));
 }
 
 Node* Variable_Assignment_Node::get_left_operand(ast::Manager* manager) {

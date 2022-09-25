@@ -17,10 +17,11 @@ add_library(magic
 	src/compiler/file_manager.cpp
 	src/compiler/symbol_table.cpp
 	src/parser/parser.cpp
+	src/continuations/continuations.cpp
 	src/utils.cpp
 	src/lexer.cpp
 	src/crc64.cpp
-	src/context.cpp
+	#src/context.cpp
 	#src/context.cpp
 )
 

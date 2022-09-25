@@ -13,6 +13,7 @@ template < typename K, typename T > struct TableNode {
   i64        height;
   u64        size;
 };
+
 template < typename K, typename T > void table_delete(TableNode< K, T >* t, void (*destroy_value)(T) = 0) {
   if (t == 0)
     return;
@@ -52,6 +53,7 @@ template < typename K, typename T > void update_size(TableNode< K, T >* x) {
   if (x->left) {
     x->size += x->left->size;
   }
+
   if (x->right) {
     x->size += x->right->size;
   }
@@ -93,16 +95,17 @@ template < typename K, typename T > i64 getBalance(TableNode< K, T >* N) {
   return height(N->left) - height(N->right);
 }
 
-template < typename K, typename T > TableNode< K, T >* insert(TableNode< K, T >* node, K key, T crc) {
+template < typename K, typename T > TableNode< K, T >* insert_node(TableNode< K, T >* node, K key, T crc) {
   if (node == 0) {
     return (create_table_node(key, crc));
   }
 
   if (is_smaller(key, node->key)) {
-    node->left = insert(node->left, key, crc);
+    node->left = insert_node(node->left, key, crc);
   } else if (is_greater(key, node->key)) {
-    node->right = insert(node->right, key, crc);
+    node->right = insert_node(node->right, key, crc);
   } else {
+    update_size(node);
     return node;
   }
 
@@ -221,6 +224,7 @@ template < typename K, typename T > u64 size(TableNode< K, T >* node) {
   if (node == 0) {
     return 0;
   }
+
   return node->size;
 }
 
@@ -294,7 +298,7 @@ template < typename K, typename T > Table< K, T >* copy(Table< K, T >* t) {
 }
 
 template < typename K, typename T > void insert(Table< K, T >* node, K key, T val) {
-  node->root = insert(node->root, key, val);
+  node->root = insert_node(node->root, key, val);
 }
 
 template < typename K, typename T > void remove(Table< K, T >* node, K key) {

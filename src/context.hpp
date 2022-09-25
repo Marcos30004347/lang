@@ -1,6 +1,10 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "ast/ast_declaration.hpp"
+#include "ast/ast_literals.hpp"
+#include "ast/ast_operations.hpp"
+#include "compiler/symbol_table.hpp"
 #include "parser/parser.hpp"
 
 #include <unordered_map>
@@ -10,42 +14,16 @@ typedef struct Context Context;
 
 // typedef std::unordered_set< ast::Node* > Assignments;
 
-struct Declaration {
-  ast::Node* symbol;
-  ast::Node* type;
-  ast::Node* bind;
-
-  Context* context;
-
-  // Assignments  assignments;
-  Declaration* previous_declaration;
-};
-
-struct Context {
-  Declaration* last_declaration;
-
-  Context* parent;
-};
-
 Context* context_create(Context* parent);
-
 Context* context_destroy(Context* ctx);
 
-Declaration* context_declare(Context* ctx, parser::Parser* p, ast::Node* declaration);
+void context_declare(Context* ctx, parser::Parser* p, ast::Declaration_Variable_Node* declaration);
 
-// void context_assign(Context* ctx, parser::Parser* p, ast::Node* assignment);
+void context_declare(Context* ctx, parser::Parser* p, ast::Declaration_Constant_Node* declaration);
 
-Declaration* context_declaration_of(Context* ctx, parser::Parser* p, ast::Node* symbol, b8* is_local = NULL);
+ast::Node* context_type_of(Context* ctx, ast::Literal_Symbol_Node* symbol);
 
-ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol);
-
-// Assignments* context_values_of(Context* ctx, parser::Parser* p, ast::Node* symbol);
-
-void context_merge(parser::Parser* p, Context* a, Context* b);
-
-void context_replace(Context* a, Context* b);
-
-Context* context_copy(Context* a);
+b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol);
 
 void context_print(Context* ctx, parser::Parser* p, int tabs = 0);
 

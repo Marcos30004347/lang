@@ -55,6 +55,16 @@ void should_parse_programs() {
   ast::Node* node3 = parser_parse(parser);
   print_ast(parser, node3); // TODO(marcos): compare node3 to the expected ast representation
   parser_destroy(parser);
+
+  const i8* prog5 = "main :: (x:i32, y:i32) -> i32 {"
+                    "  a : i32 : b.c.d;"
+                    "  return 0;"
+                    "}";
+
+  parser           = parser_create(-1, prog5, strlen(prog5));
+  ast::Node* node4 = parser_parse(parser);
+  print_ast(parser, node4); // TODO(marcos): compare node3 to the expected ast representation
+  parser_destroy(parser);
 }
 
 int main() {

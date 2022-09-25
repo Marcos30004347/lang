@@ -1,5 +1,6 @@
 #include "ast_program_point.hpp"
 #include "ast/ast_kind.hpp"
+#include "ast/ast_literals.hpp"
 #include "ast/ast_manager.hpp"
 #include "compiler/symbol_table.hpp"
 #include "parser/parser.hpp"

@@ -29,7 +29,6 @@ A :: () {
 		}
 
 		t : i32 : 0;
-		j : i32 : 0;
 		
 		if t {
 			return C;
@@ -44,25 +43,45 @@ A :: () {
 	}
 
 	H : unit -> i32 : B();
-	
-	//NOTE(marcos): H is a valid return because it is computed by a local declared function
+
 	return H;
 }
 
-j :: () {
-	x : i32 = 0;
-	
-	f : unit -> unit -> i32 : () {
-		x = x + 1;
+A :: () {
+	w := 0;
+	x := 0;
 
-		g : unit -> i32 : () {
-			return x;
+	B : unit -> unit -> i32: () {
+		y := 0;
+		z := 0;
+
+		C :: () {
+			t :: w + y;
+			return t;
 		}
+	
+		E :: () {
+			t :: x + z;
+			return t;
+		}
+
+		E()
+
+		t : i32 : 0;
 		
-		return g;
+		if t {
+			return C;
+		}
+
+		if j {
+			q : unit -> i32 : F();
+			return q;
+		}
+
+		return E;
 	}
 
-	y : unit -> i32 : f();
-	
-	return y;
+	H : unit -> i32 : B();
+
+	return H;
 }
