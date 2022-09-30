@@ -7,8 +7,10 @@ This is the implementation of a simple imperative programming language that supp
 
 ### Declaractions:
 Declarations can be defined with the following syntax:
-\<Declaration\> = <Name> ':' <Type>?
-<Assignment> = <Declaration> (':'|'=') <Value>
+
+\<Declaration\> = \<Name\> ':' \<Type\>?
+
+\<Assignment\> = \<Declaration\> (':'|'=') \<Value\>
 
 - Variables:
 ```
@@ -26,8 +28,10 @@ index : i32 : 2
 
 #### Function
 Functions can be defined with the syntax:
-<Arguments> = ((<Bind> ',')* <Bind>)*
-<Function> = '('<Arguments>')' ('->' <Type>)? '{' <Statements> '}'
+
+\<Arguments\> = ((\<Bind\> ',')* \<Bind\>)*
+
+\<Function\> = '('\<Arguments\>')' ('->' \<Type\>)? '{' \<Statements\> '}'
 
 and need to be associated with a variable
 ```
@@ -39,8 +43,9 @@ add :: (x:i32, y:i32) -> i32 {
 #### Closures(likelly to be removed)
 Closures can be declared with the syntax:
 
-<ClosureArguments> = ((<ClosureArguments> ';')* <ClosureArguments>)*
-<Closure> = '('<ClosureArguments>')' ('->' <Type>)? '{' <Statements> '}'
+\<ClosureArguments\> = ((\<ClosureArguments\> ';')* \<ClosureArguments\>)*
+
+\<Closure\> = '('\<ClosureArguments\>')' ('->' \<Type\>)? '{' \<Statements\> '}'
 
 ```
 add :: (x:i32; y:i32) -> i32 {
@@ -57,9 +62,9 @@ f :: () {
 ### Calls
 Calls are made like normal function calls in any imperative language
 
-<CallArguments> = ((<Value> ',')* <Value>)*
+\<CallArguments\> = ((\<Value\> ',')* \<Value\>)*
 
-<Call> = <name>'(' <CallArguments> ')'
+\<Call\> = \<Name\>'(' \<CallArguments\> ')'
 
 ### Effect:
 TODO: write syntax rules and examples for effects
@@ -70,7 +75,7 @@ TODO: write syntax rules and examples for handlers
 ### Effect Calls:
 Effects are called like normal functions but with a '!' appended at the end of the function name:
 
-<EffectCall> = <name>''!'(' <CallArguments> ')'
+\<EffectCall\> = \<Name\>''!'(' \<CallArguments\> ')'
 
 ```
 main :: () {
