@@ -7,7 +7,7 @@ This is the implementation of a simple imperative programming language that supp
 
 ### Declaractions:
 Declarations can be defined with the following syntax:
-<Declaration> = <Name> ':' <Type>?
+\<Declaration\> = <Name> ':' <Type>?
 <Assignment> = <Declaration> (':'|'=') <Value>
 
 - Variables:
