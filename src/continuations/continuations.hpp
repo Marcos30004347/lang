@@ -10,15 +10,15 @@
 
 namespace cps {
 
-struct Conversion_Result {
+struct CPS_Data {
   lib::Table< compiler::symbol::Id, ast::Id >* continuation_literals;
   lib::Table< compiler::symbol::Id, ast::Id >* continuation_arguments;
 };
 
-Conversion_Result* cps_result_create();
+CPS_Data* cps_result_create();
 
-void cps_result_destroy(Conversion_Result* info);
+void cps_result_destroy(CPS_Data* info);
 
-void convert_to_cps_style(Conversion_Result* info, compiler::Compiler* compiler, ast::Node* root);
+void convert_to_cps_style(CPS_Data* info, compiler::Compiler* compiler, ast::Node* root);
 
 } // namespace cps

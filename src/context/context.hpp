@@ -1,66 +1,32 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "ast/ast_literals.hpp"
-#include "ast/ast_manager.hpp"
-#include "compiler/compiler.hpp"
-
-#include "lib/set.hpp"
-#include "lib/table.hpp"
+#include "compiler/symbol_table.hpp"
 
 namespace context {
 
-typedef u64 Address;
-
 typedef struct Context Context;
 
-struct Declaration {
-  b8 is_constant;
+Context* context_create(Context* parent);
 
-  ast::Node* type;
+Context* context_destroy(Context* ctx);
 
-  ast::Literal_Symbol_Node* symbol;
+void context_declare(Context* ctx, ast::Manager* p, ast::Declaration_Variable_Node* declaration);
 
-  // map from a key to a set of keys to the heap field
-  lib::Set< Address >* values;
-};
+void context_declare(Context* ctx, ast::Manager* p, ast::Declaration_Constant_Node* declaration);
 
-struct Value {
-  ast::Node* value;   // not null when value is not a struct instatiation
-  Context*   members; // not null when value is a struct instatiation
-};
+void context_define_struct(Context* ctx, ast::Manager* p, ast::Literal_Symbol_Node* id, ast::Literal_Struct_Node* structure);
 
-struct Abstract_Memory {
-  u64 references;
-  u64 counter;
+ast::Literal_Struct_Node* context_get_struct_definition(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* id);
 
-  // map from a key to a value
-  lib::Table< Address, Value >* heap;
-};
+ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* symbol);
 
-struct Context {
-  // parent scope
-  Context* parent;
+ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Node* symbol);
 
-  u64 level;
+b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol);
 
-  // abstract heap that holds all possible values for declarations on this context
-  Abstract_Memory* memory;
+void context_print(Context* ctx, parser::Parser* p, int tabs = 0);
 
-  // map from symbol ids to declarations
-  lib::Table< compiler::symbol::Id, Declaration >* declarations;
-};
-
-Context* context_create(Context* parent, Abstract_Memory* storage);
-void     context_destroy(Context* context);
-
-Context* fork_context(Context* context);
-void     merge_contexts(compiler::Compiler* compiler, Context* a, Context* b);
-
-void         declare(compiler::Compiler* compiler, Context* ctx, ast::Node* declaration);
-Declaration* get_declaration(compiler::Compiler* compiler, Context* ctx, ast::Literal_Symbol_Node* symbol);
-
-void set_value(compiler::Compiler* compiler, Context* ctx, ast::Node* x, ast::Node* y);
-void set_reference(compiler::Compiler* compiler, Context* ctx, ast::Node* x, ast::Node* y);
+Context* context_from_declarations_list(ast::Manager* p, ast::Declarations_List_Node* node, Context* parent);
 
 } // namespace context

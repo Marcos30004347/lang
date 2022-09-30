@@ -25,4 +25,9 @@ target_link_libraries(CPSConversionTests magic)
 target_include_directories(CPSConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME CPSConversionTests COMMAND CPSConversionTests)
 
+add_executable(ContextTests context/context.cpp)
+target_link_libraries(ContextTests magic)
+target_include_directories(ContextTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME ContextTests COMMAND ContextTests)
+
 

@@ -18,7 +18,7 @@ using namespace compiler;
 namespace cps {
 
 void function_call_cps_conversion(
-    Conversion_Result*           info,
+    CPS_Data*                    info,
     compiler::Compiler*          compiler,
     ast::ProgramPoint_List_Node* program_point,
     ast::Function_Call_Node*     call,
@@ -26,13 +26,12 @@ void function_call_cps_conversion(
     ast::Node*                   joint);
 
 void function_literal_cps_conversion(
-    Conversion_Result*          info,
+    CPS_Data*                   info,
     compiler::Compiler*         compiler,
     ast::Function_Literal_Node* function,
     ast::Literal_Symbol_Node*   continuation);
 
-void replace_return_call(
-    Conversion_Result* info, Compiler* compiler, ast::Node* node, ast::Literal_Symbol_Node* func) {
+void replace_return_call(CPS_Data* info, Compiler* compiler, ast::Node* node, ast::Literal_Symbol_Node* func) {
 
   if (node == 0 || ast::is_instance< ast::Literal_Nothing_Node* >(node)) {
     return;
@@ -57,7 +56,7 @@ void replace_return_call(
 }
 
 ast::Variable_Assignment_Node* create_continuation_function(
-    Conversion_Result*           info,
+    CPS_Data*                    info,
     Compiler*                    compiler,
     ast::Node*                   argument,
     ast::Node*                   return_type,
@@ -107,7 +106,7 @@ ast::Variable_Assignment_Node* create_continuation_function(
 }
 
 void function_literal_assignment_to_constant_declaration(
-    Conversion_Result*           info,
+    CPS_Data*                    info,
     Compiler*                    compiler,
     ast::Node*                   literal,
     ast::Node*                   assignment,
@@ -138,7 +137,7 @@ void function_literal_assignment_to_constant_declaration(
 }
 
 void program_point_cps_conversion(
-    Conversion_Result*           info,
+    CPS_Data*                    info,
     Compiler*                    compiler,
     ast::Literal_Symbol_Node*    cont_symbol,
     ast::ProgramPoint_List_Node* statements,
@@ -252,7 +251,7 @@ void program_point_cps_conversion(
 }
 
 void function_call_cps_conversion(
-    Conversion_Result*           info,
+    CPS_Data*                    info,
     Compiler*                    compiler,
     ast::ProgramPoint_List_Node* program_point,
     ast::Function_Call_Node*     call,
@@ -321,7 +320,7 @@ void function_call_cps_conversion(
 }
 
 void function_literal_cps_conversion(
-    Conversion_Result*          info,
+    CPS_Data*                   info,
     Compiler*                   compiler,
     ast::Function_Literal_Node* function,
     ast::Literal_Symbol_Node*   continuation_symbol) {
@@ -350,7 +349,7 @@ void function_literal_cps_conversion(
   program_point_cps_conversion(info, compiler, continuation_symbol, statements, NULL);
 }
 
-void convert_to_cps_style(Conversion_Result* info, Compiler* compiler, ast::Node* root) {
+void convert_to_cps_style(CPS_Data* info, Compiler* compiler, ast::Node* root) {
   if (!ast::is_semantic_node(root)) {
     return;
   }
@@ -385,8 +384,8 @@ void convert_to_cps_style(Conversion_Result* info, Compiler* compiler, ast::Node
 //   }
 // }
 
-Conversion_Result* cps_result_create() {
-  Conversion_Result* info = new Conversion_Result();
+CPS_Data* cps_result_create() {
+  CPS_Data* info = new CPS_Data();
 
   info->continuation_arguments = lib::table_create< compiler::symbol::Id, ast::Id >();
   info->continuation_literals  = lib::table_create< compiler::symbol::Id, ast::Id >();
@@ -394,7 +393,7 @@ Conversion_Result* cps_result_create() {
   return info;
 }
 
-void cps_result_destroy(Conversion_Result* info) {
+void cps_result_destroy(CPS_Data* info) {
   lib::table_delete(info->continuation_arguments);
   lib::table_delete(info->continuation_literals);
 

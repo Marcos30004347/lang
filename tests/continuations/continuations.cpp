@@ -16,7 +16,7 @@ void should_cps_convert_call_programs() {
                    "  return 0;"
                    "}";
 
-  cps::Conversion_Result* info = cps::cps_result_create();
+  cps::CPS_Data* info = cps::cps_result_create();
 
   compiler::Compiler* compiler = compiler_create();
 
@@ -39,7 +39,7 @@ void should_cps_convert_call_assignments_programs() {
                    "  return z;"
                    "}";
 
-  cps::Conversion_Result* info = cps::cps_result_create();
+  cps::CPS_Data* info = cps::cps_result_create();
 
   compiler::Compiler* compiler = compiler_create();
 
@@ -68,7 +68,7 @@ void should_cps_convert_branch_programs() {
                    "  return z;"
                    "}";
 
-  cps::Conversion_Result* info = cps::cps_result_create();
+  cps::CPS_Data* info = cps::cps_result_create();
 
   Compiler* compiler = compiler_create();
 

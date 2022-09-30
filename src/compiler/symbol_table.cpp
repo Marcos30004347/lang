@@ -73,7 +73,7 @@ i8 char_at(Symbol* it, u64 i) {
   return it->bucket->buffer[it->id + i % BUCKET_SIZE];
 }
 
-b8 is_equal(Manager* m, Symbol* a, const i8* b, u64 n) {
+b8 is_equal(Symbol_Table* m, Symbol* a, const i8* b, u64 n) {
   if (a->size != n)
     return false;
 
@@ -91,13 +91,13 @@ b8 is_equal(Manager* m, Symbol* a, const i8* b, u64 n) {
   return true;
 }
 
-b8 is_equal(Manager* m, Symbol* a, const i8* b) {
+b8 is_equal(Symbol_Table* m, Symbol* a, const i8* b) {
   u64 n = strlen(b);
 
   return is_equal(m, a, b, n);
 }
 
-b8 is_equal(Manager* m, Symbol* a, Symbol* b) {
+b8 is_equal(Symbol_Table* table, Symbol* a, Symbol* b) {
   if (a->crc64 != b->crc64 || a->size != b->size)
     return false;
 
@@ -115,7 +115,7 @@ Symbol get_entry(Symbol_Table* table, const i8* c_str, u64 n) {
   Symbol_Table_Node* node = table->table[id % TABLE_SIZE];
 
   while (node) {
-    if (is_equal(table->manager, &node->symbol, c_str, n)) {
+    if (is_equal(table, &node->symbol, c_str, n)) {
       return node->symbol;
     }
 
@@ -134,7 +134,7 @@ b8 exist_entry(Symbol_Table* table, const i8* c_str, u64 n) {
   Symbol_Table_Node* node = table->table[id % TABLE_SIZE];
 
   while (node) {
-    if (is_equal(table->manager, &node->symbol, c_str, n)) {
+    if (is_equal(table, &node->symbol, c_str, n)) {
       return true;
     }
 
