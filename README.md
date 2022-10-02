@@ -3,6 +3,33 @@
 ## Overview
 This is the implementation of a simple imperative programming language that supports Algebraic Effects'ish control flow mechanisms.
 
+## Hot to run
+From the root call:
+```
+$ make
+$ cd build
+$ make
+```
+
+This commands is going to build the code and all the tests, right now the compiler does not have an executable program just yet, if you want to see what the compiler is currently doing select a test under tests/ and run it:
+```
+./build/tests/CPSClosureConversionTests
+```
+This is going to run the test under /tests/continuations/closures.cpp
+
+If you want to see what executable each tests creates take a look at the tests/CMakeLists.txt from the root of the repository.
+
+## Status:
+- TODO: Add parsing for effects calls
+- TODO: Add parsing for handler definitions
+- TODO: Right now we are spliting continuations using function calls, we need to do that only for effect calls
+- TODO: Return Continuation Closures capturing local environment on a buffer
+- TODO: Yield Continuations Closures
+- TODO: Bubble those Closures to a handler throught composition
+- TODO: Add generalized evidence passing to capture handlers
+- TODO: Add logic to suport Yielding to the closest handler
+- TODO: Review Lanaguage Syntax
+
 ## Syntax
 
 ### Declaractions:
