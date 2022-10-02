@@ -40,6 +40,8 @@ add :: (x:i32, y:i32) -> i32 {
 }
 ```
 
+Any function declaration needs to be assigned to a constant.
+
 #### Closures(likelly to be removed)
 Closures can be declared with the syntax:
 
@@ -56,6 +58,22 @@ f :: () {
 	x: i32 = add(3; 4);
 	add_three: i32 -> i32 = add(3);
 	z: i32 = add_three(4);
+}
+```
+
+Closures declared inside function cant be returned, the closure environment can only live as long as the variables that it captures:
+```
+
+f :: () {
+	y : i32 = 3;
+
+	g :: (x:i32) {
+		return x + y;
+	}
+	
+	x : i32 : g(3); // Ok
+
+	return g; // Not ok
 }
 ```
 
