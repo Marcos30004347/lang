@@ -5,9 +5,9 @@ This is the implementation of a simple imperative programming language that supp
 
 ## Dependencies
 
-make
-CMake
-C++ compiler
+- GNU make
+- CMake
+- C++ compiler
 
 ## Setup and Run
 To setup the project, from the root call the following instructions from your terminal:
