@@ -354,8 +354,8 @@ void cps_result_destroy(CPS_Data* info) {
   delete info;
 }
 
-b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Declaration_Constant_Node* decl) {
-  return lib::search(info->continuation_literals, decl->get_symbol(m)->get_symbol_id()) != NULL;
+b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Literal_Symbol_Node* decl) {
+  return lib::search(info->continuation_literals, decl->get_symbol_id()) != NULL;
 }
 
 } // namespace cps

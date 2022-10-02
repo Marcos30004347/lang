@@ -27,10 +27,8 @@ Node* ProgramPoint_List_Node::get_statement(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
-ProgramPoint_List_Node*
-create_node_program_point(ast::Manager* manager, Node* point, ProgramPoint_List_Node* tail) {
-  return as< ProgramPoint_List_Node* >(
-      ast::manager_alloc(manager, AST_PROGRAM_POINT, point ? point->id : 0, tail ? tail->id : 0));
+ProgramPoint_List_Node* create_node_program_point(ast::Manager* manager, Node* point, ProgramPoint_List_Node* tail) {
+  return as< ProgramPoint_List_Node* >(ast::manager_alloc(manager, AST_PROGRAM_POINT, point ? point->id : 0, tail ? tail->id : 0));
 }
 
 Declarations_List_Node* Declarations_List_Node::get_next_declaration(ast::Manager* manager) {
@@ -41,10 +39,8 @@ Node* Declarations_List_Node::get_declaration(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
-Declarations_List_Node*
-create_node_declarations_list(ast::Manager* manager, Node* point, Declarations_List_Node* tail) {
-  return as< Declarations_List_Node* >(
-      ast::manager_alloc(manager, AST_DECL_ARGS_LIST, get_id(point), get_id(tail)));
+Declarations_List_Node* create_node_declarations_list(ast::Manager* manager, Node* point, Declarations_List_Node* tail) {
+  return as< Declarations_List_Node* >(ast::manager_alloc(manager, AST_DECL_ARGS_LIST, get_id(point), get_id(tail)));
 }
 
 ProgramPoint_List_Node* ProgramPoint_List_Node::insert(ast::Manager* manager, Node* node) {
@@ -78,9 +74,10 @@ void Declarations_List_Node::push(ast::Manager* manager, Node* node) {
 }
 
 void Declarations_List_Node::insert(ast::Manager* manager, Node* node) {
-  ProgramPoint_List_Node* pp = create_node_program_point(manager, node, NULL);
+  Declarations_List_Node* pp = create_node_declarations_list(manager, node, NULL);
 
-  pp->right   = this->right;
+  pp->right = this->right;
+
   this->right = pp->id;
 }
 

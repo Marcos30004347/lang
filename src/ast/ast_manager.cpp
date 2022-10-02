@@ -157,9 +157,7 @@ Node* deep_copy(Manager* m, Node* node) {
   Node* l = deep_copy(m, manager_get_relative(m, node, node->left));
   Node* r = deep_copy(m, manager_get_relative(m, node, node->right));
 
-  Node* c = manager_alloc(m, node->kind, l->id, r->id);
-
-  return c;
+  return manager_alloc(m, node->kind, l->id, r->id);
 }
 
 Node* deep_copy_from(Manager* m, Manager* b, Node* node) {

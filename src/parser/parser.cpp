@@ -1172,12 +1172,13 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == ast::AST_OP_POINTER_LOAD) {
-    printf("ld[");
+  if (n->kind == ast::AST_OP_POINTER_VALUE) {
+    printf("*");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf("]");
+    printf("");
     return;
   }
+
   if (n->kind == ast::AST_OP_ADDRESS_OF) {
     printf("$");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);

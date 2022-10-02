@@ -23,22 +23,43 @@ struct Declaration {
   ast::Node* bind;
 };
 
-struct Context {
+struct Scope {
   lib::Table< compiler::symbol::Id, Declaration* >* scope;
 
   lib::Table< compiler::symbol::Id, ast::Literal_Struct_Node* >* structures;
 
+  Scope* parent;
+};
+
+struct Context {
+  Scope*   scope;
   Context* parent;
 };
+
+Scope* scope_create(Scope* parent) {
+  Scope* scope = new Scope();
+
+  scope->scope      = lib::table_create< compiler::symbol::Id, Declaration* >();
+  scope->parent     = parent;
+  scope->structures = lib::table_create< compiler::symbol::Id, ast::Literal_Struct_Node* >();
+
+  return scope;
+}
+
+Scope* scope_destroy(Scope* scope) {
+  Scope* parent = scope->parent;
+  lib::table_delete(scope->scope);
+  lib::table_delete(scope->structures);
+  delete scope;
+  return parent;
+}
 
 Context* context_create(Context* parent) {
   Context* context = new Context();
 
   context->parent = parent;
 
-  context->scope = lib::table_create< compiler::symbol::Id, Declaration* >();
-
-  context->structures = lib::table_create< compiler::symbol::Id, ast::Literal_Struct_Node* >();
+  context->scope = scope_create(NULL);
 
   return context;
 }
@@ -60,22 +81,29 @@ Declaration* declaration_create(ast::Node* declaration, ast::Literal_Symbol_Node
 Context* context_destroy(Context* context) {
   Context* parent = context->parent;
 
-  lib::table_delete(context->scope);
-  lib::table_delete(context->structures);
+  scope_destroy(context->scope);
 
   delete context;
 
   return parent;
 }
 
-void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Constant_Node* declaration) {
+void context_push_scope(Context* ctx) {
+  ctx->scope = scope_create(ctx->scope);
+}
 
+void context_pop_scope(Context* ctx) {
+  ctx->scope = scope_destroy(ctx->scope);
+}
+
+void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Constant_Node* declaration) {
   ast::Literal_Symbol_Node* symbol = declaration->get_symbol(m);
-  ast::Node*                type   = declaration->get_type(m);
+
+  ast::Node* type = declaration->get_type(m);
 
   Declaration* data = declaration_create(declaration, symbol, type);
 
-  lib::insert(ctx->scope, symbol->get_symbol(m).id, data);
+  lib::insert(ctx->scope->scope, symbol->get_symbol(m).id, data);
 }
 
 void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Variable_Node* declaration) {
@@ -88,14 +116,14 @@ void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Variable_No
   // setup_declaration_values(ctx, p, d, type, ast::create_node_literal_undefined(p->ast_manager),
   // program_point);
 
-  lib::insert(ctx->scope, symbol->get_symbol(m).id, data);
+  lib::insert(ctx->scope->scope, symbol->get_symbol(m).id, data);
 }
 
 void context_define_struct(Context* ctx, ast::Manager* p, ast::Literal_Symbol_Node* id, ast::Literal_Struct_Node* structure) {
-  lib::insert(ctx->structures, id->get_symbol_id(), structure);
+  lib::insert(ctx->scope->structures, id->get_symbol_id(), structure);
 }
 
-ast::Literal_Struct_Node* context_get_struct_definition(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* id) {
+ast::Literal_Struct_Node* scope_get_struct_definition(Scope* ctx, ast::Manager* m, ast::Literal_Symbol_Node* id) {
   if (ctx == NULL) {
     return NULL;
   }
@@ -106,9 +134,22 @@ ast::Literal_Struct_Node* context_get_struct_definition(Context* ctx, ast::Manag
     return *ref;
   }
 
+  return scope_get_struct_definition(ctx->parent, m, id);
+}
+
+ast::Literal_Struct_Node* context_get_struct_definition(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* id) {
+  if (ctx == NULL) {
+    return NULL;
+  }
+
+  if (ast::Literal_Struct_Node* structure = scope_get_struct_definition(ctx->scope, m, id)) {
+    return structure;
+  }
+
   return context_get_struct_definition(ctx->parent, m, id);
 }
-ast::Node* context_type_of(Context* ctx, ast::Manager* m, compiler::symbol::Id symbol) {
+
+ast::Node* context_type_of(Scope* ctx, ast::Manager* m, compiler::symbol::Id symbol) {
   if (ctx == NULL) {
     return NULL;
   }
@@ -124,7 +165,19 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, compiler::symbol::Id s
   return context_type_of(ctx->parent, m, symbol);
 }
 
-ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* symbol) {
+ast::Node* context_type_of(Context* ctx, ast::Manager* m, compiler::symbol::Id symbol) {
+  if (ctx == NULL) {
+    return NULL;
+  }
+
+  if (ast::Node* node = context_type_of(ctx->scope, m, symbol)) {
+    return node;
+  }
+
+  return context_type_of(ctx->parent, m, symbol);
+}
+
+ast::Node* scope_type_of(Scope* ctx, ast::Manager* m, ast::Literal_Symbol_Node* symbol) {
   if (ctx == NULL) {
     return NULL;
   }
@@ -135,6 +188,18 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Literal_Symbol_No
     Declaration* local = *decl;
 
     return local->type;
+  }
+
+  return scope_type_of(ctx->parent, m, symbol);
+}
+
+ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* symbol) {
+  if (ctx == NULL) {
+    return NULL;
+  }
+
+  if (ast::Node* node = scope_type_of(ctx->scope, m, symbol)) {
+    return node;
   }
 
   return context_type_of(ctx->parent, m, symbol);
@@ -214,23 +279,55 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Nod
   return type;
 }
 
-b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol) {
-  if (ctx == NULL) {
+// ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Node* access) {
+//   if (ctx == NULL) {
+//     return NULL;
+//   }
+
+//   if (ast::Node* node = scope_type_of(ctx, ctx->scope, m, access)) {
+//     return node;
+//   }
+
+//   return context_type_of(ctx->parent, m, access);
+// }
+b8 scope_find(Scope* scope, ast::Literal_Symbol_Node* symbol) {
+  if (scope == NULL) {
     return false;
   }
 
-  if (lib::search(ctx->scope, symbol->get_symbol_id()) != NULL) {
+  if (lib::search(scope->scope, symbol->get_symbol_id()) != NULL) {
     return true;
   }
 
-  return false;
+  return scope_find(scope->parent, symbol);
 }
+
+b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol) {
+  return scope_find(ctx->scope, symbol);
+}
+
+b8 scope_find(Scope* scope, compiler::symbol::Id symbol) {
+  if (scope == NULL) {
+    return false;
+  }
+
+  if (lib::search(scope->scope, symbol) != NULL) {
+    return true;
+  }
+
+  return scope_find(scope->parent, symbol);
+}
+
+b8 context_is_local(Context* ctx, compiler::symbol::Id symbol) {
+  return scope_find(ctx->scope, symbol);
+}
+
 b8 context_is_defined(Context* ctx, compiler::symbol::Id symbol) {
   if (ctx == NULL) {
     return false;
   }
 
-  if (lib::search(ctx->scope, symbol) != NULL) {
+  if (context_is_local(ctx, symbol)) {
     return true;
   }
 
@@ -242,108 +339,12 @@ b8 context_is_defined(Context* ctx, ast::Literal_Symbol_Node* symbol) {
     return false;
   }
 
-  if (lib::search(ctx->scope, symbol->get_symbol_id()) != NULL) {
+  if (context_is_local(ctx, symbol)) {
     return true;
   }
 
   return context_is_defined(ctx->parent, symbol);
 }
-// Declaration* context_declaration_of(Context* ctx, parser::Parser* p, ast::Node* symbol, b8* is_local) {
-//   return context_declaration_of_rec(ctx, p, symbol, ctx, is_local);
-// }
-
-// ast::Node* context_type_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
-//   Declaration* declaration = context_declaration_of(ctx, p, symbol);
-
-//   ast::Manager* m = p->ast_manager;
-
-//   if (declaration == NULL) {
-//     return ast::create_node_literal_nothing(p->ast_manager);
-//   }
-
-//   return declaration->type;
-// }
-
-// Assignments* context_values_of(Context* ctx, parser::Parser* p, ast::Node* symbol) {
-//   Declaration* declaration = context_declaration_of(ctx, p, symbol);
-
-//   ast::Manager* m = p->ast_manager;
-
-//   if (declaration == NULL)
-//     return NULL;
-
-//   return &declaration->assignments;
-// }
-
-// Assignment* assignment_copy(Assignment* a) {
-//   if (a == NULL) return NULL;
-//   return assignment_create(a->value, a->point, assignment_copy(a->previous));
-// }
-
-// Declaration* declaration_copy(Declaration* d) {
-
-//   if (d == NULL)
-//     return NULL;
-
-//   Declaration* r = declaration_create(d->bind, d->symbol, d->type);
-
-//   r->previous_declaration = declaration_copy(d->previous_declaration);
-
-//   // r->assignments = d->assignments; // assignment_copy(d->assignments);
-
-//   return r;
-// }
-
-// Context* context_copy(Context* a) {
-//   if (a == NULL)
-//     return NULL;
-
-//   Context* c = context_create(context_copy(a->parent));
-
-//   c->last_declaration = declaration_copy(a->last_declaration);
-
-//   return c;
-// }
-
-// void context_replace(Context* a, Context* b) {
-//   if (a == NULL) {
-//     assert(b == NULL);
-//     return;
-//   }
-
-//   context_replace(a->parent, b->parent);
-
-//   Declaration* t = a->last_declaration;
-
-//   a->last_declaration = b->last_declaration;
-//   b->last_declaration = t;
-// }
-
-// void assignment_print(Assignments* a, parser::Parser* p, int tabs) {
-//   if (a == NULL) {
-//     return;
-//   }
-
-//   ast::Manager* m = p->ast_manager;
-
-//   u64 i = 0;
-
-//   for (Assignments::iterator it = a->begin(); it != a->end(); it++) {
-//     i = i + 1;
-
-//     ast::Node* v = *it;
-
-//     if (ast::is_instance< ast::Literal_Struct_Node* >(v)) {
-//       printf("#struct_literal");
-//     } else {
-//       print_ast_ir(p, v, tabs);
-//     }
-
-//     if (i < a->size()) {
-//       printf("\n ");
-//     }
-//   }
-// }
 
 void declaration_print(Declaration* d, ast::Manager* m, int tabs) {
   if (d == NULL) {
@@ -355,7 +356,7 @@ void declaration_print(Declaration* d, ast::Manager* m, int tabs) {
   printf("\n");
 }
 
-void context_print_rec(lib::TableNode< compiler::symbol::Id, Declaration* >* decl, ast::Manager* m, int tabs) {
+void scope_print_rec(lib::TableNode< compiler::symbol::Id, Declaration* >* decl, ast::Manager* m, int tabs) {
   if (decl == NULL) {
     return;
   }
@@ -363,8 +364,35 @@ void context_print_rec(lib::TableNode< compiler::symbol::Id, Declaration* >* dec
     printf(" ");
 
   declaration_print(decl->val, m, tabs);
-  context_print_rec(decl->left, m, tabs);
-  context_print_rec(decl->right, m, tabs);
+  scope_print_rec(decl->left, m, tabs);
+  scope_print_rec(decl->right, m, tabs);
+}
+
+void scope_print(Scope* ctx, ast::Manager* m, int tabs) {
+  if (ctx == NULL) {
+    return;
+  }
+
+  for (u32 i = 0; i < tabs; i++) {
+    printf(" ");
+  }
+
+  printf("scope {\n");
+
+  tabs = tabs + 2;
+
+  scope_print_rec(ctx->scope->root, m, tabs);
+
+  tabs = tabs - 2;
+
+  scope_print(ctx->parent, m, tabs + 2);
+
+  for (u32 i = 0; i < tabs; i++) {
+    printf(" ");
+  }
+
+  printf("}");
+  printf("\n");
 }
 
 void context_print(Context* ctx, ast::Manager* m, int tabs) {
@@ -380,7 +408,7 @@ void context_print(Context* ctx, ast::Manager* m, int tabs) {
 
   tabs = tabs + 2;
 
-  context_print_rec(ctx->scope->root, m, tabs);
+  scope_print(ctx->scope, m, tabs);
 
   tabs = tabs - 2;
 
@@ -414,160 +442,4 @@ Context* context_from_declarations_list(ast::Manager* m, ast::Declarations_List_
   return ctx;
 }
 
-// Context* context_push(Context* r, ast::Node* n) {
-//   assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONSTANT || n->kind == AST_BIND_VARIABLE);
-
-//   Context* c = (Context*)malloc(sizeof(Context));
-
-//   c->prev = r;
-//   c->decl = n->id;
-//   c->next = NULL;
-
-//   if (r) { r->next = c; }
-
-//   return c;
-// }
-
-// Context* context_pop(Context* r) {
-//   Context* p = r->prev;
-
-//   free(r);
-
-//   return p;
-// }
-
-// ast::Node* context_find(Context* env, parser::Parser** p, ast::Node* sym) {
-//   ast::Manager* m = p->ast_manager;
-
-//   if (env == NULL) return ast_node_null(m);
-
-//   ast::Node* node = ast::manager_get(m, env->decl);
-
-//   assert(node->kind == AST_BIND_TYPE || node->kind == AST_BIND_CONSTANT || node->kind ==
-//   AST_BIND_VARIABLE);
-
-//   ast::Node* root = node;
-
-//   if (root->kind == AST_BIND_CONSTANT || root->kind == AST_BIND_VARIABLE) { root =
-//   ast_bind_get_type_bind(m, root); }
-
-//   ast::Node* symb = ast_type_bind_get_symbol(m, root);
-
-//   if (parser_is_same_symbol(p, sym, symb)) { return node; }
-
-//   return context_find(env->prev, p, sym);
-// }
-
-// void scope_init(Scope* scope, Scope* parent) {
-//   scope->ctx    = NULL;
-//   scope->parent = parent;
-// }
-
-// void scope_print_rec(Scope* s, parser::Parser** p) {
-//   if (s == NULL) return;
-
-//   printf("{ ");
-
-//   Context* ctx = s->ctx;
-
-//   while (ctx) {
-//     ast::Node* n = ast::manager_get(p->ast_manager, ctx->decl);
-//     ast::Node* s = ast_node_null(p->ast_manager);
-
-//     if (n->kind == AST_BIND_TYPE) {
-//       s = ast_type_bind_get_symbol(p->ast_manager, n);
-//     } else {
-//       ast::Node* t = ast_bind_get_type_bind(p->ast_manager, n);
-//       s           = ast_type_bind_get_symbol(p->ast_manager, t);
-//     }
-
-//     i8 buff[256];
-
-//     if (ast::is_temporary(p->ast_manager, s)) {
-//       u64 t   = s->kind;
-//       u64 i   = 1;
-//       buff[0] = '%';
-//       while (t) {
-//         buff[i++] = t % 10 + '0';
-//         t         = t / 10;
-//       }
-//       buff[i] = '\0';
-//     } else {
-//       token_get_id(&p->lex, s->tok, buff);
-//     }
-//     printf("%s", buff);
-
-//     ctx = ctx->prev;
-//     if (ctx) printf(", ");
-//   }
-
-//   printf(" }");
-
-//   scope_print_rec(s->parent, p);
-// }
-
-// void scope_print(Scope* s, parser::Parser** p) {
-//   scope_print_rec(s, p);
-//   printf("\n");
-// }
-
-// Scope* scope_create(Scope* parent) {
-//   Scope* s = (Scope*)malloc(sizeof(Scope));
-//   scope_init(s, parent);
-//   return s;
-// }
-
-// ast::Node* scope_find_rec(Scope* s, parser::Parser** p, ast::Node* sym, Scope** owner) {
-//   ast::Manager* m = p->ast_manager;
-
-//   if (s == NULL) return ast_node_null(m);
-
-//   ast::Node* n = context_find(s->ctx, p, sym);
-
-//   if (!ast::is_instance<ast::Literal_Nothing_Node*>(n)) {
-//     if (owner) { *owner = s; }
-//     return n;
-//   }
-
-//   return scope_find_rec(s->parent, p, sym, owner);
-// }
-
-// ast::Node* scope_find(Scope* s, parser::Parser** p, ast::Node* sym, b8* is_local) {
-//   if (is_local) *is_local = false;
-
-//   Scope* scope = NULL;
-
-//   ast::Node* n = scope_find_rec(s, p, sym, &scope);
-
-//   if (scope == s && is_local) { *is_local = true; }
-
-//   return n;
-// }
-
-// ast::Node* scope_find_local(Scope* s, parser::Parser** p, ast::Node* sym) {
-//   ast::Manager* m = p->ast_manager;
-//   if (s == NULL) { return ast_node_null(m); }
-
-//   return context_find(s->ctx, p, sym);
-// }
-
-// void scope_push(Scope* s, ast::Node* n) {
-//   assert(n->kind == AST_BIND_TYPE || n->kind == AST_BIND_CONSTANT || n->kind == AST_BIND_VARIABLE);
-//   s->ctx = context_push(s->ctx, n);
-// }
-
-// void scope_pop(Scope* s) { s->ctx = context_pop(s->ctx); }
-
-// b8 scope_is_global(Scope* s) { return s->parent == NULL; }
-
-// u64 get_scope_depth(Scope* s) {
-//   u64 d = 0;
-
-//   while (s) {
-//     d = d + 1;
-//     s = s->parent;
-//   }
-
-//   return d;
-// }
 } // namespace context

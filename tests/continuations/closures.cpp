@@ -42,6 +42,8 @@ void should_closure_convert_cps_branch_programs() {
 
   closures::convert_cps_closures(compiler->parser->ast_manager, node, data);
 
+  print_ast_ir(compiler->parser->ast_manager, node);
+
   closures::cps_closure_data_destroy(data);
 
   compiler::compiler_destroy(compiler);

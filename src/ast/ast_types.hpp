@@ -20,10 +20,6 @@ struct Type_Arrow_Node : Node {
   Node* get_to_type(ast::Manager* parser);
 };
 
-struct Type_Pointer_Node : Node {
-  Node* get_type(ast::Manager* parser);
-};
-
 struct Type_Variable_Node : Node {
   Literal_Symbol_Node* get_symbol(ast::Manager* parser);
 };
@@ -31,7 +27,6 @@ struct Type_Variable_Node : Node {
 template <> Type_Any_Node*      is_instance<>(Node* node);
 template <> Type_Arrow_Node*    is_instance<>(Node* node);
 template <> Type_Int32_Node*    is_instance<>(Node* node);
-template <> Type_Pointer_Node*  is_instance<>(Node* node);
 template <> Type_Unit_Node*     is_instance<>(Node* node);
 template <> Type_Struct_Node*   is_instance<>(Node* node);
 template <> Type_Variable_Node* is_instance<>(Node* node);
@@ -41,8 +36,6 @@ Type_Any_Node* create_node_type_any(ast::Manager* parser);
 Type_Int32_Node* create_node_type_i32(ast::Manager* parser);
 
 Type_Unit_Node* create_node_type_unit(ast::Manager* parser);
-
-Type_Pointer_Node* create_node_type_pointer(ast::Manager* parser, Node* type);
 
 Type_Arrow_Node* create_node_type_arrow(ast::Manager* parser, Node* a, Node* b);
 
