@@ -8,9 +8,41 @@
 using namespace compiler;
 using namespace symbol;
 using namespace parser;
+void should_closure_convert_cps_simple_programs() {
+  const i8* prog = "g :: (x:i32) -> i32 {"
+                   "  return x;"
+                   "}"
+                   "main : unit -> i32 : () -> i32 {"
+                   "  x : i32 = 0;"
+                   "  y : i32 = g(x);"
+                   "  z : i32 = x + y;"
+                   "  w : i32 = g(z);"
+                   "  return w;"
+                   "}";
+
+  cps::CPS_Data* info = cps::cps_result_create();
+
+  Compiler* compiler = compiler_create();
+
+  ast::Node* node = compiler->parse(prog, strlen(prog));
+
+  cps::convert_to_cps_style(info, compiler, node);
+
+  print_ast_ir(compiler->parser->ast_manager, node);
+
+  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(info);
+
+  closures::convert_cps_closures(compiler->parser->ast_manager, node, data);
+
+  print_ast_ir(compiler->parser->ast_manager, node);
+
+  closures::cps_closure_data_destroy(data);
+
+  compiler::compiler_destroy(compiler);
+}
 
 void should_closure_convert_cps_branch_programs() {
-  const i8* prog = "g :: (x:i32) -> i32 {"
+  const i8* prog = "g : i32 -> i32 : (x:i32) -> i32 {"
                    "  return x;"
                    "}"
                    "main : unit -> i32 : () -> i32 {"
@@ -51,5 +83,6 @@ void should_closure_convert_cps_branch_programs() {
 }
 
 int main() {
+  TEST(should_closure_convert_cps_simple_programs);
   TEST(should_closure_convert_cps_branch_programs);
 }

@@ -1,17 +1,27 @@
-# Languae (TODO: name to be defined)
+# Some Programming Language (TODO: name to be defined)
 
 ## Overview
 This is the implementation of a simple imperative programming language that supports Algebraic Effects'ish control flow mechanisms.
 
-## Hot to run
-From the root call:
+## Dependencies
+
+make
+CMake
+C++ compiler
+
+## Setup and Run
+To setup the project, from the root call the following instructions from your terminal:
 ```
 $ make
+```
+
+Now to compile the project run:
+```
 $ cd build
 $ make
 ```
 
-This commands is going to build the code and all the tests, right now the compiler does not have an executable program just yet, if you want to see what the compiler is currently doing select a test under tests/ and run it:
+This commands is going to build the code and all the tests, right now the compiler does not have an executable program just yet, if you want to see what the compiler is currently doing select a test under tests/ and run it, for example:
 ```
 ./build/tests/CPSClosureConversionTests
 ```
