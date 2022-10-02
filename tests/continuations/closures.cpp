@@ -10,10 +10,10 @@ using namespace symbol;
 using namespace parser;
 
 void should_closure_convert_cps_branch_programs() {
-  const i8* prog = "g :: (x:i32) {"
+  const i8* prog = "g :: (x:i32) -> i32 {"
                    "  return x;"
                    "}"
-                   "main :: () -> i32 {"
+                   "main : unit -> i32 : () -> i32 {"
                    "  x : i32 = 0;"
                    "  if x {"
                    "    x = 4;"
@@ -23,6 +23,7 @@ void should_closure_convert_cps_branch_programs() {
                    "  }"
                    "  w : i32 : 3;"
                    "  y : i32 : g(x);"
+                   "  x = g(x);"
                    "  z : i32 : x + y;"
                    "  e : i32 : z + w;"
                    "  return e;"

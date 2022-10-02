@@ -1120,10 +1120,8 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_TYPE_POINTER) {
-    printf("ptr");
-    printf("[");
+    printf("*");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf("]");
     return;
   }
 
@@ -1162,13 +1160,17 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
-  if (n->kind == ast::AST_TYPE_STRUCT) {
+  if (n->kind == ast::AST_STRUCT_LITERAL) {
     printf("struct {\n");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope + 2);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
 
     printf("}\n");
+    return;
+  }
+  if (n->kind == ast::AST_TYPE_STRUCT) {
+    printf("struct");
     return;
   }
 
@@ -1180,9 +1182,8 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_OP_ADDRESS_OF) {
-    printf("$");
+    printf("&");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf("");
     return;
   }
 

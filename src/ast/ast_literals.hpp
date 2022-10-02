@@ -55,7 +55,7 @@ Literal_Symbol_Node* create_node_literal_symbol(ast::Manager* manager, compiler:
 
 Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint_List_Node* members);
 
-void replace_symbol_global(
-    ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to);
+void replace_ocurrences(ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to);
+void replace_ocurrences(ast::Manager* manager, ast::Node* node, compiler::symbol::Symbol from, compiler::symbol::Symbol to);
 
 } // namespace ast

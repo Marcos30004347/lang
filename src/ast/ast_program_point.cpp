@@ -28,7 +28,7 @@ Node* ProgramPoint_List_Node::get_statement(ast::Manager* manager) {
 }
 
 ProgramPoint_List_Node* create_node_program_point(ast::Manager* manager, Node* point, ProgramPoint_List_Node* tail) {
-  return as< ProgramPoint_List_Node* >(ast::manager_alloc(manager, AST_PROGRAM_POINT, point ? point->id : 0, tail ? tail->id : 0));
+  return as< ProgramPoint_List_Node* >(ast::manager_alloc(manager, AST_PROGRAM_POINT, get_id(point), get_id(tail)));
 }
 
 Declarations_List_Node* Declarations_List_Node::get_next_declaration(ast::Manager* manager) {
@@ -51,6 +51,21 @@ ProgramPoint_List_Node* ProgramPoint_List_Node::insert(ast::Manager* manager, No
   this->right = pp->id;
 
   return pp;
+}
+
+ProgramPoint_List_Node* ProgramPoint_List_Node::emplace(ast::Manager* manager, ProgramPoint_List_Node* node) {
+
+  ProgramPoint_List_Node* right = node;
+
+  while (ast::is_semantic_node(right->get_next_program_point(manager))) {
+    right = right->get_next_program_point(manager);
+  }
+
+  right->right = this->right;
+
+  this->right = node->id;
+
+  return node;
 }
 
 void ProgramPoint_List_Node::push(ast::Manager* manager, Node* node) {

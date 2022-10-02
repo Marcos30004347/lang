@@ -16,10 +16,17 @@ struct Pointer_Value_Node : Node {
   Node* get_variable(ast::Manager* m);
 };
 
+struct Value_Address_Node : Node {
+  Node* symbol;
+  Node* get_variable(ast::Manager* m);
+};
+
 template <> Type_Pointer_Node*  is_instance<>(Node* node);
 template <> Pointer_Value_Node* is_instance<>(Node* node);
+template <> Value_Address_Node* is_instance<>(Node* node);
 
 Type_Pointer_Node*  create_node_type_pointer(Manager* m, Node* type);
 Pointer_Value_Node* create_node_pointer_value(Manager* m, Node* symbol);
+Value_Address_Node* create_node_value_address(Manager* m, Node* symbol);
 
 } // namespace ast

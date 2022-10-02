@@ -85,6 +85,9 @@ template < typename K, typename T > TableNode< K, T >* left_rotate(TableNode< K,
   x->height = max(height(x->left), height(x->right)) + 1;
   y->height = max(height(y->left), height(y->right)) + 1;
 
+  update_size(x);
+  update_size(y);
+
   return y;
 }
 

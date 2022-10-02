@@ -15,6 +15,7 @@ struct ProgramPoint_List_Node : Node {
 
   void set_statement(ast::Manager* m, ast::Node* node);
 
+  ProgramPoint_List_Node* emplace(ast::Manager* manager, ProgramPoint_List_Node* node);
   ProgramPoint_List_Node* insert(ast::Manager* manager, Node* node);
 
   void push(ast::Manager* parsre, Node* node);
@@ -35,9 +36,7 @@ struct Declarations_List_Node : Node {
 template <> ProgramPoint_List_Node* is_instance<>(Node* node);
 template <> Declarations_List_Node* is_instance<>(Node* node);
 
-ProgramPoint_List_Node*
-create_node_program_point(ast::Manager* manager, Node* point, ProgramPoint_List_Node* tail);
-Declarations_List_Node*
-create_node_declarations_list(ast::Manager* manager, Node* point, Declarations_List_Node* tail);
+ProgramPoint_List_Node* create_node_program_point(ast::Manager* manager, Node* point, ProgramPoint_List_Node* tail);
+Declarations_List_Node* create_node_declarations_list(ast::Manager* manager, Node* point, Declarations_List_Node* tail);
 
 } // namespace ast

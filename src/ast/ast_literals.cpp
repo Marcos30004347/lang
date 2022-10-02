@@ -86,8 +86,7 @@ compiler::symbol::Symbol Literal_Natural_Node::get_symbol(ast::Manager* manager)
 }
 
 Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint_List_Node* members) {
-  return as< Literal_Struct_Node* >(
-      ast::manager_alloc(manager, AST_STRUCT_LITERAL, members->id, members ? members->id : 0));
+  return as< Literal_Struct_Node* >(ast::manager_alloc(manager, AST_STRUCT_LITERAL, members->id, members ? members->id : 0));
 }
 
 ProgramPoint_List_Node* Literal_Struct_Node::get_members(ast::Manager* manager) {
@@ -106,18 +105,33 @@ b8 is_semantic_node(Node* n) {
   return n && !is_instance< Literal_Nothing_Node* >(n);
 }
 
-void replace_symbol_global(
-    ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to) {
+void replace_ocurrences(ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to) {
   if (!ast::is_semantic_node(node)) {
     return;
   }
 
-  if (ast::is_instance< Literal_Symbol_Node* >(node)) {
-    node->left = to->id;
+  if (ast::Literal_Symbol_Node* sym = ast::is_instance< Literal_Symbol_Node* >(node)) {
+    if (sym->get_symbol_id() == from->get_symbol_id()) {
+      node->left = to->id;
+    }
   }
 
-  replace_symbol_global(manager, left_of(manager, node), from, to);
-  replace_symbol_global(manager, right_of(manager, node), from, to);
+  replace_ocurrences(manager, left_of(manager, node), from, to);
+  replace_ocurrences(manager, right_of(manager, node), from, to);
+}
+void replace_ocurrences(ast::Manager* manager, ast::Node* node, symbol::Symbol from, symbol::Symbol to) {
+  if (!ast::is_semantic_node(node)) {
+    return;
+  }
+
+  if (ast::Literal_Symbol_Node* sym = ast::is_instance< Literal_Symbol_Node* >(node)) {
+    if (sym->get_symbol_id() == from.id) {
+      node->left = to.id;
+    }
+  }
+
+  replace_ocurrences(manager, left_of(manager, node), from, to);
+  replace_ocurrences(manager, right_of(manager, node), from, to);
 }
 
 } // namespace ast

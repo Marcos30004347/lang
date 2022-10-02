@@ -5,6 +5,7 @@
 #include "lib/table.hpp"
 #include "stdlib.h"
 #include <assert.h>
+#include <cstdio>
 #include <cstring>
 #include <stdio.h>
 #include <strings.h>
@@ -258,6 +259,22 @@ Symbol number_to_symbol(Symbol_Table* table, u64 x, const i8* prefix) {
   snprintf(str, length + 1, "%s%lu", prefix, x);
 
   return set_entry(table, str, length);
+}
+
+Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, const i8* prefix) {
+  u64 length = strlen(prefix);
+
+  i8* str = (i8*)malloc(length + x.size + 1);
+
+  for (u64 i = 0; i < length; i++) {
+    str[i] = prefix[i];
+  }
+
+  for (u64 i = 0; i < x.size; i++) {
+    str[length + i] = char_at(&x, i);
+  }
+
+  return set_entry(table, str, length + x.size);
 }
 
 void print_symbol(Symbol_Table* table, Symbol id) {

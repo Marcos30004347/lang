@@ -86,6 +86,5 @@ void change_kind(Node* node, AST_Kind kind);
 void replace(Node* A, Node* B);
 
 u32 get_id(Node* node);
-// b8 is_temporary(ast::Node* node);
 
 } // namespace ast
