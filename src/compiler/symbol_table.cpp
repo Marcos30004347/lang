@@ -259,6 +259,13 @@ Symbol number_to_symbol(Symbol_Table* table, u64 x, const i8* prefix) {
 
   return set_entry(table, str, length);
 }
+
+void print_symbol(Symbol_Table* table, Symbol id) {
+  for (u64 i = 0; i < id.size; i++) {
+    printf("%c", char_at(&id, i));
+  }
+}
+
 } // namespace symbol
 
 } // namespace compiler

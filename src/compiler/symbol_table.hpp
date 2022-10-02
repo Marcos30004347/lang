@@ -78,5 +78,6 @@ Symbol get_symbol(Symbol_Table* table, Id id);
 
 Symbol number_to_symbol(Symbol_Table* table, u64 num, const i8* prefix);
 
+void print_symbol(Symbol_Table* table, Symbol id);
 } // namespace symbol
 } // namespace compiler

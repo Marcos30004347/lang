@@ -84,8 +84,7 @@ ast::Node* parser_parse_symbol(Parser* p) {
 
   parser_read_token(p, TOKEN_ID);
 
-  ast::Literal_Symbol_Node* root = ast::create_node_literal_symbol(
-      p->ast_manager, symbol::from_token(p->ast_manager->symbol_table, p->lexer, token));
+  ast::Literal_Symbol_Node* root = ast::create_node_literal_symbol(p->ast_manager, symbol::from_token(p->ast_manager->symbol_table, p->lexer, token));
 
   if (parser_curr_tok(p).type == TOKEN_APHOSTROPHE) {
     parser_read_token(p, TOKEN_APHOSTROPHE);
@@ -100,8 +99,7 @@ ast::Node* parse_call_args(Parser* p) {
 
   ast::Node* root = parser_parse_expr(p);
 
-  if (root && !ast::is_instance< ast::Literal_Nothing_Node* >(root)
-      && !ast::is_instance< ast::Declarations_List_Node* >(root)) {
+  if (root && !ast::is_instance< ast::Literal_Nothing_Node* >(root) && !ast::is_instance< ast::Declarations_List_Node* >(root)) {
     root = ast::create_node_declarations_list(p->ast_manager, root, NULL);
   }
 
@@ -165,8 +163,7 @@ ast::Node* parser_parse_lit(Parser* p) {
   // }
   if (tok.type == TOKEN_I32_LIT) {
     parser_read_token(p, TOKEN_I32_LIT);
-    return ast::create_node_literal_natural(
-        p->ast_manager, symbol::from_token(p->ast_manager->symbol_table, p->lexer, tok));
+    return ast::create_node_literal_natural(p->ast_manager, symbol::from_token(p->ast_manager->symbol_table, p->lexer, tok));
   }
 
   if (tok.type == TOKEN_UNIT) {
@@ -204,9 +201,7 @@ ast::Node* parser_parse_primary(Parser* p) {
 
     parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
 
-    if (ast::is_instance< ast::Literal_Nothing_Node* >(root)
-        || ast::is_instance< ast::Declarations_List_Node* >(root)
-        || ast::is_instance< ast::Declaration_Constant_Node* >(root)
+    if (ast::is_instance< ast::Literal_Nothing_Node* >(root) || ast::is_instance< ast::Declarations_List_Node* >(root) || ast::is_instance< ast::Declaration_Constant_Node* >(root)
         || ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
 
       ast::Declarations_List_Node* arguments = NULL;
@@ -231,8 +226,7 @@ ast::Node* parser_parse_primary(Parser* p) {
         parser_error(p, p->lexer->curr, "Expecting function body");
       }
 
-      return ast::create_node_function_literal(
-          p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
+      return ast::create_node_function_literal(p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
     }
 
     return root;
@@ -273,8 +267,7 @@ ast::Node* parser_parse_call_args(Parser* p) {
     //   parser_error(p, p->lexer->curr, "Expecting arguments");
     // }
 
-    return ast::create_node_function_call(
-        p->ast_manager, expr, ast::as< ast::Declarations_List_Node* >(arguments));
+    return ast::create_node_function_call(p->ast_manager, expr, ast::as< ast::Declarations_List_Node* >(arguments));
   }
 
   return expr;
@@ -297,8 +290,7 @@ ast::Node* parser_parse_call_tail(Parser* p, ast::Node* head) {
   //   parser_error(p, p->lexer->curr, "Expecting arguments");
   // }
 
-  ast::Node* call =
-      ast::create_node_function_call(p->ast_manager, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  ast::Node* call = ast::create_node_function_call(p->ast_manager, head, ast::as< ast::Declarations_List_Node* >(arguments));
 
   if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     return parser_parse_call_tail(p, call);
@@ -327,8 +319,7 @@ ast::Node* parser_parse_call(Parser* p) {
     //   parser_error(p, p->lexer->curr, "Expecting arguments");
     // }
 
-    ast::Node* call =
-        ast::create_node_function_call(p->ast_manager, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    ast::Node* call = ast::create_node_function_call(p->ast_manager, root, ast::as< ast::Declarations_List_Node* >(arguments));
 
     if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
       return parser_parse_call_tail(p, call);
@@ -636,8 +627,7 @@ ast::Node* parser_parse_if_statement(Parser* p) {
       elif = ast::create_node_elif_list(p->ast_manager, ast::as< ast::If_Node_Statement* >(elif), NULL);
     }
 
-    return ast::create_node_elif_list(
-        p->ast_manager, ast::as< ast::If_Node_Statement* >(statement), ast::as< ast::Elif_List_Node* >(elif));
+    return ast::create_node_elif_list(p->ast_manager, ast::as< ast::If_Node_Statement* >(statement), ast::as< ast::Elif_List_Node* >(elif));
   }
 
   return ast::create_node_elif_list(p->ast_manager, statement, NULL);
@@ -728,9 +718,7 @@ ast::Node* parser_parse_assignment(Parser* p) {
 
     parser_read_token(p, TOKEN_COLON);
 
-    ast::Node* type = (parser_curr_tok(p).type != TOKEN_COLON && parser_curr_tok(p).type != TOKEN_EQUAL)
-                        ? parser_parse_arrow(p)
-                        : ast::create_node_literal_nothing(p->ast_manager);
+    ast::Node* type = (parser_curr_tok(p).type != TOKEN_COLON && parser_curr_tok(p).type != TOKEN_EQUAL) ? parser_parse_arrow(p) : ast::create_node_literal_nothing(p->ast_manager);
 
     if (parser_curr_tok(p).type == TOKEN_COLON) {
       if (!ast::is_instance< ast::Literal_Symbol_Node* >(root)) {
@@ -933,7 +921,7 @@ b8 parser_is_same_symbol(Parser* p, ast::Node* a, ast::Node* b) {
   return true;
 }
 
-void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
+void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
 
   // if (ast::is_temporary(n)) {
   //   i8* st = ast::kind_to_cstr(n->kind, ast::__AST_KIND_END);
@@ -943,7 +931,7 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   // }
 
   if (n->kind == ast::AST_NATURAL_LITERAL) {
-    symbol::Symbol s = symbol::get_symbol(p->ast_manager->symbol_table, n->left);
+    symbol::Symbol s = symbol::get_symbol(ast_manager->symbol_table, n->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
@@ -952,7 +940,7 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_SYMBOL_LITERAL) {
-    symbol::Symbol s = symbol::get_symbol(p->ast_manager->symbol_table, n->left);
+    symbol::Symbol s = symbol::get_symbol(ast_manager->symbol_table, n->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
@@ -961,10 +949,10 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_DECL_ARGS_LIST) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     if (n->right)
       printf(", ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
   if (n->kind == ast::AST_TYPE_UNIT) {
@@ -977,9 +965,9 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
     return;
   }
   if (n->kind == ast::AST_TYPE_ARROW) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" -> ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
@@ -990,18 +978,18 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
 
   if (n->kind == ast::AST_FUN_SIGNATURE) {
     printf("(");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(")");
     if (n->right)
       printf(" -> ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_FUNCTION_LITERAL) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" {\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope + 2);
 
     for (i32 i = 0; i < scope; i++)
       printf(" ");
@@ -1013,49 +1001,49 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
     for (i32 i = 0; i < scope; i++)
       printf(" ");
 
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
 
     return;
   }
 
   if (n->kind == ast::AST_DECLARATION_CONSTANT) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" : ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
 
     return;
   }
 
   if (n->kind == ast::AST_DECLARATION_VARIABLE) {
     printf("mut ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" : ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
 
     return;
   }
 
   if (n->kind == ast::AST_OP_BIN_ASSIGN) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" = ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
 
     return;
   }
 
   if (n->kind == ast::AST_FUNCTION_CALL) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("(");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     printf(")");
     return;
   }
 
   if (n->kind == ast::AST_CTRL_FLOW_RETURN) {
     printf("return ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("");
     return;
   }
@@ -1063,9 +1051,9 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   if (n->kind == ast::AST_CTRL_FLOW_IF) {
 
     printf("if ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" {\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope + 2);
 
     for (i32 i = 0; i < scope; i++)
       printf(" ");
@@ -1074,9 +1062,9 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_CTRL_FLOW_IF_ELSE) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
 
-    if (ast::is_semantic_node(ast::right_of(p->ast_manager, n))) {
+    if (ast::is_semantic_node(ast::right_of(ast_manager, n))) {
       for (i32 i = 0; i < scope; i++)
         printf(" ");
 
@@ -1085,7 +1073,7 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
       for (i32 i = 0; i < scope + 2; i++)
         printf(" ");
 
-      print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
+      print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope + 2);
 
       for (i32 i = 0; i < scope; i++)
         printf(" ");
@@ -1095,30 +1083,30 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_OP_BIN_ASSIGN) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" = ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_OP_BIN_ADD) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" + ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_OP_BIN_SUB) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" - ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_OP_BIN_MUL) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" * ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
@@ -1134,23 +1122,23 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
   if (n->kind == ast::AST_TYPE_POINTER) {
     printf("ptr");
     printf("[");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("]");
     return;
   }
 
   if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(".");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_CTRL_FLOW_CASE) {
     printf("case ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" {\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope + 2);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
     printf("}");
@@ -1159,24 +1147,24 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
 
   if (n->kind == ast::AST_CTRL_FLOW_MATCH) {
     printf("match ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" {\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope + 2);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope + 2);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
     printf("}");
     return;
   }
   if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(".");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_TYPE_STRUCT) {
     printf("struct {\n");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope + 2);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope + 2);
     for (i32 i = 0; i < scope; i++)
       printf(" ");
 
@@ -1186,13 +1174,13 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
 
   if (n->kind == ast::AST_OP_POINTER_LOAD) {
     printf("ld[");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("]");
     return;
   }
   if (n->kind == ast::AST_OP_ADDRESS_OF) {
     printf("$");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("");
     return;
   }
@@ -1209,9 +1197,9 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
 
   // if (n->kind == _AST_BUILD_STACK_CLOSURE_OBJECT) {
   //   printf("_build_stack_closure(");
-  //   print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
   //   printf(", ");
-  //   print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
   //   printf(")");
 
   //   return;
@@ -1219,44 +1207,44 @@ void print_ast_ir(Parser* p, ast::Node* n, u32 scope) {
 
   // if (n->kind == _AST_BUILD_HEAP_CLOSURE_OBJECT) {
   //   printf("_build_heap_closure(");
-  //   print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
   //   printf(", ");
-  //   print_ast_to_program(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
   //   printf(")");
 
   //   return;
   // }
 
   if (n->kind == ast::AST_OP_BIN_NE) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" != ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
   if (n->kind == ast::AST_OP_BIN_GT) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" > ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
   if (n->kind == ast::AST_OP_BIN_GE) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" >= ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (n->kind == ast::AST_OP_BIN_EQ) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" == ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 
   if (ast::is_binary_operation(n)) {
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->left), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" op ");
-    print_ast_ir(p, ast::manager_get_relative(p->ast_manager, n, n->right), scope);
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
 }

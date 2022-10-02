@@ -18,6 +18,7 @@ add_library(magic
 	src/compiler/symbol_table.cpp
 	src/parser/parser.cpp
 	src/continuations/continuations.cpp
+	src/continuations/closures.cpp
 	src/utils.cpp
 	src/lexer.cpp
 	src/crc64.cpp

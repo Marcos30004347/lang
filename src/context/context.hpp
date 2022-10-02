@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "ast/ast_manager.hpp"
 #include "compiler/symbol_table.hpp"
 
 namespace context {
@@ -20,12 +21,14 @@ void context_define_struct(Context* ctx, ast::Manager* p, ast::Literal_Symbol_No
 ast::Literal_Struct_Node* context_get_struct_definition(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* id);
 
 ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Literal_Symbol_Node* symbol);
+ast::Node* context_type_of(Context* ctx, ast::Manager* m, compiler::symbol::Id symbol);
 
 ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Node* symbol);
+b8         context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol);
+b8         context_is_defined(Context* ctx, ast::Literal_Symbol_Node* symbol);
+b8         context_is_defined(Context* ctx, compiler::symbol::Id symbol);
 
-b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol);
-
-void context_print(Context* ctx, parser::Parser* p, int tabs = 0);
+void context_print(Context* ctx, ast::Manager* m, int tabs = 0);
 
 Context* context_from_declarations_list(ast::Manager* p, ast::Declarations_List_Node* node, Context* parent);
 

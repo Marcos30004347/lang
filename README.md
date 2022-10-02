@@ -82,3 +82,11 @@ main :: () {
 	print!("Hello world");
 }
 ```
+
+
+## Algebraic Effect'ish:
+Some of the semantics of algebraic effects are not planned to be suported, sinse we aim to provide pointers support at some point, for performance reasons, a multi shot continuation may return different values if called multiple times with the same input.
+
+## Compilation pipeline:
+
+Parsing -> Type Checking(TODO) -> Simplification(TODO) -> Continuation Capturing -> Continuation Closure Conversion -> Generalized Evidence Passing -> Bubbling Yields -> Transpilation to C

@@ -24,7 +24,7 @@ void should_cps_convert_call_programs() {
 
   cps::convert_to_cps_style(info, compiler, node);
 
-  print_ast_ir(compiler->parser, node);
+  print_ast_ir(compiler->parser->ast_manager, node);
 
   compiler::compiler_destroy(compiler);
 
@@ -47,7 +47,7 @@ void should_cps_convert_call_assignments_programs() {
 
   cps::convert_to_cps_style(info, compiler, node);
 
-  print_ast_ir(compiler->parser, node);
+  print_ast_ir(compiler->parser->ast_manager, node);
 
   compiler::compiler_destroy(compiler);
 
@@ -76,7 +76,7 @@ void should_cps_convert_branch_programs() {
 
   cps::convert_to_cps_style(info, compiler, node);
 
-  print_ast_ir(compiler->parser, node);
+  print_ast_ir(compiler->parser->ast_manager, node);
 
   cps::cps_result_destroy(info);
 

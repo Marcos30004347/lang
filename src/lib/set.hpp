@@ -95,15 +95,15 @@ template < typename T > i64 getBalance(SetNode< T >* N) {
   return height(N->left) - height(N->right);
 }
 
-template < typename T > SetNode< T >* insert(SetNode< T >* node, T key) {
+template < typename T > SetNode< T >* insert_node(SetNode< T >* node, T key) {
   if (node == 0) {
     return (create_set_node(key));
   }
 
   if (is_smaller(key, node->key)) {
-    node->left = insert(node->left, key);
+    node->left = insert_node(node->left, key);
   } else if (is_greater(key, node->key)) {
-    node->right = insert(node->right, key);
+    node->right = insert_node(node->right, key);
   } else {
     return node;
   }
@@ -280,7 +280,7 @@ template < typename T > Set< T >* copy(Set< T >* t) {
 }
 
 template < typename T > void insert(Set< T >* node, T val) {
-  node->root = insert(node->root, val);
+  node->root = insert_node(node->root, val);
 }
 
 template < typename T > void remove(Set< T >* node, T key) {

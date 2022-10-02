@@ -17,19 +17,15 @@
 using namespace compiler;
 namespace cps {
 
-void function_call_cps_conversion(
-    CPS_Data*                    info,
-    compiler::Compiler*          compiler,
-    ast::ProgramPoint_List_Node* program_point,
-    ast::Function_Call_Node*     call,
-    ast::Node*                   bind,
-    ast::Node*                   joint);
+struct CPS_Data {
+  lib::Table< compiler::symbol::Id, ast::Declaration_Constant_Node* >* continuation_literals;
+  // lib::Table< compiler::symbol::Id, ast::Id >* continuation_arguments;
+};
 
-void function_literal_cps_conversion(
-    CPS_Data*                   info,
-    compiler::Compiler*         compiler,
-    ast::Function_Literal_Node* function,
-    ast::Literal_Symbol_Node*   continuation);
+void function_call_cps_conversion(
+    CPS_Data* info, compiler::Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Function_Call_Node* call, ast::Node* bind, ast::Node* joint);
+
+void function_literal_cps_conversion(CPS_Data* info, compiler::Compiler* compiler, ast::Function_Literal_Node* function, ast::Literal_Symbol_Node* continuation);
 
 void replace_return_call(CPS_Data* info, Compiler* compiler, ast::Node* node, ast::Literal_Symbol_Node* func) {
 
@@ -55,13 +51,8 @@ void replace_return_call(CPS_Data* info, Compiler* compiler, ast::Node* node, as
   replace_return_call(info, compiler, ast::right_of(manager, node), func);
 }
 
-ast::Variable_Assignment_Node* create_continuation_function(
-    CPS_Data*                    info,
-    Compiler*                    compiler,
-    ast::Node*                   argument,
-    ast::Node*                   return_type,
-    ast::ProgramPoint_List_Node* body,
-    ast::Node*                   joint) {
+ast::Variable_Assignment_Node*
+create_continuation_function(CPS_Data* info, Compiler* compiler, ast::Node* argument, ast::Node* return_type, ast::ProgramPoint_List_Node* body, ast::Node* joint) {
 
   ast::Manager* m = compiler->parser->ast_manager;
 
@@ -88,8 +79,7 @@ ast::Variable_Assignment_Node* create_continuation_function(
 
   ast::Node* function = ast::create_node_function_literal(m, arguments, ty, body);
 
-  symbol::Symbol sym = symbol::number_to_symbol(
-      m->symbol_table, lib::size(info->continuation_arguments) + lib::size(info->continuation_literals), "c");
+  symbol::Symbol sym = symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c");
 
   ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, sym);
 
@@ -100,25 +90,17 @@ ast::Variable_Assignment_Node* create_continuation_function(
 
   ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, declaration, function);
 
-  lib::insert(info->continuation_literals, symbol->get_symbol_id(), declaration->id);
+  lib::insert(info->continuation_literals, symbol->get_symbol_id(), declaration);
 
   return assignment;
 }
 
-void function_literal_assignment_to_constant_declaration(
-    CPS_Data*                    info,
-    Compiler*                    compiler,
-    ast::Node*                   literal,
-    ast::Node*                   assignment,
-    ast::ProgramPoint_List_Node* point) {
+void function_literal_assignment_to_constant_declaration(CPS_Data* info, Compiler* compiler, ast::Node* literal, ast::Node* assignment, ast::ProgramPoint_List_Node* point) {
 
   ast::Manager* m = compiler->parser->ast_manager;
 
   // Promote function declaration to constant
-  ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(
-      m,
-      symbol::number_to_symbol(
-          m->symbol_table, lib::size(info->continuation_arguments) + lib::size(info->continuation_literals), "c"));
+  ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c"));
 
   ast::Node* type = ast::create_node_type_any(m); // TODO(marcos): infer function type
 
@@ -137,11 +119,7 @@ void function_literal_assignment_to_constant_declaration(
 }
 
 void program_point_cps_conversion(
-    CPS_Data*                    info,
-    Compiler*                    compiler,
-    ast::Literal_Symbol_Node*    cont_symbol,
-    ast::ProgramPoint_List_Node* statements,
-    ast::Literal_Symbol_Node*    joint_continuation) {
+    CPS_Data* info, Compiler* compiler, ast::Literal_Symbol_Node* cont_symbol, ast::ProgramPoint_List_Node* statements, ast::Literal_Symbol_Node* joint_continuation) {
 
   ast::Manager* m = compiler->parser->ast_manager;
 
@@ -190,21 +168,14 @@ void program_point_cps_conversion(
     if (ast::Elif_List_Node* elif = ast::is_instance< ast::Elif_List_Node* >(statement)) {
       ast::Literal_Symbol_Node* old_joint = joint_continuation;
 
-      ast::Variable_Assignment_Node* joint_continuation = create_continuation_function(
-          info,
-          compiler,
-          ast::create_node_literal_nothing(m),
-          ast::create_node_type_any(m),
-          statements->split(m),
-          joint_continuation);
+      ast::Variable_Assignment_Node* joint_continuation =
+          create_continuation_function(info, compiler, ast::create_node_literal_nothing(m), ast::create_node_type_any(m), statements->split(m), joint_continuation);
 
-      ast::Declaration_Constant_Node* joint_declaration =
-          ast::as< ast::Declaration_Constant_Node* >(joint_continuation->get_left_operand(m));
+      ast::Declaration_Constant_Node* joint_declaration = ast::as< ast::Declaration_Constant_Node* >(joint_continuation->get_left_operand(m));
 
       ast::Literal_Symbol_Node* joint_symbol = joint_declaration->get_symbol(m);
 
-      ast::Function_Literal_Node* joint_literal =
-          ast::is_instance< ast::Function_Literal_Node* >(joint_continuation->get_right_operand(m));
+      ast::Function_Literal_Node* joint_literal = ast::is_instance< ast::Function_Literal_Node* >(joint_continuation->get_right_operand(m));
 
       ast::ProgramPoint_List_Node* joint_body = joint_literal->get_body(m);
 
@@ -226,8 +197,7 @@ void program_point_cps_conversion(
 
       statements = statements->insert(m, branch);
 
-      ast::Function_Call_Node* call =
-          ast::create_node_function_call(m, joint_symbol, ast::create_node_literal_nothing(m));
+      ast::Function_Call_Node* call = ast::create_node_function_call(m, joint_symbol, ast::create_node_literal_nothing(m));
 
       statements = statements->insert(m, ast::create_node_return_statement(m, call));
     }
@@ -244,19 +214,14 @@ void program_point_cps_conversion(
     }
 
     ast::Node*               symbol = ast::deep_copy(m, joint_continuation);
-    ast::Function_Call_Node* call = ast::create_node_function_call(m, symbol, ast::create_node_literal_nothing(m));
+    ast::Function_Call_Node* call   = ast::create_node_function_call(m, symbol, ast::create_node_literal_nothing(m));
 
     previous->insert(m, ast::create_node_return_statement(m, call));
   }
 }
 
 void function_call_cps_conversion(
-    CPS_Data*                    info,
-    Compiler*                    compiler,
-    ast::ProgramPoint_List_Node* program_point,
-    ast::Function_Call_Node*     call,
-    ast::Node*                   bind,
-    ast::Node*                   joint) {
+    CPS_Data* info, Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Function_Call_Node* call, ast::Node* bind, ast::Node* joint) {
 
   ast::Manager* m = compiler->parser->ast_manager;
 
@@ -273,8 +238,7 @@ void function_call_cps_conversion(
       assignment = create_continuation_function(info, compiler, NULL, type, continuation, joint);
     }
 
-    ast::Declaration_Constant_Node* declaration =
-        ast::is_instance< ast::Declaration_Constant_Node* >(assignment->get_left_operand(m));
+    ast::Declaration_Constant_Node* declaration = ast::is_instance< ast::Declaration_Constant_Node* >(assignment->get_left_operand(m));
 
     program_point->set_statement(m, assignment);
 
@@ -283,21 +247,18 @@ void function_call_cps_conversion(
 
       program_point = program_point->insert(m, assignment);
 
-      ast::Literal_Symbol_Node* cont_symb =
-          ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, declaration->get_symbol(m)));
+      ast::Literal_Symbol_Node* cont_symb = ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, declaration->get_symbol(m)));
 
       ast::Node* arguments = ast::create_node_literal_nothing(m);
 
       if (ast::Declaration_Variable_Node* decl = ast::is_instance< ast::Declaration_Variable_Node* >(bind)) {
-        ast::Literal_Symbol_Node* assi_symb =
-            ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, decl->get_symbol(m)));
+        ast::Literal_Symbol_Node* assi_symb = ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, decl->get_symbol(m)));
 
         arguments = ast::create_node_declarations_list(m, assi_symb, NULL);
       }
 
       if (ast::Declaration_Constant_Node* decl = ast::is_instance< ast::Declaration_Constant_Node* >(bind)) {
-        ast::Literal_Symbol_Node* assi_symb =
-            ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, decl->get_symbol(m)));
+        ast::Literal_Symbol_Node* assi_symb = ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, decl->get_symbol(m)));
 
         arguments = ast::create_node_declarations_list(m, assi_symb, NULL);
       }
@@ -308,29 +269,22 @@ void function_call_cps_conversion(
     } else {
       program_point = program_point->insert(m, call);
 
-      ast::Literal_Symbol_Node* cont_symb =
-          ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, declaration->get_symbol(m)));
+      ast::Literal_Symbol_Node* cont_symb = ast::as< ast::Literal_Symbol_Node* >(ast::deep_copy(m, declaration->get_symbol(m)));
 
-      ast::Function_Call_Node* cont_call =
-          ast::create_node_function_call(m, cont_symb, ast::create_node_literal_nothing(m));
+      ast::Function_Call_Node* cont_call = ast::create_node_function_call(m, cont_symb, ast::create_node_literal_nothing(m));
 
       program_point = program_point->insert(m, ast::create_node_return_statement(m, cont_call));
     }
   }
 }
 
-void function_literal_cps_conversion(
-    CPS_Data*                   info,
-    Compiler*                   compiler,
-    ast::Function_Literal_Node* function,
-    ast::Literal_Symbol_Node*   continuation_symbol) {
+void function_literal_cps_conversion(CPS_Data* info, Compiler* compiler, ast::Function_Literal_Node* function, ast::Literal_Symbol_Node* continuation_symbol) {
 
   ast::Manager*                m          = compiler->parser->ast_manager;
   ast::ProgramPoint_List_Node* statements = function->get_body(m);
-  ast::Type_Arrow_Node*        type =
-      ast::create_node_type_arrow(m, ast::create_node_type_any(m), ast::create_node_type_any(m));
+  ast::Type_Arrow_Node*        type       = ast::create_node_type_arrow(m, ast::create_node_type_any(m), ast::create_node_type_any(m));
 
-  u64 index = lib::size(info->continuation_arguments) + lib::size(info->continuation_literals);
+  u64 index = lib::size(info->continuation_literals);
 
   symbol::Symbol cont_id = symbol::number_to_symbol(m->symbol_table, index, "c");
 
@@ -387,17 +341,21 @@ void convert_to_cps_style(CPS_Data* info, Compiler* compiler, ast::Node* root) {
 CPS_Data* cps_result_create() {
   CPS_Data* info = new CPS_Data();
 
-  info->continuation_arguments = lib::table_create< compiler::symbol::Id, ast::Id >();
-  info->continuation_literals  = lib::table_create< compiler::symbol::Id, ast::Id >();
+  // info->continuation_arguments = lib::table_create< compiler::symbol::Id, ast::Id >();
+  info->continuation_literals = lib::table_create< compiler::symbol::Id, ast::Declaration_Constant_Node* >();
 
   return info;
 }
 
 void cps_result_destroy(CPS_Data* info) {
-  lib::table_delete(info->continuation_arguments);
+  // lib::table_delete(info->continuation_arguments);
   lib::table_delete(info->continuation_literals);
 
   delete info;
+}
+
+b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Declaration_Constant_Node* decl) {
+  return lib::search(info->continuation_literals, decl->get_symbol(m)->get_symbol_id()) != NULL;
 }
 
 } // namespace cps
