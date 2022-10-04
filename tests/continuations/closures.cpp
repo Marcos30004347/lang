@@ -42,7 +42,10 @@ void should_closure_convert_cps_simple_programs() {
 }
 
 void should_closure_convert_cps_branch_programs() {
-  const i8* prog = "g : i32 -> i32 : (x:i32) -> i32 {"
+  const i8* prog = "some :: (x: i32) -> i32 {"
+                   "  return x;"
+                   "}"
+                   "g : i32 -> i32 : (x:i32) -> i32 {"
                    "  return x;"
                    "}"
                    "main : unit -> i32 : () -> i32 {"
@@ -58,7 +61,8 @@ void should_closure_convert_cps_branch_programs() {
                    "  x = g(x);"
                    "  z : i32 : x + y;"
                    "  e : i32 : z + w;"
-                   "  return e;"
+                   "  q : i32 : some!(e);"
+                   "  return q;"
                    "}";
 
   cps::CPS_Data* info = cps::cps_result_create();
@@ -66,6 +70,8 @@ void should_closure_convert_cps_branch_programs() {
   Compiler* compiler = compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
+
+  print_ast(compiler->parser, node);
 
   cps::convert_to_cps_style(info, compiler, node);
 

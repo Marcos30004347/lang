@@ -42,6 +42,7 @@ const char* ast_kind_strs[] = {
     "AST_NATURAL_LITERAL",
     "AST_STRUCT_LITERAL",
     "AST_FUNCTION_LITERAL",
+    "AST_EFFECT_LITERAL",
     "AST_HANDLER_LITERAL",
     "AST_TRUE_LITERAL",
     "AST_FALSE_LITERAL",
@@ -85,7 +86,7 @@ const char* ast_kind_strs[] = {
     "__AST_UNARY_OPERATOR_START",
     "AST_OP_UNA_SUB",
     "AST_OP_UNA_ADD",
-    "AST_OP_POINTER_LOAD",
+    "AST_OP_POINTER_VALUE",
     "AST_OP_ADDRESS_OF",
     "__AST_UNARY_OPERATOR_END",
 

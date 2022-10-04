@@ -195,6 +195,14 @@ ast::Node* parser_parse_primary(Parser* p) {
   if (parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     Token tok = parser_curr_tok(p);
 
+    b8 effectfull = false;
+
+    if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
+      parser_read_token(p, TOKEN_EXCLAMATION);
+
+      effectfull = true;
+    }
+
     parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
 
     ast::Node* root = parser_parse_expr(p);
@@ -224,6 +232,10 @@ ast::Node* parser_parse_primary(Parser* p) {
 
       if (!ast::is_instance< ast::ProgramPoint_List_Node* >(body)) {
         parser_error(p, p->lexer->curr, "Expecting function body");
+      }
+
+      if (effectfull) {
+        return ast::create_node_effect_literal(p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
       }
 
       return ast::create_node_function_literal(p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
@@ -258,14 +270,15 @@ ast::Node* parser_parse_call_args(Parser* p) {
 
     if (parser_curr_tok(p).type == TOKEN_EXCLAMATION) {
       effectfull = true;
+
       parser_read_token(p, TOKEN_EXCLAMATION);
     }
 
     ast::Node* arguments = parser_parse_call_args(p);
 
-    // if (!ast::is_instance< ast::Declarations_List_Node* >(arguments)) {
-    //   parser_error(p, p->lexer->curr, "Expecting arguments");
-    // }
+    if (effectfull) {
+      return ast::create_node_effect_call(p->ast_manager, expr, ast::as< ast::Declarations_List_Node* >(arguments));
+    }
 
     return ast::create_node_function_call(p->ast_manager, expr, ast::as< ast::Declarations_List_Node* >(arguments));
   }
@@ -286,11 +299,13 @@ ast::Node* parser_parse_call_tail(Parser* p, ast::Node* head) {
 
   ast::Node* arguments = parse_call_args(p);
 
-  // if (!ast::is_instance< ast::Declarations_List_Node* >(arguments)) {
-  //   parser_error(p, p->lexer->curr, "Expecting arguments");
-  // }
+  ast::Node* call = NULL;
 
-  ast::Node* call = ast::create_node_function_call(p->ast_manager, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  if (effectfull) {
+    call = ast::create_node_effect_call(p->ast_manager, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  } else {
+    call = ast::create_node_function_call(p->ast_manager, head, ast::as< ast::Declarations_List_Node* >(arguments));
+  }
 
   if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
     return parser_parse_call_tail(p, call);
@@ -318,8 +333,13 @@ ast::Node* parser_parse_call(Parser* p) {
     // if (!ast::is_instance< ast::Declarations_List_Node* >(arguments)) {
     //   parser_error(p, p->lexer->curr, "Expecting arguments");
     // }
+    ast::Node* call = NULL;
 
-    ast::Node* call = ast::create_node_function_call(p->ast_manager, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    if (effectfull) {
+      call = ast::create_node_effect_call(p->ast_manager, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    } else {
+      call = ast::create_node_function_call(p->ast_manager, root, ast::as< ast::Declarations_List_Node* >(arguments));
+    }
 
     if (parser_curr_tok(p).type == TOKEN_EXCLAMATION || parser_curr_tok(p).type == TOKEN_OPEN_PARENTHESIS) {
       return parser_parse_call_tail(p, call);
@@ -1033,6 +1053,14 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == ast::AST_EFFECT_CALL) {
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
+    printf("!(");
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
+    printf(")");
+    return;
+  }
+
   if (n->kind == ast::AST_FUNCTION_CALL) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf("(");
@@ -1196,26 +1224,6 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     printf("false");
     return;
   }
-
-  // if (n->kind == _AST_BUILD_STACK_CLOSURE_OBJECT) {
-  //   printf("_build_stack_closure(");
-  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-  //   printf(", ");
-  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
-  //   printf(")");
-
-  //   return;
-  // }
-
-  // if (n->kind == _AST_BUILD_HEAP_CLOSURE_OBJECT) {
-  //   printf("_build_heap_closure(");
-  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-  //   printf(", ");
-  //   print_ast_to_program(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
-  //   printf(")");
-
-  //   return;
-  // }
 
   if (n->kind == ast::AST_OP_BIN_NE) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);

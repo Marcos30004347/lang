@@ -109,7 +109,7 @@ void push_fv(lib::Set< compiler::symbol::Id >* fv, ast::Manager* m, context::Con
   }
 }
 
-ast::Function_Call_Node* find_call(ast::Manager* m, ast::Node* node) {
+ast::Function_Call_Node* find_function_call(ast::Manager* m, ast::Node* node) {
   if (!ast::is_semantic_node(node)) {
     return NULL;
   }
@@ -118,11 +118,31 @@ ast::Function_Call_Node* find_call(ast::Manager* m, ast::Node* node) {
     return call;
   }
 
-  if (ast::Function_Call_Node* call = find_call(m, ast::left_of(m, node))) {
+  if (ast::Function_Call_Node* call = find_function_call(m, ast::left_of(m, node))) {
     return call;
   }
 
-  if (ast::Function_Call_Node* call = find_call(m, ast::right_of(m, node))) {
+  if (ast::Function_Call_Node* call = find_function_call(m, ast::right_of(m, node))) {
+    return call;
+  }
+
+  return NULL;
+}
+
+ast::Effect_Call_Node* find_effect_call(ast::Manager* m, ast::Node* node) {
+  if (!ast::is_semantic_node(node)) {
+    return NULL;
+  }
+
+  if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(node)) {
+    return call;
+  }
+
+  if (ast::Effect_Call_Node* call = find_effect_call(m, ast::left_of(m, node))) {
+    return call;
+  }
+
+  if (ast::Effect_Call_Node* call = find_effect_call(m, ast::right_of(m, node))) {
     return call;
   }
 
@@ -130,10 +150,24 @@ ast::Function_Call_Node* find_call(ast::Manager* m, ast::Node* node) {
 }
 
 b8 closure_call_add_local_env_to_call(CPS_Closure_Data* data, ast::ProgramPoint_List_Node* point, ast::Manager* m, context::Context* ctx, context::Context* globals) {
-  ast::Function_Call_Node* call = find_call(m, point->get_statement(m));
+  ast::Node* call = find_function_call(m, point->get_statement(m));
+
+  if (!call) {
+    call = find_effect_call(m, point->get_statement(m));
+  }
 
   if (call) {
-    if (ast::Literal_Symbol_Node* sym = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
+    ast::Node* s = NULL;
+
+    if (ast::Function_Call_Node* c = ast::is_instance< ast::Function_Call_Node* >(call)) {
+      s = c->get_function(m);
+    }
+
+    if (ast::Effect_Call_Node* c = ast::is_instance< ast::Effect_Call_Node* >(call)) {
+      s = c->get_effect(m);
+    }
+
+    if (ast::Literal_Symbol_Node* sym = ast::is_instance< ast::Literal_Symbol_Node* >(s)) {
       if (cps::is_continuation_closure(data->cps_data, m, sym)) {
         ast::Function_Literal_Node** closure_ref = lib::search(data->symbol_to_closure, sym->get_symbol_id());
 
@@ -173,7 +207,7 @@ b8 closure_call_add_local_env_to_call(CPS_Closure_Data* data, ast::ProgramPoint_
               ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, env_access);
               members_assignments                       = ast::create_node_program_point(m, assignment, members_assignments);
             } else {
-              ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, ast::deep_copy(m, var->get_symbol(m)));
+              ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, ast::create_node_value_address(m, ast::deep_copy(m, var->get_symbol(m))));
               members_assignments                       = ast::create_node_program_point(m, assignment, members_assignments);
             }
           }
@@ -189,7 +223,7 @@ b8 closure_call_add_local_env_to_call(CPS_Closure_Data* data, ast::ProgramPoint_
               ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, env_access);
               members_assignments                       = ast::create_node_program_point(m, assignment, members_assignments);
             } else {
-              ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, ast::deep_copy(m, var->get_symbol(m)));
+              ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, access, ast::create_node_value_address(m, ast::deep_copy(m, var->get_symbol(m))));
               members_assignments                       = ast::create_node_program_point(m, assignment, members_assignments);
             }
           }
@@ -201,7 +235,13 @@ b8 closure_call_add_local_env_to_call(CPS_Closure_Data* data, ast::ProgramPoint_
 
         lib::insert(data->environment_allocation_point, point, members_assignments);
 
-        call->push_argument(m, ast::create_node_value_address(m, env_symbol));
+        if (ast::Function_Call_Node* c = ast::is_instance< ast::Function_Call_Node* >(call)) {
+          c->push_argument(m, ast::create_node_value_address(m, env_symbol));
+        }
+
+        if (ast::Effect_Call_Node* c = ast::is_instance< ast::Effect_Call_Node* >(call)) {
+          c->push_argument(m, ast::create_node_value_address(m, env_symbol));
+        }
 
         return true;
       }
@@ -272,6 +312,27 @@ b8 collect_free_variables(
 
   if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(node)) {
     ast::Node* l = call->get_function(m);
+
+    if (collect_free_variables(data, m, l, fv, ctx, globals, parent)) {
+      ast::Literal_Symbol_Node* env_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "env"));
+
+      // NOTE(marcos): May need to be a ptr access
+      ast::Member_Access_Node* access = ast::create_node_member_access(m, env_symbol, ast::deep_copy(m, l));
+
+      ast::Pointer_Value_Node* ptr_val = ast::create_node_pointer_value(m, access);
+
+      ast::set_left(m, node, ptr_val);
+    }
+
+    collect_free_variables(data, m, call->get_arguments(m), fv, ctx, globals, parent);
+
+    closure_call_add_local_env_to_call(data, parent, m, ctx, globals);
+
+    return false;
+  }
+
+  if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(node)) {
+    ast::Node* l = call->get_effect(m);
 
     if (collect_free_variables(data, m, l, fv, ctx, globals, parent)) {
       ast::Literal_Symbol_Node* env_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "env"));

@@ -10,6 +10,7 @@
 #include "compiler/compiler.hpp"
 #include "compiler/symbol_table.hpp"
 #include "lib/set.hpp"
+#include "parser/parser.hpp"
 
 #include <assert.h>
 #include <stdio.h>
@@ -22,8 +23,7 @@ struct CPS_Data {
   // lib::Table< compiler::symbol::Id, ast::Id >* continuation_arguments;
 };
 
-void function_call_cps_conversion(
-    CPS_Data* info, compiler::Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Function_Call_Node* call, ast::Node* bind, ast::Node* joint);
+void call_cps_conversion(CPS_Data* info, compiler::Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Node* call, ast::Node* bind, ast::Node* joint);
 
 void function_literal_cps_conversion(CPS_Data* info, compiler::Compiler* compiler, ast::Function_Literal_Node* function, ast::Literal_Symbol_Node* continuation);
 
@@ -96,7 +96,6 @@ create_continuation_function(CPS_Data* info, Compiler* compiler, ast::Node* argu
 }
 
 void function_literal_assignment_to_constant_declaration(CPS_Data* info, Compiler* compiler, ast::Node* literal, ast::Node* assignment, ast::ProgramPoint_List_Node* point) {
-
   ast::Manager* m = compiler->parser->ast_manager;
 
   // Promote function declaration to constant
@@ -124,7 +123,6 @@ void program_point_cps_conversion(
   ast::Manager* m = compiler->parser->ast_manager;
 
   ast::ProgramPoint_List_Node* previous = NULL;
-
   while (ast::is_semantic_node(statements)) {
     ast::Node* statement = statements->get_statement(m);
 
@@ -138,6 +136,21 @@ void program_point_cps_conversion(
         function_literal_assignment_to_constant_declaration(info, compiler, right, statement, statements);
       }
 
+      if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(right)) {
+        ast::Node* left = var->get_left_operand(m);
+
+        if (!ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+
+          if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+            left = ast::create_variable_declaration(m, var->get_symbol(m), var->get_type(m));
+          }
+        }
+
+        program_point_cps_conversion(info, compiler, cont_symbol, continuation, joint_continuation);
+
+        return call_cps_conversion(info, compiler, statements, call, left, joint_continuation);
+      }
+
       if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(right)) {
         ast::Node* left = var->get_left_operand(m);
 
@@ -146,23 +159,22 @@ void program_point_cps_conversion(
           if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
             left = ast::create_variable_declaration(m, var->get_symbol(m), var->get_type(m));
           }
-
-          // if (ast::Literal_Symbol_Node* var = ast::is_instance< ast::Literal_Symbol_Node* >(left)) {
-          //   // TODO(marcos): find type
-          //   left = ast::create_variable_declaration(m, var, ast::create_node_literal_undefined(m));
-          // }
         }
 
         program_point_cps_conversion(info, compiler, cont_symbol, continuation, joint_continuation);
 
-        return function_call_cps_conversion(info, compiler, statements, call, left, joint_continuation);
+        return call_cps_conversion(info, compiler, statements, call, left, joint_continuation);
       }
+    }
+
+    if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(statement)) {
+      program_point_cps_conversion(info, compiler, cont_symbol, continuation, joint_continuation);
+      return call_cps_conversion(info, compiler, statements, call, NULL, joint_continuation);
     }
 
     if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(statement)) {
       program_point_cps_conversion(info, compiler, cont_symbol, continuation, joint_continuation);
-      return function_call_cps_conversion(info, compiler, statements, call, NULL, joint_continuation);
-      // statements = statements->get_next_program_point(m);
+      return call_cps_conversion(info, compiler, statements, call, NULL, joint_continuation);
     }
 
     if (ast::Elif_List_Node* elif = ast::is_instance< ast::Elif_List_Node* >(statement)) {
@@ -220,8 +232,7 @@ void program_point_cps_conversion(
   }
 }
 
-void function_call_cps_conversion(
-    CPS_Data* info, Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Function_Call_Node* call, ast::Node* bind, ast::Node* joint) {
+void call_cps_conversion(CPS_Data* info, Compiler* compiler, ast::ProgramPoint_List_Node* program_point, ast::Node* call, ast::Node* bind, ast::Node* joint) {
 
   ast::Manager* m = compiler->parser->ast_manager;
 

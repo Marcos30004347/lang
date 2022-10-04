@@ -11,8 +11,8 @@ using namespace parser;
 
 void should_cps_convert_call_programs() {
   const i8* prog = "main :: () -> i32 {"
-                   "  f();"
-                   "  g();"
+                   "  f!();"
+                   "  g!();"
                    "  return 0;"
                    "}";
 
@@ -33,8 +33,8 @@ void should_cps_convert_call_programs() {
 
 void should_cps_convert_call_assignments_programs() {
   const i8* prog = "main :: () -> i32 {"
-                   "  x : i32 : f();"
-                   "  y : i32 : g();"
+                   "  x : i32 : f!();"
+                   "  y : i32 : g!();"
                    "  z : i32 : x + y;"
                    "  return z;"
                    "}";
@@ -60,10 +60,12 @@ void should_cps_convert_branch_programs() {
                    "  if x {"
                    "    x = 4;"
                    "  } else {"
-                   "    x = g(x);"
+                   "    x = g!(x);"
                    "    x = x + 3;"
                    "  }"
-                   "  y : i32 : g(x);"
+                   "  u : i32 : f(x);"
+                   "  q : i32 : q(x);"
+                   "  y : i32 : g!(x);"
                    "  z : i32 : x + y;"
                    "  return z;"
                    "}";
