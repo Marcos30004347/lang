@@ -25,6 +25,12 @@ target_link_libraries(ContextTests magic)
 target_include_directories(ContextTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME ContextTests COMMAND ContextTests)
 
+add_executable(StackFrameTests stackframe/stackframe.cpp)
+target_link_libraries(StackFrameTests magic)
+target_include_directories(StackFrameTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME StackFrameTests COMMAND StackFrameTests)
+
+
 add_executable(CPSConversionTests continuations/continuations.cpp)
 target_link_libraries(CPSConversionTests magic)
 target_include_directories(CPSConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -34,4 +40,9 @@ add_executable(CPSClosureConversionTests continuations/closures.cpp)
 target_link_libraries(CPSClosureConversionTests magic)
 target_include_directories(CPSClosureConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME CPSClosureConversionTests COMMAND CPSClosureConversionTests)
+
+add_executable(CPSBubblingTests continuations/bubbling.cpp)
+target_link_libraries(CPSBubblingTests magic)
+target_include_directories(CPSBubblingTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME CPSBubblingTests COMMAND CPSBubblingTests)
 

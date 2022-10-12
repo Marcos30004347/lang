@@ -59,6 +59,10 @@ ProgramPoint_List_Node* Function_Literal_Node::get_body(ast::Manager* manager) {
   return is_instance< ProgramPoint_List_Node* >(right_of(manager, this));
 }
 
+void Function_Literal_Node::set_body(ast::Manager* manager, ProgramPoint_List_Node* pp) {
+  set_right(manager, this, pp);
+}
+
 ProgramPoint_List_Node* Effect_Literal_Node::get_body(ast::Manager* manager) {
   return is_instance< ProgramPoint_List_Node* >(right_of(manager, this));
 }

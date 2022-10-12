@@ -1,13 +1,11 @@
 #include "compiler/compiler.hpp"
 #include "lib/set.hpp"
+#include "stackframe/stackframe.hpp"
 #include "tests.hpp"
 
 #include "continuations/closures.hpp"
 #include "parser/parser.hpp"
 
-using namespace compiler;
-using namespace symbol;
-using namespace parser;
 void should_closure_convert_cps_simple_programs() {
   const i8* prog = "g :: (x:i32) -> i32 {"
                    "  return x;"
@@ -20,23 +18,27 @@ void should_closure_convert_cps_simple_programs() {
                    "  return w;"
                    "}";
 
-  cps::CPS_Data* info = cps::cps_result_create();
-
-  Compiler* compiler = compiler_create();
+  compiler::Compiler* compiler = compiler::compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps::convert_to_cps_style(info, compiler, node);
+  cps::CPS_Data* info = cps::cps_data_create();
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(info);
 
-  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(info);
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
+
+  cps::convert_to_cps_style(info, compiler->parser, node);
+
+  stackframe::allocate_stack_frame(sf_data, compiler->parser->ast_manager, node);
+
+  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(sf_data);
 
   closures::convert_cps_closures(compiler->parser->ast_manager, node, data);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
 
-  closures::cps_closure_data_destroy(data);
+  stackframe::destroy_stack_frame_data(sf_data);
 
   compiler::compiler_destroy(compiler);
 }
@@ -48,40 +50,64 @@ void should_closure_convert_cps_branch_programs() {
                    "g : i32 -> i32 : (x:i32) -> i32 {"
                    "  return x;"
                    "}"
-                   "main : unit -> i32 : () -> i32 {"
+                   "main : unit -> i32 : (a: i32, b: i32) -> i32 {"
                    "  x : i32 = 0;"
-                   "  if x {"
+                   "  if a {"
                    "    x = 4;"
                    "  } else {"
                    "    x = g(x);"
-                   "    x = x + 3;"
+                   "    x = x + b;"
                    "  }"
                    "  w : i32 : 3;"
                    "  y : i32 : g(x);"
                    "  x = g(x);"
                    "  z : i32 : x + y;"
                    "  e : i32 : z + w;"
+                   "  if x {"
+                   "    z = g(z);"
+                   "  } else if y {"
+                   "    e = g(e);"
+                   "    e = e + a;"
+                   "  } else {"
+                   "    e = g(e);"
+                   "    e = e + b;"
+                   "    w : i32 : g(7);"
+                   "    e = w + 9;"
+                   "  }"
+                   "  if x {"
+                   "    z = g(z);"
+                   "  } else {"
+                   "    e = g(e);"
+                   "    e = e + 4;"
+                   "  }"
+
                    "  q : i32 : some!(e);"
                    "  return q;"
                    "}";
 
-  cps::CPS_Data* info = cps::cps_result_create();
-
-  Compiler* compiler = compiler_create();
+  compiler::Compiler* compiler = compiler::compiler_create();
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  print_ast(compiler->parser, node);
+  cps::CPS_Data* info = cps::cps_data_create();
 
-  cps::convert_to_cps_style(info, compiler, node);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(info);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
 
-  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(info);
+  cps::convert_to_cps_style(info, compiler->parser, node);
+
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
+
+  stackframe::allocate_stack_frame(sf_data, compiler->parser->ast_manager, node);
+
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
+
+  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(sf_data);
 
   closures::convert_cps_closures(compiler->parser->ast_manager, node, data);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  parser::print_ast_ir(compiler->parser->ast_manager, node);
 
   closures::cps_closure_data_destroy(data);
 

@@ -15,32 +15,45 @@ struct Type_Int32_Node : Node {};
 struct Type_Unit_Node : Node {};
 struct Type_Struct_Node : Node {};
 
+struct Type_Evidence_Context_Node : Node {};
+
 struct Type_Arrow_Node : Node {
-  Node* get_from_type(ast::Manager* parser);
-  Node* get_to_type(ast::Manager* parser);
+  Node* get_from_type(ast::Manager* manager);
+  Node* get_to_type(ast::Manager* manager);
 };
 
 struct Type_Variable_Node : Node {
-  Literal_Symbol_Node* get_symbol(ast::Manager* parser);
+  Literal_Symbol_Node* get_symbol(ast::Manager* manager);
 };
 
-template <> Type_Any_Node*      is_instance<>(Node* node);
-template <> Type_Arrow_Node*    is_instance<>(Node* node);
-template <> Type_Int32_Node*    is_instance<>(Node* node);
-template <> Type_Unit_Node*     is_instance<>(Node* node);
-template <> Type_Struct_Node*   is_instance<>(Node* node);
-template <> Type_Variable_Node* is_instance<>(Node* node);
+struct Cast_Type_Node : Node {
+  Node* get_expr(ast::Manager* manager);
+  Node* get_to_type(ast::Manager* manager);
+};
 
-Type_Any_Node* create_node_type_any(ast::Manager* parser);
+template <> Type_Any_Node*              is_instance<>(Node* node);
+template <> Type_Arrow_Node*            is_instance<>(Node* node);
+template <> Type_Int32_Node*            is_instance<>(Node* node);
+template <> Type_Unit_Node*             is_instance<>(Node* node);
+template <> Type_Struct_Node*           is_instance<>(Node* node);
+template <> Type_Variable_Node*         is_instance<>(Node* node);
+template <> Type_Evidence_Context_Node* is_instance<>(Node* node);
+template <> Cast_Type_Node*             is_instance<>(Node* node);
 
-Type_Int32_Node* create_node_type_i32(ast::Manager* parser);
+Type_Any_Node* create_node_type_any(ast::Manager* manager);
 
-Type_Unit_Node* create_node_type_unit(ast::Manager* parser);
+Type_Int32_Node* create_node_type_i32(ast::Manager* manager);
 
-Type_Arrow_Node* create_node_type_arrow(ast::Manager* parser, Node* a, Node* b);
+Type_Unit_Node* create_node_type_unit(ast::Manager* manager);
 
-Type_Struct_Node* create_node_type_struct(ast::Manager* parser);
+Type_Arrow_Node* create_node_type_arrow(ast::Manager* manager, Node* a, Node* b);
 
-Type_Variable_Node* create_node_type_variable(ast::Manager* parser, Literal_Symbol_Node* symbol);
+Type_Struct_Node* create_node_type_struct(ast::Manager* manager);
+
+Type_Variable_Node* create_node_type_variable(ast::Manager* manager, Literal_Symbol_Node* symbol);
+
+Type_Evidence_Context_Node* create_node_type_evidence_context(ast::Manager* manager);
+
+Cast_Type_Node* create_node_cast_type(ast::Manager* manager, ast::Node* type, ast::Node* expr);
 
 } // namespace ast

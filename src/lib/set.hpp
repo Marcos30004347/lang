@@ -134,20 +134,20 @@ template < typename T > SetNode< T >* insert_node(SetNode< T >* node, T key) {
   return node;
 }
 
-template < typename T > T* search(struct SetNode< T >* root, T key) {
+template < typename T > T* search_node(struct SetNode< T >* root, T key) {
   if (root == 0) {
     return 0;
   }
 
   if (is_equal(root->key, key)) {
-    return &root->val;
+    return &root->key;
   }
 
   if (is_smaller(root->key, key)) {
-    return search(root->right, key);
+    return search_node(root->right, key);
   }
 
-  return search(root->left, key);
+  return search_node(root->left, key);
 }
 
 template < typename T > SetNode< T >* min_value_node(SetNode< T >* node) {
@@ -288,7 +288,7 @@ template < typename T > void remove(Set< T >* node, T key) {
 }
 
 template < typename T > T* search(Set< T >* node, T key) {
-  return search(node->root, key);
+  return search_node(node->root, key);
 }
 
 template < typename T > u64 size(Set< T >* node) {

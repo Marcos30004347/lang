@@ -76,7 +76,7 @@ Symbol from_token(Symbol_Table* table, Lexer* lexer, Token token);
 Symbol empty(Symbol_Table* table);
 Symbol get_symbol(Symbol_Table* table, Id id);
 
-Symbol number_to_symbol(Symbol_Table* table, u64 num, const i8* prefix);
+Symbol number_to_symbol(Symbol_Table* table, u64 num, const i8* prefix = "");
 Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, const i8* prefix);
 
 void print_symbol(Symbol_Table* table, Symbol id);

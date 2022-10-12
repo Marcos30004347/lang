@@ -627,7 +627,7 @@ ast::Node* parser_parse_if_statement(Parser* p) {
     if (parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
       cont = parser_parse_statements(p);
     } else {
-      cont = parser_parse_expr(p);
+      cont = parser_parse_if_statement(p);
     }
   }
 
@@ -827,7 +827,7 @@ ast::Node* parser_parse(Parser* p) {
   return parser_parse(p);
 }
 
-void print_ast_rec(i8* prefix, Parser* p, ast::Node* a, b8 is_left, b8 f = 1) {
+void print_ast_rec(i8* prefix, ast::Manager* p, ast::Node* a, b8 is_left, b8 f = 1) {
   printf("%s", prefix);
 
   if (is_left) {
@@ -863,7 +863,7 @@ void print_ast_rec(i8* prefix, Parser* p, ast::Node* a, b8 is_left, b8 f = 1) {
 
   if (a->kind == ast::AST_NATURAL_LITERAL) {
     printf(",val: ");
-    symbol::Symbol s = symbol::get_symbol(p->ast_manager->symbol_table, a->left);
+    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
@@ -876,7 +876,7 @@ void print_ast_rec(i8* prefix, Parser* p, ast::Node* a, b8 is_left, b8 f = 1) {
   if (a->kind == ast::AST_SYMBOL_LITERAL) {
     printf(",sym: ");
 
-    symbol::Symbol s = symbol::get_symbol(p->ast_manager->symbol_table, a->left);
+    symbol::Symbol s = symbol::get_symbol(p->symbol_table, a->left);
 
     for (u64 i = 0; i < s.size; i++) {
       printf("%c", symbol::char_at(&s, i));
@@ -896,17 +896,17 @@ void print_ast_rec(i8* prefix, Parser* p, ast::Node* a, b8 is_left, b8 f = 1) {
   i8* buf0 = (i8*)malloc(strlen(prefix) + 10);
   strcpy(buf0, prefix);
   strcat(buf0, is_left ? "│   " : "    ");
-  print_ast_rec(buf0, p, ast::manager_get_relative(p->ast_manager, a, a->left), 1);
+  print_ast_rec(buf0, p, ast::manager_get_relative(p, a, a->left), 1);
   free(buf0);
 
   i8* buf1 = (i8*)malloc(strlen(prefix) + 10);
   strcpy(buf1, prefix);
   strcat(buf1, is_left ? "│   " : "    ");
-  print_ast_rec(buf1, p, ast::manager_get_relative(p->ast_manager, a, a->right), 0);
+  print_ast_rec(buf1, p, ast::manager_get_relative(p, a, a->right), 0);
   free(buf1);
 }
 
-void print_ast(Parser* p, ast::Node* n) {
+void print_ast(ast::Manager* p, ast::Node* n) {
   i8 s[1];
 
   s[0] = '\0';
@@ -1077,6 +1077,9 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_CTRL_FLOW_IF) {
+    printf("\n");
+    for (i32 i = 0; i < scope; i++)
+      printf(" ");
 
     printf("if ");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
@@ -1086,6 +1089,16 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     for (i32 i = 0; i < scope; i++)
       printf(" ");
     printf("}\n");
+    return;
+  }
+  if (n->kind == ast::AST_CAST_TYPE) {
+    printf("(");
+
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), 0);
+    printf(")(");
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), 0);
+    printf(")");
+
     return;
   }
 
@@ -1105,7 +1118,7 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
 
       for (i32 i = 0; i < scope; i++)
         printf(" ");
-      printf("}");
+      printf("}\n");
     }
     return;
   }
@@ -1138,6 +1151,11 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == ast::AST_TYPE_EVIDENCE_CONTEXT) {
+    printf("context");
+    return;
+  }
+
   if (n->kind == ast::AST_UNDEFINED_NODE) {
     printf("undefined");
     return;
@@ -1148,8 +1166,8 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_TYPE_POINTER) {
-    printf("*");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
+    printf("*");
     return;
   }
 
@@ -1203,9 +1221,9 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
   }
 
   if (n->kind == ast::AST_OP_POINTER_VALUE) {
-    printf("*");
+    printf("*(");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf("");
+    printf(")");
     return;
   }
 

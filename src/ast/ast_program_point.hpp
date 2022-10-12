@@ -16,6 +16,7 @@ struct ProgramPoint_List_Node : Node {
   void set_statement(ast::Manager* m, ast::Node* node);
 
   ProgramPoint_List_Node* emplace(ast::Manager* manager, ProgramPoint_List_Node* node);
+  ProgramPoint_List_Node* concat(ast::Manager* manager, ProgramPoint_List_Node* node);
   ProgramPoint_List_Node* insert(ast::Manager* manager, Node* node);
 
   void push(ast::Manager* parsre, Node* node);

@@ -20,10 +20,12 @@ add_library(magic
 	src/parser/parser.cpp
 	src/continuations/continuations.cpp
 	src/continuations/closures.cpp
+	src/continuations/bubbling.cpp
 	src/utils.cpp
 	src/lexer.cpp
 	src/crc64.cpp
 	src/context/context.cpp
+	src/stackframe/stackframe.cpp
 	#src/context.cpp
 )
 

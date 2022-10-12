@@ -53,6 +53,18 @@ ProgramPoint_List_Node* ProgramPoint_List_Node::insert(ast::Manager* manager, No
   return pp;
 }
 
+ProgramPoint_List_Node* ProgramPoint_List_Node::concat(ast::Manager* manager, ProgramPoint_List_Node* node) {
+  ProgramPoint_List_Node* right = this;
+
+  while (ast::is_semantic_node(right->get_next_program_point(manager))) {
+    right = right->get_next_program_point(manager);
+  }
+
+  right->right = node->id;
+
+  return node;
+}
+
 ProgramPoint_List_Node* ProgramPoint_List_Node::emplace(ast::Manager* manager, ProgramPoint_List_Node* node) {
 
   ProgramPoint_List_Node* right = node;
@@ -81,11 +93,11 @@ void ProgramPoint_List_Node::push(ast::Manager* manager, Node* node) {
 void Declarations_List_Node::push(ast::Manager* manager, Node* node) {
   Declarations_List_Node* tail = this;
 
-  while (this->right) {
-    tail = tail->get_next_declaration(manager);
+  if (this->right) {
+    tail->get_next_declaration(manager)->insert(manager, node);
+  } else {
+    tail->insert(manager, node);
   }
-
-  tail->insert(manager, node);
 }
 
 void Declarations_List_Node::insert(ast::Manager* manager, Node* node) {

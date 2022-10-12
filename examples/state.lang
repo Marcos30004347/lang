@@ -1,4 +1,17 @@
-main :: () {
+random : i32 -> i32;
 
+set : i32  -> i32;
+get : unit -> i32;
 
+state :: handler {
+	set :: (x: i32; unit) = resume( )(x);
+	get :: (unit; x: i32) = resume(x)(x);
 }
+
+main :: () {
+	set!(4);
+
+	return get!();
+}
+
+(main() using state)();

@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 #include "ast/ast_operations.hpp"
+#include "ast/ast_program_point.hpp"
 #include "ast_declaration.hpp"
 #include "ast_kind.hpp"
 #include "ast_manager.hpp"
@@ -19,6 +20,7 @@ struct Function_Literal_Node : Node {
   Declarations_List_Node* get_arguments(ast::Manager* manager);
 
   ProgramPoint_List_Node* get_body(ast::Manager* manager);
+  void                    set_body(ast::Manager* manager, ProgramPoint_List_Node* pp);
 };
 
 struct Function_Call_Node : Node {

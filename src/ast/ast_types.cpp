@@ -19,7 +19,7 @@ template <> Type_Arrow_Node* is_instance<>(Node* node) {
 }
 
 template <> Type_Int32_Node* is_instance<>(Node* node) {
-  return node && node->kind == AST_TYPE_ARROW ? as< Type_Int32_Node* >(node) : 0;
+  return node && node->kind == AST_TYPE_I32 ? as< Type_Int32_Node* >(node) : 0;
 }
 
 template <> Type_Unit_Node* is_instance<>(Node* node) {
@@ -32,6 +32,14 @@ template <> Type_Struct_Node* is_instance<>(Node* node) {
 
 template <> Type_Variable_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_TYPE_VARIABLE ? as< Type_Variable_Node* >(node) : 0;
+}
+
+template <> Type_Evidence_Context_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_TYPE_EVIDENCE_CONTEXT ? as< Type_Evidence_Context_Node* >(node) : 0;
+}
+
+template <> Cast_Type_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_CAST_TYPE ? as< Cast_Type_Node* >(node) : 0;
 }
 
 Type_Any_Node* create_node_type_any(ast::Manager* manager) {
@@ -60,12 +68,28 @@ Type_Variable_Node* create_node_type_variable(ast::Manager* manager, Literal_Sym
   return as< Type_Variable_Node* >(ast::manager_alloc(manager, AST_TYPE_VARIABLE, symbol->id, 0));
 }
 
+Cast_Type_Node* create_node_cast_type(ast::Manager* manager, ast::Node* type, ast::Node* expr) {
+  return as< Cast_Type_Node* >(ast::manager_alloc(manager, AST_CAST_TYPE, get_id(type), get_id(expr)));
+}
+
+Node* Cast_Type_Node::get_expr(ast::Manager* manager) {
+  return right_of(manager, this);
+}
+
+Node* Cast_Type_Node::get_to_type(ast::Manager* manager) {
+  return left_of(manager, this);
+}
+
 Node* Type_Arrow_Node::get_from_type(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
 Node* Type_Arrow_Node::get_to_type(ast::Manager* manager) {
   return right_of(manager, this);
+}
+
+Type_Evidence_Context_Node* create_node_type_evidence_context(ast::Manager* manager) {
+  return as< Type_Evidence_Context_Node* >(ast::manager_alloc(manager, AST_TYPE_EVIDENCE_CONTEXT, 0, 0));
 }
 
 } // namespace ast

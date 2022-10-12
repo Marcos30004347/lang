@@ -24,10 +24,8 @@ struct Declaration_Variable_Node : Node {
 template <> Declaration_Constant_Node* is_instance<>(Node* node);
 template <> Declaration_Variable_Node* is_instance<>(Node* node);
 
-Declaration_Constant_Node*
-create_constant_declaration(ast::Manager* manager, Literal_Symbol_Node* name, Node* type);
-Declaration_Variable_Node*
-create_variable_declaration(ast::Manager* manager, Literal_Symbol_Node* name, Node* type);
+Declaration_Constant_Node* create_constant_declaration(ast::Manager* manager, Literal_Symbol_Node* name, Node* type);
+Declaration_Variable_Node* create_variable_declaration(ast::Manager* manager, Literal_Symbol_Node* name, Node* type);
 
 b8 is_declaration_node(ast::Node* node);
 

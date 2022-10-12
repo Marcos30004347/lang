@@ -290,57 +290,57 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Nod
 
 //   return context_type_of(ctx->parent, m, access);
 // }
-b8 scope_find(Scope* scope, ast::Literal_Symbol_Node* symbol) {
+ast::Node* scope_find(Scope* scope, ast::Literal_Symbol_Node* symbol) {
   if (scope == NULL) {
-    return false;
+    return NULL;
   }
 
-  if (lib::search(scope->scope, symbol->get_symbol_id()) != NULL) {
-    return true;
+  if (Declaration** decl = lib::search(scope->scope, symbol->get_symbol_id())) {
+    return (*decl)->bind;
   }
 
   return scope_find(scope->parent, symbol);
 }
 
-b8 context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol) {
+ast::Node* context_is_local(Context* ctx, ast::Literal_Symbol_Node* symbol) {
   return scope_find(ctx->scope, symbol);
 }
 
-b8 scope_find(Scope* scope, compiler::symbol::Id symbol) {
+ast::Node* scope_find(Scope* scope, compiler::symbol::Id symbol) {
   if (scope == NULL) {
-    return false;
+    return NULL;
   }
 
-  if (lib::search(scope->scope, symbol) != NULL) {
-    return true;
+  if (Declaration** decl = lib::search(scope->scope, symbol)) {
+    return (*decl)->bind;
   }
 
   return scope_find(scope->parent, symbol);
 }
 
-b8 context_is_local(Context* ctx, compiler::symbol::Id symbol) {
+ast::Node* context_is_local(Context* ctx, compiler::symbol::Id symbol) {
   return scope_find(ctx->scope, symbol);
 }
 
-b8 context_is_defined(Context* ctx, compiler::symbol::Id symbol) {
+ast::Node* context_is_defined(Context* ctx, compiler::symbol::Id symbol) {
   if (ctx == NULL) {
-    return false;
+    return NULL;
   }
 
-  if (context_is_local(ctx, symbol)) {
-    return true;
+  if (ast::Node* n = context_is_local(ctx, symbol)) {
+    return n;
   }
 
   return context_is_defined(ctx->parent, symbol);
 }
 
-b8 context_is_defined(Context* ctx, ast::Literal_Symbol_Node* symbol) {
+ast::Node* context_is_defined(Context* ctx, ast::Literal_Symbol_Node* symbol) {
   if (ctx == NULL) {
-    return false;
+    return NULL;
   }
 
-  if (context_is_local(ctx, symbol)) {
-    return true;
+  if (ast::Node* n = context_is_local(ctx, symbol)) {
+    return n;
   }
 
   return context_is_defined(ctx->parent, symbol);

@@ -16,19 +16,19 @@ void should_cps_convert_call_programs() {
                    "  return 0;"
                    "}";
 
-  cps::CPS_Data* info = cps::cps_result_create();
+  Parser* parser = parser::parser_create(-1, prog, strlen(prog));
 
-  compiler::Compiler* compiler = compiler_create();
+  ast::Node* node = parser_parse(parser);
 
-  ast::Node* node = compiler->parse(prog, strlen(prog));
+  cps::CPS_Data* info = cps::cps_data_create();
 
-  cps::convert_to_cps_style(info, compiler, node);
+  cps::convert_to_cps_style(info, parser, node);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  print_ast_ir(parser->ast_manager, node);
 
-  compiler::compiler_destroy(compiler);
+  parser::parser_destroy(parser);
 
-  cps::cps_result_destroy(info);
+  cps::cps_data_destroy(info);
 }
 
 void should_cps_convert_call_assignments_programs() {
@@ -39,19 +39,19 @@ void should_cps_convert_call_assignments_programs() {
                    "  return z;"
                    "}";
 
-  cps::CPS_Data* info = cps::cps_result_create();
+  Parser* parser = parser::parser_create(-1, prog, strlen(prog));
 
-  compiler::Compiler* compiler = compiler_create();
+  ast::Node* node = parser_parse(parser);
 
-  ast::Node* node = compiler->parse(prog, strlen(prog));
+  cps::CPS_Data* info = cps::cps_data_create();
 
-  cps::convert_to_cps_style(info, compiler, node);
+  cps::convert_to_cps_style(info, parser, node);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  print_ast_ir(parser->ast_manager, node);
 
-  compiler::compiler_destroy(compiler);
+  parser::parser_destroy(parser);
 
-  cps::cps_result_destroy(info);
+  cps::cps_data_destroy(info);
 }
 
 void should_cps_convert_branch_programs() {
@@ -60,29 +60,29 @@ void should_cps_convert_branch_programs() {
                    "  if x {"
                    "    x = 4;"
                    "  } else {"
-                   "    x = g!(x);"
+                   "    x = g(x);"
                    "    x = x + 3;"
                    "  }"
                    "  u : i32 : f(x);"
                    "  q : i32 : q(x);"
-                   "  y : i32 : g!(x);"
+                   "  y : i32 : g(x);"
                    "  z : i32 : x + y;"
                    "  return z;"
                    "}";
 
-  cps::CPS_Data* info = cps::cps_result_create();
+  Parser* parser = parser::parser_create(-1, prog, strlen(prog));
 
-  Compiler* compiler = compiler_create();
+  ast::Node* node = parser_parse(parser);
 
-  ast::Node* node = compiler->parse(prog, strlen(prog));
+  cps::CPS_Data* info = cps::cps_data_create();
 
-  cps::convert_to_cps_style(info, compiler, node);
+  cps::convert_to_cps_style(info, parser, node);
 
-  print_ast_ir(compiler->parser->ast_manager, node);
+  print_ast_ir(parser->ast_manager, node);
 
-  cps::cps_result_destroy(info);
+  cps::cps_data_destroy(info);
 
-  compiler::compiler_destroy(compiler);
+  parser::parser_destroy(parser);
 }
 
 int main() {

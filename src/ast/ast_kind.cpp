@@ -51,6 +51,8 @@ const char* ast_kind_strs[] = {
     "AST_FUN_SIGNATURE",
 
     // Types
+
+    "AST_CAST_TYPE",
     "__AST_TYPE_KIND_START",
     "AST_TYPE_I32",
     "AST_TYPE_UNIT",
@@ -64,6 +66,7 @@ const char* ast_kind_strs[] = {
     "AST_TYPE_STRUCT",
     "AST_TYPE_VARIABLE",
     "AST_TYPE_POINTER",
+    "AST_TYPE_EVIDENCE_CONTEXT",
     "__AST_TYPE_KIND_END",
 
     // Binary operators
