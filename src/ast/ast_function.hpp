@@ -39,7 +39,7 @@ struct Effect_Call_Node : Node {
   Declarations_List_Node* get_arguments(ast::Manager* manager);
 };
 
-struct Effect_Literal_Node : Node {
+struct Effect_Declaration_Node : Node {
   Node* get_return_type(ast::Manager* manager);
 
   void push_argument(ast::Manager* manager, Declaration_Variable_Node* var);
@@ -49,16 +49,16 @@ struct Effect_Literal_Node : Node {
   ProgramPoint_List_Node* get_body(ast::Manager* manager);
 };
 
-template <> Function_Literal_Node* is_instance<>(Node* node);
-template <> Function_Call_Node*    is_instance<>(Node* node);
-template <> Effect_Literal_Node*   is_instance<>(Node* node);
-template <> Effect_Call_Node*      is_instance<>(Node* node);
+template <> Function_Literal_Node*   is_instance<>(Node* node);
+template <> Function_Call_Node*      is_instance<>(Node* node);
+template <> Effect_Declaration_Node* is_instance<>(Node* node);
+template <> Effect_Call_Node*        is_instance<>(Node* node);
 
 Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
 
 Function_Call_Node* create_node_function_call(ast::Manager* manager, Node* function, Node* arguments);
 
-Effect_Literal_Node* create_node_effect_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
+Effect_Declaration_Node* create_node_effect_declaration(ast::Manager* manager, Node* arguments, Node* return_type);
 
 Effect_Call_Node* create_node_effect_call(ast::Manager* manager, Node* function, Node* arguments);
 

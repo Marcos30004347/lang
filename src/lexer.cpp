@@ -23,6 +23,8 @@ u8 lexer_eat(Lexer* t) {
   if (t->file_buf[t->file_pos] == '\n') {
     t->file_col = 0;
     t->file_row += 1;
+  } else {
+    t->file_col += 1;
   }
 
   t->file_pos += 1;
@@ -53,8 +55,7 @@ i8 lexer_look_ahead(Lexer* t) {
 
 u8 lexer_skip_whitespaces(Lexer* t) {
   // TODO(marcos): there should probably be a '\n' and '\r' here.
-  while (!lexer_is_eof(t) &&
-         (lexer_current(t) == ' ' || lexer_current(t) == '\t' || lexer_current(t) == '\n')) {
+  while (!lexer_is_eof(t) && (lexer_current(t) == ' ' || lexer_current(t) == '\t' || lexer_current(t) == '\n')) {
     lexer_eat(t);
   }
 

@@ -296,7 +296,7 @@ u64 stack_allocate(Stack_Frame_Data* data, ast::Manager* m, ast::Node* root, con
         return stack_allocate(data, m, lit, ctx, args_ctx, stack_size, depth, assignment);
       }
 
-      if (ast::Effect_Literal_Node* lit = ast::is_instance< ast::Effect_Literal_Node* >(right)) {
+      if (ast::Effect_Declaration_Node* lit = ast::is_instance< ast::Effect_Declaration_Node* >(right)) {
         return stack_allocate(data, m, lit, ctx, args_ctx, stack_size, depth, assignment);
       }
 

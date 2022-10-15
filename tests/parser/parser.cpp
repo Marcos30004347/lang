@@ -1,6 +1,7 @@
 #include "tests.hpp"
 
 #include "parser/parser.hpp"
+#include <cstdio>
 
 using namespace compiler;
 using namespace symbol;
@@ -78,7 +79,40 @@ void should_parse_programs() {
   parser_destroy(parser);
 }
 
+void should_parse_efectfull_programs() {
+  Parser* parser = NULL;
+
+  const i8* prog1 = "count : unit -> i32;"
+                    "counter :: handler {"
+                    "  x : i32 = 0;"
+                    "  count :: () -> i32 {"
+                    "    x = x + 1;"
+                    "    resume(x);"
+                    "  }"
+                    "}"
+                    "f :: () -> i32 {"
+                    "  x : i32 : count!();"
+                    "  test :: handler {"
+                    "    g :: () -> i32 {"
+                    "      resume(x);"
+                    "    }"
+                    "  }"
+                    "  y : i32 : count!();"
+                    "  z : i32 : count!();"
+                    "  return z;"
+                    "}"
+                    "main :: () -> i32 {"
+                    "  return f() with counter;"
+                    "}";
+
+  parser           = parser_create(-1, prog1, strlen(prog1));
+  ast::Node* node0 = parser_parse(parser);
+  print_ast(parser->ast_manager, node0); // TODO(marcos): compare node0 to the expected ast representation
+  parser_destroy(parser);
+}
+
 int main() {
   TEST(should_create_and_delete_parsers);
   TEST(should_parse_programs);
+  TEST(should_parse_efectfull_programs);
 }

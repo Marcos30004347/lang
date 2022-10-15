@@ -41,6 +41,10 @@ template <> Literal_Struct_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_STRUCT_LITERAL ? (Literal_Struct_Node*)node : 0;
 }
 
+template <> Literal_Handler_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_HANDLER_LITERAL ? (Literal_Handler_Node*)node : 0;
+}
+
 Literal_False_Node* create_node_literal_false(ast::Manager* manager) {
   return as< Literal_False_Node* >(ast::manager_alloc(manager, AST_FALSE_LITERAL, 0, 0));
 }
@@ -87,6 +91,10 @@ compiler::symbol::Symbol Literal_Natural_Node::get_symbol(ast::Manager* manager)
 
 Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint_List_Node* members) {
   return as< Literal_Struct_Node* >(ast::manager_alloc(manager, AST_STRUCT_LITERAL, get_id(members), 0));
+}
+
+Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, ProgramPoint_List_Node* statements) {
+  return as< Literal_Handler_Node* >(ast::manager_alloc(manager, AST_HANDLER_LITERAL, get_id(statements), 0));
 }
 
 ProgramPoint_List_Node* Literal_Struct_Node::get_members(ast::Manager* manager) {

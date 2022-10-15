@@ -1,0 +1,47 @@
+
+
+count : unit -> i32;
+
+get : (unit; i32) -> i32;
+set : (i32; i32) -> unit;
+
+f :: () {
+	set!(0);
+
+	z : i32 : count!();
+
+	x : i32 : get!();
+
+	set!(1);
+
+	w : count!();
+	
+	y : i32 : get!();
+
+	return x + y + z + w;
+}
+
+
+state :: handler {
+	get :: (_: unit; x:i32) {
+		resume(x; x);
+	}
+	
+	set :: (x:i32, _:i32) {
+		resume((); x);
+	}
+}
+
+counter :: handler {
+	x: i32 = 0;
+
+	count :: () -> i32 {
+		x = x + 1;
+		resume(x);
+	}
+}
+
+main :: () {
+	(f with state, conter)(0);
+
+}

@@ -15,6 +15,7 @@
 #include "types.hpp"
 
 #include <assert.h>
+#include <cstdio>
 
 #include "stdio.h"
 #include "stdlib.h"
@@ -36,10 +37,10 @@ void debug_print_token(Parser* p, Token t) {
   printf("%s\n", buf);
 }
 
-ast::Node* parser_parse_expr(Parser* p);
-ast::Node* parser_parse_statements(Parser* p);
-ast::Node* parser_parse_decl(Parser* p);
-ast::Node* parser_parse_arrow(Parser* p);
+ast::Node*                   parser_parse_expr(Parser* p);
+ast::ProgramPoint_List_Node* parser_parse_statements(Parser* p);
+ast::Node*                   parser_parse_decl(Parser* p);
+ast::Node*                   parser_parse_arrow(Parser* p);
 
 Parser* parser_create(u64 id, const i8* buffer, u64 size) {
   Parser* p = new Parser();
@@ -113,9 +114,19 @@ ast::Node* parser_parse_struct(Parser* p) {
 
   parser_read_token(p, TOKEN_KEYWORD_STRUCT);
 
-  ast::Node* body = parser_parse_statements(p);
+  ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
 
-  return ast::create_node_literal_struct(p->ast_manager, ast::is_instance< ast::ProgramPoint_List_Node* >(body));
+  return ast::create_node_literal_struct(p->ast_manager, body);
+}
+
+ast::Node* parser_parse_handler(Parser* p) {
+  Token tok = parser_curr_tok(p);
+
+  parser_read_token(p, TOKEN_KEYWORD_HANDLER);
+
+  ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
+
+  return ast::create_node_literal_handler(p->ast_manager, body);
 }
 
 // ast::Node* parser_parse_handler_literal(Parser* p) {
@@ -154,13 +165,15 @@ ast::Node* parser_parse_struct(Parser* p) {
 
 ast::Node* parser_parse_lit(Parser* p) {
   Token tok = parser_curr_tok(p);
+
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_STRUCT) {
     return parser_parse_struct(p);
   }
 
-  // if (parser_curr_tok(p).type == TOKEN_KEYWORD_HANDLER) {
-  //   return parser_parse_handler_literal(p);
-  // }
+  if (parser_curr_tok(p).type == TOKEN_KEYWORD_HANDLER) {
+    return parser_parse_handler(p);
+  }
+
   if (tok.type == TOKEN_I32_LIT) {
     parser_read_token(p, TOKEN_I32_LIT);
     return ast::create_node_literal_natural(p->ast_manager, symbol::from_token(p->ast_manager->symbol_table, p->lexer, tok));
@@ -228,17 +241,13 @@ ast::Node* parser_parse_primary(Parser* p) {
         type = parser_parse_arrow(p);
       }
 
-      ast::Node* body = parser_parse_statements(p);
+      if (parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
+        ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
 
-      if (!ast::is_instance< ast::ProgramPoint_List_Node* >(body)) {
-        parser_error(p, p->lexer->curr, "Expecting function body");
+        return ast::create_node_function_literal(p->ast_manager, arguments, type, body);
       }
 
-      if (effectfull) {
-        return ast::create_node_effect_literal(p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
-      }
-
-      return ast::create_node_function_literal(p->ast_manager, arguments, type, ast::as< ast::ProgramPoint_List_Node* >(body));
+      return ast::create_node_effect_declaration(p->ast_manager, arguments, type);
     }
 
     return root;
@@ -367,7 +376,25 @@ ast::Node* parser_parse_call(Parser* p) {
 
 ast::Node* parser_parse_array_access(Parser* p) {
   // TODO: here should be parser array access
-  return parser_parse_call(p);
+  ast::Node* root = parser_parse_call(p);
+
+  if (parser_curr_tok(p).type == TOKEN_KEYWORD_WITH) {
+    parser_read_token(p, TOKEN_KEYWORD_WITH);
+
+    ast::Node* node = parser_parse_expr(p);
+
+    ast::Declarations_List_Node* handlers = NULL;
+
+    if (ast::Declarations_List_Node* l = ast::is_instance< ast::Declarations_List_Node* >(node)) {
+      handlers = l;
+    } else {
+      handlers = ast::create_node_declarations_list(p->ast_manager, node, NULL);
+    }
+
+    return ast::create_node_with_statement(p->ast_manager, handlers);
+  }
+
+  return root;
 }
 
 ast::Node* parser_parse_member_access(Parser* p) {
@@ -653,26 +680,26 @@ ast::Node* parser_parse_if_statement(Parser* p) {
   return ast::create_node_elif_list(p->ast_manager, statement, NULL);
 }
 
-ast::Node* parser_parse_ret_statement(Parser* p) {
-  Token tok = parser_curr_tok(p);
-
+ast::Return_Node_Statement* parser_parse_return_statement(Parser* p) {
   parser_read_token(p, TOKEN_KEYWORD_RETURN);
 
   if (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
-    while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
-      parser_read_token(p, TOKEN_SEMI_COLON);
-    }
-
     return ast::create_node_return_statement(p->ast_manager, ast::create_node_literal_nothing(p->ast_manager));
   }
 
-  ast::Node* ret = ast::create_node_return_statement(p->ast_manager, parser_parse_expr(p));
+  return ast::create_node_return_statement(p->ast_manager, parser_parse_expr(p));
+}
 
-  if (parser_prev_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
-    parser_read_token(p, TOKEN_SEMI_COLON);
-  }
+ast::Resume_Node_Statement* parser_parse_resume_statement(Parser* p) {
+  parser_read_token(p, TOKEN_KEYWORD_RESUME);
 
-  return ret;
+  parser_read_token(p, TOKEN_OPEN_PARENTHESIS);
+
+  ast::Resume_Node_Statement* resume = ast::create_node_resume_statement(p->ast_manager, parser_parse_expr(p));
+
+  parser_read_token(p, TOKEN_CLOSE_PARENTHESIS);
+
+  return resume;
 }
 
 ast::Node* parser_parse_statement(Parser* p) {
@@ -681,7 +708,27 @@ ast::Node* parser_parse_statement(Parser* p) {
   }
 
   if (parser_curr_tok(p).type == TOKEN_KEYWORD_RETURN) {
-    return parser_parse_ret_statement(p);
+    ast::Node* root = parser_parse_return_statement(p);
+
+    parser_read_token(p, TOKEN_SEMI_COLON);
+
+    while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+      parser_read_token(p, TOKEN_SEMI_COLON);
+    }
+
+    return root;
+  }
+
+  if (parser_curr_tok(p).type == TOKEN_KEYWORD_RESUME) {
+    ast::Node* root = parser_parse_resume_statement(p);
+
+    parser_read_token(p, TOKEN_SEMI_COLON);
+
+    while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+      parser_read_token(p, TOKEN_SEMI_COLON);
+    }
+
+    return root;
   }
 
   ast::Node* expr = parser_parse_expr(p);
@@ -697,7 +744,7 @@ ast::Node* parser_parse_statement(Parser* p) {
   return expr;
 }
 
-ast::Node* parser_parse_statements(Parser* p) {
+ast::ProgramPoint_List_Node* parser_parse_statements(Parser* p) {
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
 
   ast::ProgramPoint_List_Node* root = ast::create_node_program_point(p->ast_manager, NULL, NULL);
@@ -725,7 +772,8 @@ ast::Node* parser_parse_statements(Parser* p) {
 }
 
 ast::Node* parser_parse_decl(Parser* p) {
-  return parser_parse_arrow(p);
+  ast::Node* root = parser_parse_arrow(p);
+  return root;
 }
 
 ast::Node* parser_parse_assignment(Parser* p) {
@@ -819,9 +867,20 @@ ast::Node* parser_parse(Parser* p) {
   }
 
   // ast::Node *root = ast::decl_list(p->ast_manager, parser_curr_tok(p));
+  ast::Node* node = parser_parse_expr(p);
 
-  ast::manager_push_decl(p->ast_manager, parser_parse_expr(p));
+  ast::manager_push_decl(p->ast_manager, node);
 
+  if (ast::Variable_Assignment_Node* var = ast::is_instance< ast::Variable_Assignment_Node* >(node)) {
+    ast::Node* right = var->get_right_operand(p->ast_manager);
+
+    if (!ast::is_instance< ast::Function_Literal_Node* >(right) && !ast::is_instance< ast::Literal_Struct_Node* >(right)
+        && !ast::is_instance< ast::Literal_Handler_Node* >(right)) {
+      parser_read_token(p, TOKEN_SEMI_COLON);
+    }
+  } else {
+    parser_read_token(p, TOKEN_SEMI_COLON);
+  }
   // root->left = parser_parse_expr(p)->id;
 
   return parser_parse(p);

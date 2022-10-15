@@ -120,7 +120,7 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
     stack_frame_argument  = closures::cps_closure_data_get_stackframe_argument(data->cps_closures_data, lit);
   }
 
-  if (ast::Effect_Literal_Node* lit = ast::is_instance< ast::Effect_Literal_Node* >(func)) {
+  if (ast::Effect_Declaration_Node* lit = ast::is_instance< ast::Effect_Declaration_Node* >(func)) {
     // type = lit->get_return_type(m);
     assert(false && "Not implemented yet");
   }
@@ -290,7 +290,7 @@ void bubbling_yields_rec(Bubbling_Data* data, ast::Manager* m, ast::Node* root, 
     return;
   }
 
-  if (ast::Effect_Literal_Node* lit = ast::is_instance< ast::Effect_Literal_Node* >(root)) {
+  if (ast::Effect_Declaration_Node* lit = ast::is_instance< ast::Effect_Declaration_Node* >(root)) {
     return bubbling_yields_rec(data, m, lit->get_return_type(m), lit, pp, ctx);
   }
 

@@ -20,13 +20,14 @@ const char* ast_kind_strs[] = {
     "AST_CALL_ARGS_LIST",
     "AST_DECL_ARGS_LIST",
 
-    "AST_WITH_HANDLER",
+    "AST_WITH_STATEMENT",
 
     // Control Flow
     "__AST_CTRL_FLOW_START",
     "AST_CTRL_FLOW_IF",
     "AST_CTRL_FLOW_IF_ELSE",
     "AST_CTRL_FLOW_RETURN",
+    "AST_CTRL_FLOW_RESUME",
     "AST_CTRL_FLOW_MATCH",
     "AST_CTRL_FLOW_CASE",
     "__AST_CTRL_FLOW_END",

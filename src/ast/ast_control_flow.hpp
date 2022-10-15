@@ -18,6 +18,14 @@ struct Return_Node_Statement : Node {
   Node* get_expression(ast::Manager* manager);
 };
 
+struct Resume_Node_Statement : Node {
+  Node* get_expression(ast::Manager* manager);
+};
+
+struct With_Node_Statement : Node {
+  Declarations_List_Node* get_list(ast::Manager* manager);
+};
+
 struct Elif_List_Node : Node {
   If_Node_Statement* get_if(ast::Manager* manager);
   Elif_List_Node*    get_elif(ast::Manager* manager);
@@ -26,12 +34,18 @@ struct Elif_List_Node : Node {
 template <> If_Node_Statement*     is_instance<>(Node* node);
 template <> Elif_List_Node*        is_instance<>(Node* node);
 template <> Return_Node_Statement* is_instance<>(Node* node);
+template <> Resume_Node_Statement* is_instance<>(Node* node);
+template <> With_Node_Statement*   is_instance<>(Node* node);
 
 b8 is_branching(Node* node);
 
 If_Node_Statement* create_node_if_statement(ast::Manager* manager, Node* condition, Node* body);
 
 Return_Node_Statement* create_node_return_statement(ast::Manager* manager, Node* expression);
+
+Resume_Node_Statement* create_node_resume_statement(ast::Manager* manager, Node* expression);
+
+With_Node_Statement* create_node_with_statement(ast::Manager* manager, Declarations_List_Node* list);
 
 Elif_List_Node* create_node_elif_list(ast::Manager* manager, If_Node_Statement* branch, Elif_List_Node* tail);
 

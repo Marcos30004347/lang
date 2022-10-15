@@ -41,13 +41,13 @@ enum Token_Type {
   TOKEN_KEYWORD_FN,       // fn
   TOKEN_KEYWORD_EFFECT,   // effect
   TOKEN_KEYWORD_HANDLER,  // handler
-  TOKEN_KEYWORD_RETURN,   // RETURN
+  TOKEN_KEYWORD_RETURN,   // return
   TOKEN_KEYWORD_IF,       // if
   TOKEN_KEYWORD_ELSE,     // else
   TOKEN_KEYWORD_WITH,     // with
   TOKEN_KEYWORD_CONTINUE, // continue
   TOKEN_KEYWORD_RESUME,   // resume
-  TOKEN_KEYWORD_STRUCT,   // resume
+  TOKEN_KEYWORD_STRUCT,   // struct
   TOKEN_KEYWORD_THEN,     // then
 
   // Types
