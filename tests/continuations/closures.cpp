@@ -22,7 +22,11 @@ void should_closure_convert_cps_simple_programs() {
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, compiler->parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(info);
 
@@ -89,7 +93,11 @@ void should_closure_convert_cps_branch_programs() {
 
   ast::Node* node = compiler->parse(prog, strlen(prog));
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, compiler->parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(info);
 

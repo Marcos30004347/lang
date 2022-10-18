@@ -198,16 +198,6 @@ ast::Node* parser_parse_lit(Parser* p) {
     return ast::create_node_literal_nothing(p->ast_manager);
   }
 
-  if (tok.type == TOKEN_KEYWORD_HANDLER_TYPE) {
-    parser_read_token(p, TOKEN_KEYWORD_HANDLER_TYPE);
-    return ast::create_node_type_handler(p->ast_manager);
-  }
-
-  if (tok.type == TOKEN_KEYWORD_STRUCT_TYPE) {
-    parser_read_token(p, TOKEN_KEYWORD_HANDLER_TYPE);
-    return ast::create_node_type_struct(p->ast_manager);
-  }
-
   parser_error(p, parser_curr_tok(p), "invalid literal declaration");
 
   return 0;
@@ -1274,7 +1264,6 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     printf("}");
     return;
   }
-
   if (n->kind == ast::AST_HANDLER_LITERAL) {
     printf("handler ");
     printf(" {\n");
@@ -1284,17 +1273,12 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     printf("}");
     return;
   }
-
-  if (n->kind == ast::AST_TYPE_HANDLER) {
-    printf("handler_t");
-    return;
-  }
-
-  if (n->kind == ast::AST_CTRL_FLOW_RESUME) {
-    printf("resume(");
+	
+	if(n->kind == ast::AST_CTRL_FLOW_RESUME) {
+		printf("resume(");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf(")");
-  }
+		printf(")");
+	}
   if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(".");

@@ -5,6 +5,8 @@ typedef struct continuation_t continuation_t;
 typedef struct ctx ctx;
 bool               is_yielding(ctx*);
 void               compose(ctx*, continuation_t*);
+continuation_t*    continuation(ctx*);
+char*              arguments(ctx*);
 
 typedef void (*call)(void*, void*, char*, ctx*);
 
@@ -108,4 +110,40 @@ void hd_example(ctx* ctx) {
   if (is_yielding(ctx)) {
     // Need to compose the continuation
   }
+}
+
+int f() {}
+
+int effect0(int a, int b, continuation_t* c) {}
+int effect1(int a, continuation_t* c) {}
+int effect2(continuation_t* c) {}
+
+int prompt_teste(ctx* ctx) {
+  int result = f();
+
+  if (!is_yielding(ctx)) {
+    return result;
+  }
+
+  unsigned int effect0_hash = 0;
+  unsigned int effect1_hash = 1;
+  unsigned int effect2_hash = 2;
+
+  continuation_t* cont = continuation(ctx);
+  char*           args = arguments(ctx);
+
+  if (is_yielding(ctx) == effect0_hash) {
+    return effect0(*(int*)(args), *(int*)(args + sizeof(int)), cont);
+  }
+
+  if (is_yielding(ctx) == effect1_hash) {
+    return effect1(*(int*)(args), cont);
+  }
+
+  if (is_yielding(ctx) == effect0_hash) {
+    return effect2(cont);
+  }
+
+  // add normal is yielding code
+  return int();
 }

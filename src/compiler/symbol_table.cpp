@@ -277,10 +277,34 @@ Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, const i8* prefix) {
   return set_entry(table, str, length + x.size);
 }
 
+Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, Symbol prefix) {
+
+  i8* str = (i8*)malloc(prefix.size + x.size + 1);
+
+  for (u64 i = 0; i < prefix.size; i++) {
+    str[i] = char_at(&prefix, i);
+  }
+
+  for (u64 i = 0; i < x.size; i++) {
+    str[prefix.size + i] = char_at(&x, i);
+  }
+
+  return set_entry(table, str, prefix.size + x.size);
+}
+
 void print_symbol(Symbol_Table* table, Symbol id) {
   for (u64 i = 0; i < id.size; i++) {
     printf("%c", char_at(&id, i));
   }
+}
+
+u64 hash(Symbol_Table* table, Symbol id) {
+  i8 buff[id.size];
+  for (u64 i = 0; i < id.size; i++) {
+    buff[i] = char_at(&id, i);
+  }
+
+  return crc64(buff, id.size);
 }
 
 } // namespace symbol

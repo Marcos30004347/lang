@@ -1,4 +1,5 @@
 #include "compiler/compiler.hpp"
+#include "continuations/handler.hpp"
 #include "lib/set.hpp"
 #include "tests.hpp"
 
@@ -20,7 +21,11 @@ void should_cps_convert_call_programs() {
 
   ast::Node* node = parser_parse(parser);
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -41,9 +46,12 @@ void should_cps_convert_call_assignments_programs() {
 
   Parser* parser = parser::parser_create(-1, prog, strlen(prog));
 
-  ast::Node* node = parser_parse(parser);
+  ast::Node*                  node    = parser_parse(parser);
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -72,9 +80,58 @@ void should_cps_convert_branch_programs() {
 
   Parser* parser = parser::parser_create(-1, prog, strlen(prog));
 
+  ast::Node*                  node    = parser_parse(parser);
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+
+  cps::convert_to_cps_style(info, parser, node);
+
+  print_ast_ir(parser->ast_manager, node);
+
+  cps::cps_data_destroy(info);
+
+  parser::parser_destroy(parser);
+}
+
+void should_cps_convert_effectfull_programs() {
+  const i8* prog = "count : unit -> i32;"
+                   "counter : handler_t : handler {"
+                   "  x : i32 = 0;"
+                   "  count :: () -> i32 {"
+                   "    x = x + 1;"
+                   "    resume(x);"
+                   "  }"
+                   "}"
+                   "f :: () -> i32 {"
+                   "  x : i32 : count!();"
+                   "  test : handler_t : handler {"
+                   "     u : i32 = 0;"
+                   "    g :: () -> i32 {"
+                   "      q : i32 = x + u;"
+                   "      resume(q);"
+                   "    }"
+                   "  }"
+                   "  y : i32 : count!();"
+                   "  z : i32 : count!();"
+                   "  return z;"
+                   "}"
+                   "main :: () -> i32 {"
+                   "  x : i32 : f() with counter;"
+                   "  return x;"
+                   "}";
+
+  Parser* parser = parser::parser_create(-1, prog, strlen(prog));
+
   ast::Node* node = parser_parse(parser);
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -89,4 +146,5 @@ int main() {
   TEST(should_cps_convert_call_programs);
   TEST(should_cps_convert_call_assignments_programs);
   TEST(should_cps_convert_branch_programs);
+  TEST(should_cps_convert_effectfull_programs);
 }

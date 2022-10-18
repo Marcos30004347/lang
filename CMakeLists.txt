@@ -21,6 +21,7 @@ add_library(magic
 	src/continuations/continuations.cpp
 	src/continuations/closures.cpp
 	src/continuations/bubbling.cpp
+	src/continuations/handler.cpp
 	src/utils.cpp
 	src/lexer.cpp
 	src/crc64.cpp

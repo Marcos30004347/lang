@@ -78,7 +78,10 @@ Symbol get_symbol(Symbol_Table* table, Id id);
 
 Symbol number_to_symbol(Symbol_Table* table, u64 num, const i8* prefix = "");
 Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, const i8* prefix);
+Symbol symbol_with_prefix(Symbol_Table* table, Symbol x, Symbol prefix);
 
 void print_symbol(Symbol_Table* table, Symbol id);
+u64  hash(Symbol_Table* table, Symbol id);
+
 } // namespace symbol
 } // namespace compiler

@@ -67,6 +67,7 @@ const char* ast_kind_strs[] = {
     "AST_TYPE_STRUCT",
     "AST_TYPE_VARIABLE",
     "AST_TYPE_POINTER",
+    "AST_TYPE_HANDLER",
     "AST_TYPE_EVIDENCE_CONTEXT",
     "__AST_TYPE_KIND_END",
 

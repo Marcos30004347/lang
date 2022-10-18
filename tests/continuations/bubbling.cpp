@@ -38,9 +38,12 @@ void should_closure_convert_cps_branch_programs() {
 
   Compiler* compiler = compiler_create();
 
-  ast::Node* node = compiler->parse(prog, strlen(prog));
+  ast::Node*                  node    = compiler->parse(prog, strlen(prog));
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  cps::CPS_Data* info = cps::cps_data_create();
+  handler::handeler_conversion_pass(hd_data, compiler->parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, compiler->parser, node);
 

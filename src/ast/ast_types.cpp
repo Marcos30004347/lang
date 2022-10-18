@@ -38,6 +38,10 @@ template <> Type_Evidence_Context_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_TYPE_EVIDENCE_CONTEXT ? as< Type_Evidence_Context_Node* >(node) : 0;
 }
 
+template <> Type_Handler_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_TYPE_HANDLER ? as< Type_Handler_Node* >(node) : 0;
+}
+
 template <> Cast_Type_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_CAST_TYPE ? as< Cast_Type_Node* >(node) : 0;
 }
@@ -52,6 +56,10 @@ Type_Int32_Node* create_node_type_i32(ast::Manager* manager) {
 
 Type_Unit_Node* create_node_type_unit(ast::Manager* manager) {
   return as< Type_Unit_Node* >(ast::manager_alloc(manager, AST_TYPE_UNIT, 0, 0));
+}
+
+Type_Handler_Node* create_node_type_handler(ast::Manager* manager) {
+  return as< Type_Handler_Node* >(ast::manager_alloc(manager, AST_TYPE_HANDLER, 0, 0));
 }
 
 Type_Arrow_Node* create_node_type_arrow(ast::Manager* manager, Node* from, Node* to) {

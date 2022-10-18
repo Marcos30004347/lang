@@ -12,6 +12,7 @@
 #include "compiler/compiler.hpp"
 #include "compiler/symbol_table.hpp"
 #include "context/context.hpp"
+#include "continuations/handler.hpp"
 #include "lib/set.hpp"
 #include "parser/parser.hpp"
 
@@ -24,16 +25,19 @@ namespace cps {
 struct CPS_Data {
   u64 temporaries;
 
+  handler::Handler_Pass_Data* handler_pass_data;
+
   lib::Set< ast::Declaration_Variable_Node* >* temporary_declarations;
 
   lib::Table< compiler::symbol::Id, ast::Declaration_Constant_Node* >*        continuation_literals;
   lib::Table< ast::Function_Literal_Node*, ast::Declaration_Constant_Node* >* continuation_declaration;
 };
 
-CPS_Data* cps_data_create() {
+CPS_Data* cps_data_create(handler::Handler_Pass_Data* data) {
   CPS_Data* info = new CPS_Data();
 
-  info->temporaries = 0;
+  info->temporaries       = 0;
+  info->handler_pass_data = data;
 
   // info->continuation_arguments = lib::table_create< compiler::symbol::Id, ast::Id >();
   info->continuation_literals    = lib::table_create< compiler::symbol::Id, ast::Declaration_Constant_Node* >();
@@ -48,7 +52,13 @@ void cps_data_destroy(CPS_Data* info) {
   lib::table_delete(info->continuation_declaration);
   lib::set_delete(info->temporary_declarations);
 
+  handler::handler_pass_data_destroy(info->handler_pass_data);
+
   delete info;
+}
+
+handler::Handler_Pass_Data* cps_data_get_handler_data(CPS_Data* data) {
+  return data->handler_pass_data;
 }
 
 b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Literal_Symbol_Node* decl) {
@@ -140,27 +150,27 @@ create_continuation_function(CPS_Data* info, parser::Parser* parser, ast::Node* 
   return assignment;
 }
 
-void function_literal_assignment_to_constant_declaration(CPS_Data* info, parser::Parser* parser, ast::Node* literal, ast::Node* assignment, ast::ProgramPoint_List_Node* point) {
-  ast::Manager* m = parser->ast_manager;
+// void function_literal_assignment_to_constant_declaration(CPS_Data* info, parser::Parser* parser, ast::Node* literal, ast::Node* assignment, ast::ProgramPoint_List_Node* point) {
+//   ast::Manager* m = parser->ast_manager;
 
-  // Promote function declaration to constant
-  ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c"));
+//   // Promote function declaration to constant
+//   ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c"));
 
-  ast::Node* type = ast::create_node_type_any(m); // TODO(marcos): infer function type
+//   ast::Node* type = ast::create_node_type_any(m); // TODO(marcos): infer function type
 
-  ast::Declaration_Variable_Node* decl = ast::create_variable_declaration(m, symbol, type);
-  ast::Variable_Assignment_Node*  func = ast::create_node_assignment(m, decl, literal);
+//   ast::Declaration_Variable_Node* decl = ast::create_variable_declaration(m, symbol, type);
+//   ast::Variable_Assignment_Node*  func = ast::create_node_assignment(m, decl, literal);
 
-  ast::Variable_Assignment_Node* statement = ast::is_instance< ast::Variable_Assignment_Node* >(assignment);
+//   ast::Variable_Assignment_Node* statement = ast::is_instance< ast::Variable_Assignment_Node* >(assignment);
 
-  assert(statement);
+//   assert(statement);
 
-  statement->set_right_operand(m, ast::deep_copy(m, symbol));
+//   statement->set_right_operand(m, ast::deep_copy(m, symbol));
 
-  point->set_statement(m, func);
+//   point->set_statement(m, func);
 
-  point->insert(m, statement);
-}
+//   point->insert(m, statement);
+// }
 
 void program_point_cps_conversion(
     CPS_Data*                    info,
@@ -201,7 +211,7 @@ void program_point_cps_conversion(
 
       if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(right)) {
         function_literal_cps_conversion(info, parser, ctx, lit, NULL);
-        function_literal_assignment_to_constant_declaration(info, parser, right, statement, statements);
+        // function_literal_assignment_to_constant_declaration(info, parser, right, statement, statements);
       }
 
       if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(right)) {

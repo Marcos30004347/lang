@@ -14,6 +14,7 @@ struct Type_Any_Node : Node {};
 struct Type_Int32_Node : Node {};
 struct Type_Unit_Node : Node {};
 struct Type_Struct_Node : Node {};
+struct Type_Handler_Node : Node {};
 
 struct Type_Evidence_Context_Node : Node {};
 
@@ -39,6 +40,7 @@ template <> Type_Struct_Node*           is_instance<>(Node* node);
 template <> Type_Variable_Node*         is_instance<>(Node* node);
 template <> Type_Evidence_Context_Node* is_instance<>(Node* node);
 template <> Cast_Type_Node*             is_instance<>(Node* node);
+template <> Type_Handler_Node*          is_instance<>(Node* node);
 
 Type_Any_Node* create_node_type_any(ast::Manager* manager);
 
@@ -53,6 +55,8 @@ Type_Struct_Node* create_node_type_struct(ast::Manager* manager);
 Type_Variable_Node* create_node_type_variable(ast::Manager* manager, Literal_Symbol_Node* symbol);
 
 Type_Evidence_Context_Node* create_node_type_evidence_context(ast::Manager* manager);
+
+Type_Handler_Node* create_node_type_handler(ast::Manager* manager);
 
 Cast_Type_Node* create_node_cast_type(ast::Manager* manager, ast::Node* type, ast::Node* expr);
 

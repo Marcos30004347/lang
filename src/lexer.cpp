@@ -321,8 +321,14 @@ Token lexer_read_token(Lexer* t) {
   if (lexer_can_read_word(t, "effect", &size) && lexer_eat_next_n(t, size))
     return lexer_set_curr(t, token_create(TOKEN_KEYWORD_EFFECT, pos, col, row, t->file_id, size));
 
+  if (lexer_can_read_word(t, "handler_t", &size) && lexer_eat_next_n(t, size))
+    return lexer_set_curr(t, token_create(TOKEN_KEYWORD_HANDLER_TYPE, pos, col, row, t->file_id, size));
+
   if (lexer_can_read_word(t, "handler", &size) && lexer_eat_next_n(t, size))
     return lexer_set_curr(t, token_create(TOKEN_KEYWORD_HANDLER, pos, col, row, t->file_id, size));
+
+  if (lexer_can_read_word(t, "struct_t", &size) && lexer_eat_next_n(t, size))
+    return lexer_set_curr(t, token_create(TOKEN_KEYWORD_STRUCT_TYPE, pos, col, row, t->file_id, size));
 
   return lexer_set_curr(t, lexer_read_id(t));
 }

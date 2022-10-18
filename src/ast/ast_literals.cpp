@@ -97,6 +97,10 @@ Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, Program
   return as< Literal_Handler_Node* >(ast::manager_alloc(manager, AST_HANDLER_LITERAL, get_id(statements), 0));
 }
 
+ProgramPoint_List_Node* Literal_Handler_Node::get_body(ast::Manager* m) {
+  return ast::as< ProgramPoint_List_Node* >(left_of(m, this));
+}
+
 ProgramPoint_List_Node* Literal_Struct_Node::get_members(ast::Manager* manager) {
   if (this->left == 0) {
     return NULL;

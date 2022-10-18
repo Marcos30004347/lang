@@ -11,14 +11,18 @@ namespace ast {
 
 struct Declaration_Constant_Node : Node {
   Literal_Symbol_Node* get_symbol(ast::Manager* manager);
+  void                 set_symbol(ast::Manager* manager, ast::Literal_Symbol_Node* symbol);
 
   Node* get_type(ast::Manager* manager);
+  void  set_type(ast::Manager* manager, ast::Node* type);
 };
 
 struct Declaration_Variable_Node : Node {
   Literal_Symbol_Node* get_symbol(ast::Manager* manager);
+  void                 set_symbol(ast::Manager* manager, ast::Literal_Symbol_Node* symbol);
 
   Node* get_type(ast::Manager* manager);
+  void  set_type(ast::Manager* manager, ast::Node* type);
 };
 
 template <> Declaration_Constant_Node* is_instance<>(Node* node);

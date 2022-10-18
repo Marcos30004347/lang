@@ -30,6 +30,10 @@ target_link_libraries(StackFrameTests magic)
 target_include_directories(StackFrameTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME StackFrameTests COMMAND StackFrameTests)
 
+add_executable(HandlerConversionTests continuations/handler.cpp)
+target_link_libraries(HandlerConversionTests magic)
+target_include_directories(HandlerConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME HandlerConversionTests COMMAND HandlerConversionTests)
 
 add_executable(CPSConversionTests continuations/continuations.cpp)
 target_link_libraries(CPSConversionTests magic)

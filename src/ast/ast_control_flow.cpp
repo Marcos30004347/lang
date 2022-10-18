@@ -46,8 +46,16 @@ Resume_Node_Statement* create_node_resume_statement(ast::Manager* manager, Node*
   return as< Resume_Node_Statement* >(ast::manager_alloc(manager, AST_CTRL_FLOW_RESUME, expression->id, 0));
 }
 
-With_Node_Statement* create_node_with_statement(ast::Manager* manager, Declarations_List_Node* list) {
-  return as< With_Node_Statement* >(ast::manager_alloc(manager, AST_WITH_STATEMENT, get_id(list), 0));
+With_Node_Statement* create_node_with_statement(ast::Manager* manager, ast::Node* call, Declarations_List_Node* list) {
+  return as< With_Node_Statement* >(ast::manager_alloc(manager, AST_WITH_STATEMENT, get_id(call), get_id(list)));
+}
+
+Declarations_List_Node* With_Node_Statement::get_list(ast::Manager* m) {
+  return ast::as< Declarations_List_Node* >(right_of(m, this));
+}
+
+Node* With_Node_Statement::get_call(ast::Manager* m) {
+  return left_of(m, this);
 }
 
 Node* If_Node_Statement::get_condition(ast::Manager* manager) {

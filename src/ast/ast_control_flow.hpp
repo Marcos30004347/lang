@@ -23,6 +23,7 @@ struct Resume_Node_Statement : Node {
 };
 
 struct With_Node_Statement : Node {
+  Node*                   get_call(ast::Manager* manager);
   Declarations_List_Node* get_list(ast::Manager* manager);
 };
 
@@ -45,7 +46,7 @@ Return_Node_Statement* create_node_return_statement(ast::Manager* manager, Node*
 
 Resume_Node_Statement* create_node_resume_statement(ast::Manager* manager, Node* expression);
 
-With_Node_Statement* create_node_with_statement(ast::Manager* manager, Declarations_List_Node* list);
+With_Node_Statement* create_node_with_statement(ast::Manager* manager, ast::Node* call, Declarations_List_Node* list);
 
 Elif_List_Node* create_node_elif_list(ast::Manager* manager, If_Node_Statement* branch, Elif_List_Node* tail);
 

@@ -8,6 +8,7 @@
 #include "ast/ast_manager.hpp"
 #include "compiler/compiler.hpp"
 
+#include "continuations/handler.hpp"
 #include "lib/set.hpp"
 #include "lib/table.hpp"
 #include "parser/parser.hpp"
@@ -16,9 +17,11 @@ namespace cps {
 
 typedef struct CPS_Data CPS_Data;
 
-CPS_Data* cps_data_create();
+CPS_Data* cps_data_create(handler::Handler_Pass_Data*);
 
 void cps_data_destroy(CPS_Data* info);
+
+handler::Handler_Pass_Data* cps_data_get_handler_data(CPS_Data* data);
 
 void convert_to_cps_style(CPS_Data* info, parser::Parser* parser, ast::Node* root);
 
@@ -26,4 +29,5 @@ b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Literal_Symbol_
 b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Function_Literal_Node* function);
 b8 is_temporary_variable(CPS_Data* info, ast::Manager* m, ast::Declaration_Variable_Node* decl);
 b8 is_temporary_variable(CPS_Data* info, ast::Manager* m, ast::Declaration_Constant_Node* decl);
+
 } // namespace cps

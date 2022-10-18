@@ -8,6 +8,10 @@ template < typename T > T max(T a, T b) {
   return (a > b) ? a : b;
 }
 
+template < typename T > T min(T a, T b) {
+  return (a < b) ? a : b;
+}
+
 template < typename T > b8 is_equal(T a, T b) {
   return (u64)a == (u64)b;
 }
