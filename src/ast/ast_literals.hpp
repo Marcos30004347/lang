@@ -13,6 +13,7 @@ namespace ast {
 struct Literal_Symbol_Node : Node {
   compiler::symbol::Symbol get_symbol(ast::Manager* manager);
   compiler::symbol::Id     get_symbol_id();
+  void                     set_symbol_id(compiler::symbol::Id id);
 };
 
 struct Literal_Natural_Node : Node {

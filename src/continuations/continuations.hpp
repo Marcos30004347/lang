@@ -27,6 +27,7 @@ void convert_to_cps_style(CPS_Data* info, parser::Parser* parser, ast::Node* roo
 
 b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Literal_Symbol_Node* symbol);
 b8 is_continuation_closure(CPS_Data* info, ast::Manager* m, ast::Function_Literal_Node* function);
+
 b8 is_temporary_variable(CPS_Data* info, ast::Manager* m, ast::Declaration_Variable_Node* decl);
 b8 is_temporary_variable(CPS_Data* info, ast::Manager* m, ast::Declaration_Constant_Node* decl);
 

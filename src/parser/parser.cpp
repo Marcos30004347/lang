@@ -1075,6 +1075,11 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == ast::AST_EFFECT_LITERAL) {
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
+    return;
+  }
+
   if (n->kind == ast::AST_FUNCTION_LITERAL) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" {\n");
@@ -1345,12 +1350,14 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
+
   if (n->kind == ast::AST_OP_BIN_GT) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" > ");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
+
   if (n->kind == ast::AST_OP_BIN_GE) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(" >= ");

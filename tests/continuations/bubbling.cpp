@@ -4,20 +4,20 @@
 #include "tests.hpp"
 
 #include "continuations/bubbling.hpp"
-#include "continuations/closures.hpp"
 
+#include "compiler/compiler.hpp"
 #include "parser/parser.hpp"
 
 using namespace compiler;
 using namespace symbol;
 using namespace parser;
 
-void should_closure_convert_cps_branch_programs() {
-  const i8* prog = "some :: (x: i32) -> i32 {"
-                   "  return x;"
+void should_bubble_branch_programs() {
+  const i8* prog = "some : i32 -> i32 : (a: i32) -> i32 {"
+                   "  return a;"
                    "}"
-                   "g : i32 -> i32 : (x:i32) -> i32 {"
-                   "  return x;"
+                   "g : i32 -> i32 : (b:i32) -> i32 {"
+                   "  return b;"
                    "}"
                    "main : unit -> i32 : () -> i32 {"
                    "  x : i32 = 0;"
@@ -47,19 +47,11 @@ void should_closure_convert_cps_branch_programs() {
 
   cps::convert_to_cps_style(info, compiler->parser, node);
 
-  //  print_ast_ir(compiler->parser->ast_manager, node);
-
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(info);
 
   stackframe::allocate_stack_frame(sf_data, compiler->parser->ast_manager, node);
 
-  // print_ast_ir(compiler->parser->ast_manager, node);
-
-  closures::CPS_Closure_Data* data = closures::cps_closure_data_create(sf_data);
-
-  closures::convert_cps_closures(compiler->parser->ast_manager, node, data);
-
-  bubbling::Bubbling_Data* bubbling_data = bubbling::bubbling_data_create(data);
+  bubbling::Bubbling_Data* bubbling_data = bubbling::bubbling_data_create(sf_data);
 
   bubbling::add_bubbling_yields(bubbling_data, compiler->parser->ast_manager, node);
 
@@ -70,6 +62,51 @@ void should_closure_convert_cps_branch_programs() {
   compiler::compiler_destroy(compiler);
 }
 
+void should_bubble_effectfull_program() {
+
+  const i8* prog = "ask : unit -> i32 : () -> i32;"
+                   ""
+                   "read : handler_t : handler {"
+                   "  ask : unit -> i32 : () -> i32 {"
+                   "    resume(1);"
+                   "  }"
+                   "}"
+                   ""
+                   "f : unit -> i32 : () -> i32 {"
+                   "  x: i32 : ask!();"
+                   "  y: i32 : ask!();"
+                   "  z: i32 : x + y;"
+                   "  return z;"
+                   "}";
+
+  Parser* parser = parser_create(-1, prog, strlen(prog));
+
+  ast::Node* node = parser_parse(parser);
+
+  handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
+
+  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+
+  cps::convert_to_cps_style(info, parser, node);
+
+  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
+
+  stackframe::allocate_stack_frame(data, parser->ast_manager, node);
+
+  bubbling::Bubbling_Data* bubbling_data = bubbling::bubbling_data_create(data);
+
+  bubbling::add_bubbling_yields(bubbling_data, parser->ast_manager, node);
+
+  print_ast_ir(parser->ast_manager, node);
+
+  bubbling::bubbling_data_delete(bubbling_data);
+
+  parser_destroy(parser);
+}
+
 int main() {
-  TEST(should_closure_convert_cps_branch_programs);
+  // TEST(should_bubble_branch_programs);
+  TEST(should_bubble_effectfull_program);
 }

@@ -117,6 +117,10 @@ b8 is_semantic_node(Node* n) {
   return n && !is_instance< Literal_Nothing_Node* >(n);
 }
 
+void Literal_Symbol_Node::set_symbol_id(compiler::symbol::Id id) {
+  this->left = id;
+}
+
 void replace_ocurrences(ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to) {
   if (!ast::is_semantic_node(node)) {
     return;

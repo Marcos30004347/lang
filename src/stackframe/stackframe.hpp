@@ -24,4 +24,5 @@ ast::Declaration_Variable_Node* stack_frame_get_function_stack_frame(Stack_Frame
 
 ast::Variable_Assignment_Node* stack_frame_get_function_local_stack_frame_allocation(Stack_Frame_Data* data, ast::Function_Literal_Node* f);
 
+ast::Literal_Symbol_Node* build_sp_symbol(ast::Manager* m, u64 depth);
 } // namespace stackframe
