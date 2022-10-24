@@ -122,28 +122,27 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
 
 ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return_size, ast::Node* is_prompt, ast::Node* own_frame, ast::Node* frame, ast::Node* handler) {
 
-  ast::Literal_Symbol_Node* closure_symbol      = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "k"));
-  ast::Literal_Symbol_Node* closure_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "continuation_t"));
-  ast::Type_Pointer_Node*   closure_type        = ast::create_node_type_pointer(m, closure_type_symbol);
+  // ast::Literal_Symbol_Node* closure_symbol      = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "k"));
+  // ast::Literal_Symbol_Node* closure_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "continuation_t"));
+  // ast::Type_Pointer_Node*   closure_type        = ast::create_node_type_pointer(m, closure_type_symbol);
 
-  ast::Literal_Symbol_Node*    sizeof_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
-  ast::Declarations_List_Node* sizeof_args   = ast::create_node_declarations_list(m, ast::deep_copy(m, closure_type_symbol), NULL);
-  ast::Function_Call_Node*     sizeof_call   = ast::create_node_function_call(m, sizeof_symbol, sizeof_args);
+  // ast::Literal_Symbol_Node*    sizeof_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
+  // ast::Declarations_List_Node* sizeof_args   = ast::create_node_declarations_list(m, ast::deep_copy(m, closure_type_symbol), NULL);
+  // ast::Function_Call_Node*     sizeof_call   = ast::create_node_function_call(m, sizeof_symbol, sizeof_args);
 
-  ast::Literal_Symbol_Node*       sizeof_var_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "s"));
-  ast::Declaration_Constant_Node* sizeof_var_decl   = ast::create_constant_declaration(m, sizeof_var_symbol, ast::create_node_type_i32(m));
-  ast::Variable_Assignment_Node*  sizeof_var_assignment =
-      ast::create_node_assignment(m, sizeof_var_decl, ast::create_node_arithmetic_add(m, sizeof_call, ast::deep_copy(m, return_size)));
+  // ast::Literal_Symbol_Node*       sizeof_var_symbol     = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "s"));
+  // ast::Declaration_Constant_Node* sizeof_var_decl       = ast::create_constant_declaration(m, sizeof_var_symbol, ast::create_node_type_i32(m));
+  // ast::Variable_Assignment_Node*  sizeof_var_assignment = ast::create_node_assignment(m, sizeof_var_decl, ast::deep_copy(m, return_size));
 
-  ast::Literal_Symbol_Node*    closure_alloc_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "malloc"));
-  ast::Declarations_List_Node* closure_alloc_args = ast::create_node_declarations_list(m, ast::deep_copy(m, sizeof_var_symbol), NULL);
-  ast::Function_Call_Node*     closure_alloc_call = ast::create_node_function_call(m, closure_alloc_func, closure_alloc_args);
+  // ast::Literal_Symbol_Node*    closure_alloc_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "malloc"));
+  // ast::Declarations_List_Node* closure_alloc_args = ast::create_node_declarations_list(m, ast::deep_copy(m, sizeof_var_symbol), NULL);
+  // ast::Function_Call_Node*     closure_alloc_call = ast::create_node_function_call(m, closure_alloc_func, closure_alloc_args);
 
   // TODO(marcos): create a type for closures
   // ast::Type_Any_Node*             closure_type   = ast::create_node_type_any(m);
-  ast::Declaration_Variable_Node* closure_decl            = ast::create_variable_declaration(m, closure_symbol, closure_type);
-  ast::Cast_Type_Node*            closure_alloc_call_cast = ast::create_node_cast_type(m, ast::deep_copy(m, closure_type), closure_alloc_call);
-  ast::Variable_Assignment_Node*  closure_assignment      = ast::create_node_assignment(m, closure_decl, closure_alloc_call_cast);
+  // ast::Declaration_Variable_Node* closure_decl            = ast::create_variable_declaration(m, closure_symbol, closure_type);
+  // ast::Cast_Type_Node*            closure_alloc_call_cast = ast::create_node_cast_type(m, ast::deep_copy(m, closure_type), closure_alloc_call);
+  // ast::Variable_Assignment_Node*  closure_assignment      = ast::create_node_assignment(m, closure_decl, closure_alloc_call_cast);
 
   ast::Literal_Symbol_Node* bubble_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "bubble"));
 
@@ -157,8 +156,8 @@ ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return
 
   ast::ProgramPoint_List_Node* pp = ast::create_node_program_point(m, call, NULL);
 
-  pp = ast::create_node_program_point(m, closure_assignment, pp);
-  pp = ast::create_node_program_point(m, sizeof_var_assignment, pp);
+  // pp = ast::create_node_program_point(m, closure_assignment, pp);
+  // pp = ast::create_node_program_point(m, sizeof_var_assignment, pp);
 
   return pp;
 }

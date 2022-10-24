@@ -83,17 +83,25 @@ void should_bubble_effectfull_program() {
 
   ast::Node* node = parser_parse(parser);
 
+  print_ast(parser->ast_manager, node);
+
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+
+  print_ast_ir(parser->ast_manager, node);
 
   cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
+  print_ast_ir(parser->ast_manager, node);
+
   stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
 
   stackframe::allocate_stack_frame(data, parser->ast_manager, node);
+
+  print_ast_ir(parser->ast_manager, node);
 
   bubbling::Bubbling_Data* bubbling_data = bubbling::bubbling_data_create(data);
 

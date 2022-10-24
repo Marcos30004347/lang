@@ -136,23 +136,23 @@ void add_evidence_context_to_calls(Handler_Pass_Data* data, ast::Manager* m, ast
 }
 
 ast::Function_Call_Node* create_yielding_to(ast::Manager* m, u64 hash) {
-  ast::Literal_Symbol_Node*  symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "yielding_to_handler"));
-  ast::Literal_Symbol_Node*  ctx    = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
-  ast::Literal_Natural_Node* id     = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, hash));
+  ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "yielding_to_handler"));
+  // ast::Literal_Symbol_Node*  ctx    = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
+  ast::Literal_Natural_Node* id = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, hash));
 
   ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, id, NULL);
-  args                              = ast::create_node_declarations_list(m, ctx, args);
+  // args                              = ast::create_node_declarations_list(m, ctx, args);
 
   return ast::create_node_function_call(m, symbol, args);
 }
 
 ast::Function_Call_Node* create_is_yielding(ast::Manager* m) {
   ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "is_yielding"));
-  ast::Literal_Symbol_Node* ctx    = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
+  // ast::Literal_Symbol_Node* ctx    = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
 
-  ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ctx, NULL);
+  // ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ctx, NULL);
 
-  return ast::create_node_function_call(m, symbol, args);
+  return ast::create_node_function_call(m, symbol, NULL);
 }
 
 ast::ProgramPoint_List_Node* create_handler_effect_if_stmt(ast::Manager* m, u64 hash, ast::Literal_Symbol_Node* effect, ast::Function_Literal_Node* literal) {

@@ -314,9 +314,12 @@ u64 stack_allocate(
     }
 
     if (cps::is_continuation_closure(data->cps_data, m, f) == false) {
-      stack_size       = sizeof(void*);
-      data->stack_size = sizeof(void*);
-      depth            = depth + 1;
+      u64 frame_header_size = sizeof(void*);
+
+      stack_size       = frame_header_size;
+      data->stack_size = frame_header_size;
+
+      depth = depth + 1;
     }
 
     lib::insert(data->function_depth, f, depth);
@@ -411,6 +414,7 @@ u64 stack_allocate(
       }
 
     } else {
+
       u64 tmp = data->stack_size;
 
       data->stack_size = 0;
@@ -499,8 +503,6 @@ u64 stack_allocate(
     ast::Node* left  = assignment->get_left_operand(m);
     ast::Node* right = assignment->get_right_operand(m);
 
-    stack_size = stack_allocate(data, m, left, ctx, args_ctx, stack_size, depth, assignment, used_stacks, childs_used_stacks);
-
     data->stack_size = lib::max(data->stack_size, stack_size);
 
     if (ast::is_declaration_node(left)) {
@@ -582,6 +584,7 @@ u64 stack_allocate(
       return stack_size;
     }
 
+    stack_size = stack_allocate(data, m, left, ctx, args_ctx, stack_size, depth, assignment, used_stacks, childs_used_stacks);
     stack_size = stack_allocate(data, m, right, ctx, args_ctx, stack_size, depth, assignment, used_stacks, childs_used_stacks);
 
     data->stack_size = lib::max(data->stack_size, stack_size);
@@ -650,6 +653,7 @@ u64 stack_allocate(
 
       if (stack_address) {
         u64* var_depth = lib::search(data->stack_depth, decl);
+
         assert(var_depth);
 
         lib::insert(used_stacks, *var_depth);
@@ -683,6 +687,7 @@ u64 stack_allocate(
 
       if (stack_address) {
         u64* var_depth = lib::search(data->stack_depth, decl);
+
         assert(var_depth);
 
         lib::insert(used_stacks, *var_depth);

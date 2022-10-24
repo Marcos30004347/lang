@@ -114,13 +114,11 @@ void should_stack_frame_allote_effectfull_program0() {
 void should_stack_frame_allote_effectfull_program1() {
 
   const i8* prog = "ask : unit -> i32 : () -> i32;"
-                   ""
                    "read : handler_t : handler {"
                    "  ask : unit -> i32 : () -> i32 {"
                    "    resume(1);"
                    "  }"
                    "}"
-                   ""
                    "f : unit -> i32 : () -> i32 {"
                    "  x: i32 : ask!();"
                    "  y: i32 : ask!();"
@@ -139,8 +137,6 @@ void should_stack_frame_allote_effectfull_program1() {
   cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
-
-  print_ast_ir(parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
 
