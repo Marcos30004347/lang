@@ -3,6 +3,7 @@
 #include "ast/ast_kind.hpp"
 #include "ast/ast_literals.hpp"
 #include "ast/ast_manager.hpp"
+#include "ast/ast_operations.hpp"
 #include "ast/ast_program_point.hpp"
 
 #include <assert.h>
@@ -32,6 +33,11 @@ Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node*
   Node* signature = ast::manager_alloc(manager, AST_FUN_SIGNATURE, get_id(arguments), get_id(return_type));
 
   return as< Function_Literal_Node* >(ast::manager_alloc(manager, AST_FUNCTION_LITERAL, get_id(signature), get_id(body)));
+}
+
+void Function_Literal_Node::set_return_type(ast::Manager* manager, Node* ty) {
+  Node* signature = left_of(manager, this);
+  set_right(manager, signature, ty);
 }
 
 Effect_Declaration_Node* create_node_effect_declaration(ast::Manager* manager, Node* arguments, Node* return_type) {

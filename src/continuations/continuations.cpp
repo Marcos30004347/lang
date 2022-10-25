@@ -85,7 +85,7 @@ b8 is_temporary_variable(CPS_Data* info, ast::Manager* m, ast::Declaration_Const
 //   return lib::search(info->temporary_declarations, decl) != NULL;
 // }
 
-void call_cps_conversion(CPS_Data*, parser::Parser*, context::Context*, ast::ProgramPoint_List_Node*, ast::Node*, ast::Node*, ast::Literal_Symbol_Node*);
+void call_cps_conversion(CPS_Data*, parser::Parser*, context::Context*, ast::ProgramPoint_List_Node*, ast::Node*, ast::Node*, ast::Literal_Symbol_Node*, ast::Node*);
 
 void function_literal_cps_conversion(CPS_Data*, parser::Parser*, context::Context*, ast::Function_Literal_Node*, ast::Literal_Symbol_Node*);
 
@@ -138,22 +138,47 @@ create_continuation_function(CPS_Data* info, parser::Parser* parser, ast::Node* 
     arguments = ast::create_node_declarations_list(m, v, NULL);
   }
 
-  ast::Node* ty = ast::create_node_type_any(m);
-
-  ast::Function_Literal_Node* function = ast::create_node_function_literal(m, arguments, ty, body);
-
-  handler::add_context_argument(info->handler_pass_data, m, function);
+  ast::Function_Literal_Node* function = ast::create_node_function_literal(m, arguments, return_type, body);
 
   symbol::Symbol sym = symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c");
 
   ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, sym);
 
   // TODO: infer type from 'arguments' and 'return_type'
-  ast::Node* type = ast::create_node_type_arrow(m, ast::create_node_type_any(m), ast::create_node_type_any(m));
+
+  ast::Node* argument_type = NULL;
+
+  ast::Declarations_List_Node* tmp = ast::is_instance< ast::Declarations_List_Node* >(arguments);
+
+  while (ast::is_semantic_node(tmp)) {
+    ast::Node* t = tmp->get_declaration(m);
+
+    if (ast::Declaration_Variable_Node* arg = ast::is_instance< ast::Declaration_Variable_Node* >(t)) {
+      if (argument_type) {
+        argument_type = ast::create_node_arithmetic_mul(m, argument_type, ast::deep_copy(m, arg->get_type(m)));
+      } else {
+        argument_type = ast::deep_copy(m, arg->get_type(m));
+      }
+    }
+
+    if (ast::Declaration_Constant_Node* arg = ast::is_instance< ast::Declaration_Constant_Node* >(t)) {
+      if (argument_type) {
+        argument_type = ast::create_node_arithmetic_mul(m, argument_type, ast::deep_copy(m, arg->get_type(m)));
+      } else {
+        argument_type = ast::deep_copy(m, arg->get_type(m));
+      }
+    }
+
+    tmp = tmp->get_next_declaration(m);
+  }
+
+  ast::Node* type = ast::create_node_type_arrow(m, argument_type, ast::deep_copy(m, return_type));
 
   ast::Declaration_Constant_Node* declaration = ast::create_constant_declaration(m, symbol, type);
 
   ast::Variable_Assignment_Node* assignment = ast::create_node_assignment(m, declaration, function);
+
+  handler::add_context_argument(info->handler_pass_data, m, function, declaration);
 
   lib::insert(info->continuation_literals, symbol->get_symbol_id(), declaration);
 
@@ -171,7 +196,7 @@ void function_literal_assignment_to_constant_declaration(
 
   info->temporaries += 1;
 
-  ast::Node* type = NULL; // TODO(marcos): infer function type
+  ast::Node* type = NULL;
 
   if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(declaration)) {
     type = ast::deep_copy(m, var->get_type(m));
@@ -205,7 +230,8 @@ void program_point_cps_conversion(
     context::Context*            ctx,
     ast::Literal_Symbol_Node*    cont_symbol,
     ast::ProgramPoint_List_Node* statements,
-    ast::Literal_Symbol_Node*    joint_continuation) {
+    ast::Literal_Symbol_Node*    joint_continuation,
+    ast::Node*                   return_type) {
 
   ast::Manager* m = parser->ast_manager;
 
@@ -278,9 +304,9 @@ void program_point_cps_conversion(
 
         lib::insert(info->temporary_variable_declarations, temp_arg);
 
-        call_cps_conversion(info, parser, ctx, statements, call, temp_arg, joint_continuation);
+        call_cps_conversion(info, parser, ctx, statements, call, temp_arg, joint_continuation, return_type);
 
-        return program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation);
+        return program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation, return_type);
       }
 
       if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(right)) {
@@ -314,20 +340,20 @@ void program_point_cps_conversion(
 
         lib::insert(info->temporary_variable_declarations, temp_arg);
 
-        call_cps_conversion(info, parser, ctx, statements, call, temp_arg, joint_continuation);
+        call_cps_conversion(info, parser, ctx, statements, call, temp_arg, joint_continuation, return_type);
 
-        return program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation);
+        return program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation, return_type);
       }
     }
 
     if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(statement)) {
-      program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation);
-      return call_cps_conversion(info, parser, ctx, statements, call, NULL, joint_continuation);
+      program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation, return_type);
+      return call_cps_conversion(info, parser, ctx, statements, call, NULL, joint_continuation, return_type);
     }
 
     if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(statement)) {
-      program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation);
-      return call_cps_conversion(info, parser, ctx, statements, call, NULL, joint_continuation);
+      program_point_cps_conversion(info, parser, ctx, cont_symbol, continuation, joint_continuation, return_type);
+      return call_cps_conversion(info, parser, ctx, statements, call, NULL, joint_continuation, return_type);
     }
 
     if (ast::Elif_List_Node* elif = ast::is_instance< ast::Elif_List_Node* >(statement)) {
@@ -335,7 +361,7 @@ void program_point_cps_conversion(
       ast::Literal_Symbol_Node* old_joint = joint_continuation;
 
       ast::Variable_Assignment_Node* joint_continuation =
-          create_continuation_function(info, parser, ast::create_node_literal_nothing(m), ast::create_node_type_any(m), statements->split(m), joint_continuation);
+          create_continuation_function(info, parser, ast::create_node_literal_nothing(m), return_type, statements->split(m), joint_continuation);
 
       ast::Declaration_Constant_Node* joint_declaration = ast::as< ast::Declaration_Constant_Node* >(joint_continuation->get_left_operand(m));
 
@@ -345,7 +371,7 @@ void program_point_cps_conversion(
 
       ast::ProgramPoint_List_Node* joint_body = joint_literal->get_body(m);
 
-      program_point_cps_conversion(info, parser, ctx, cont_symbol, joint_body, old_joint);
+      program_point_cps_conversion(info, parser, ctx, cont_symbol, joint_body, old_joint, return_type);
 
       statements->set_statement(m, joint_continuation);
 
@@ -355,7 +381,7 @@ void program_point_cps_conversion(
         ast::If_Node_Statement*      if_statement = elif->get_if(m);
         ast::ProgramPoint_List_Node* body         = if_statement->get_body(m);
 
-        program_point_cps_conversion(info, parser, ctx, cont_symbol, body, joint_symbol);
+        program_point_cps_conversion(info, parser, ctx, cont_symbol, body, joint_symbol, return_type);
 
         elif = elif->get_elif(m);
       }
@@ -399,13 +425,20 @@ void program_point_cps_conversion(
 }
 
 void call_cps_conversion(
-    CPS_Data* info, parser::Parser* parser, context::Context* ctx, ast::ProgramPoint_List_Node* program_point, ast::Node* call, ast::Node* bind, ast::Literal_Symbol_Node* joint) {
+    CPS_Data*                    info,
+    parser::Parser*              parser,
+    context::Context*            ctx,
+    ast::ProgramPoint_List_Node* program_point,
+    ast::Node*                   call,
+    ast::Node*                   bind,
+    ast::Literal_Symbol_Node*    joint,
+    ast::Node*                   return_type) {
   ast::Manager* m = parser->ast_manager;
 
   ast::ProgramPoint_List_Node* continuation = program_point->split(m);
 
   if (ast::is_semantic_node(continuation)) {
-    ast::Node* type = ast::create_node_type_any(m); // TODO: use a global context to find function and the type
+    ast::Node* type = ast::deep_copy(m, return_type);
 
     ast::Variable_Assignment_Node* assignment = NULL;
 
@@ -416,8 +449,6 @@ void call_cps_conversion(
     program_point->set_statement(m, assignment);
 
     if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(bind)) {
-      // TODO(marcos): we are verifying if the bind is to a pointer type, wich it always is, we need a more reliable
-      // and better enginered way of assigning the call to a temporary
       ast::Node* type = var->get_type(m);
 
       if (ast::Type_Pointer_Node* ptr = ast::is_instance< ast::Type_Pointer_Node* >(type)) {
@@ -497,7 +528,7 @@ void function_literal_cps_conversion(
     continuation_symbol = ast::create_node_literal_symbol(m, cont_id);
   }
 
-  program_point_cps_conversion(info, parser, ctx, continuation_symbol, statements, NULL);
+  program_point_cps_conversion(info, parser, ctx, continuation_symbol, statements, NULL, function->get_return_type(m));
 }
 
 void convert_to_cps_style(CPS_Data* info, parser::Parser* parser, ast::Node* root) {

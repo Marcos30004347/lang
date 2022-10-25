@@ -20,7 +20,9 @@ struct Type_Evidence_Context_Node : Node {};
 
 struct Type_Arrow_Node : Node {
   Node* get_from_type(ast::Manager* manager);
+  void  set_from_type(ast::Manager* manager, ast::Node*);
   Node* get_to_type(ast::Manager* manager);
+  void  set_to_type(ast::Manager* manager, ast::Node*);
 };
 
 struct Type_Variable_Node : Node {

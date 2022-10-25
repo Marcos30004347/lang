@@ -82,7 +82,7 @@ void handler_pass_data_destroy(Handler_Pass_Data* d) {
   delete d;
 }
 
-void add_context_argument(Handler_Pass_Data* data, ast::Manager* m, ast::Function_Literal_Node* f) {
+void add_context_argument(Handler_Pass_Data* data, ast::Manager* m, ast::Function_Literal_Node* f, ast::Node* decl) {
   ast::Type_Evidence_Context_Node* ctx_type   = ast::create_node_type_evidence_context(m);
   ast::Literal_Symbol_Node*        ctx_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
 
@@ -91,6 +91,38 @@ void add_context_argument(Handler_Pass_Data* data, ast::Manager* m, ast::Functio
   lib::insert(data->context_declarations, ctx_arg);
 
   f->push_argument(m, ctx_arg);
+
+  if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(decl)) {
+    ast::Type_Arrow_Node* arrow_from = ast::is_instance< ast::Type_Arrow_Node* >(var->get_type(m));
+
+    assert(arrow_from);
+
+    ast::Node* from = arrow_from->get_from_type(m);
+
+    if (ast::is_instance< ast::Type_Unit_Node* >(from)) {
+      from = ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m));
+    } else {
+      from = ast::create_node_arithmetic_mul(m, from, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
+    }
+
+    arrow_from->set_from_type(m, from);
+  }
+
+  if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(decl)) {
+    ast::Type_Arrow_Node* arrow_from = ast::is_instance< ast::Type_Arrow_Node* >(var->get_type(m));
+
+    assert(arrow_from);
+
+    ast::Node* from = arrow_from->get_from_type(m);
+
+    if (ast::is_instance< ast::Type_Unit_Node* >(from)) {
+      from = ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m));
+    } else {
+      from = ast::create_node_arithmetic_mul(m, from, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
+    }
+
+    arrow_from->set_from_type(m, from);
+  }
 }
 
 void pass_context_argument(Handler_Pass_Data* data, ast::Manager* m, ast::Function_Call_Node* f) {
@@ -109,11 +141,11 @@ void add_evidence_context_to_functions(Handler_Pass_Data* data, ast::Manager* m,
   if (!ast::is_semantic_node(root)) {
     return;
   }
-
-  if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(root)) {
-    add_context_argument(data, m, lit);
+  if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
+    if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(assignment->get_right_operand(m))) {
+      add_context_argument(data, m, lit, assignment->get_left_operand(m));
+    }
   }
-
   add_evidence_context_to_functions(data, m, ast::left_of(m, root));
   add_evidence_context_to_functions(data, m, ast::right_of(m, root));
 }

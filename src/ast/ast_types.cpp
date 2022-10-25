@@ -95,6 +95,13 @@ Node* Type_Arrow_Node::get_from_type(ast::Manager* manager) {
 Node* Type_Arrow_Node::get_to_type(ast::Manager* manager) {
   return right_of(manager, this);
 }
+void Type_Arrow_Node::set_from_type(ast::Manager* manager, ast::Node* n) {
+  return set_left(manager, this, n);
+}
+
+void Type_Arrow_Node::set_to_type(ast::Manager* manager, ast::Node* n) {
+  return set_right(manager, this, n);
+}
 
 Type_Evidence_Context_Node* create_node_type_evidence_context(ast::Manager* manager) {
   return as< Type_Evidence_Context_Node* >(ast::manager_alloc(manager, AST_TYPE_EVIDENCE_CONTEXT, 0, 0));

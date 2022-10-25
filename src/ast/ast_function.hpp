@@ -21,6 +21,7 @@ struct Function_Literal_Node : Node {
 
   ProgramPoint_List_Node* get_body(ast::Manager* manager);
   void                    set_body(ast::Manager* manager, ProgramPoint_List_Node* pp);
+  void                    set_return_type(ast::Manager* manager, Node* ty);
 };
 
 struct Function_Call_Node : Node {

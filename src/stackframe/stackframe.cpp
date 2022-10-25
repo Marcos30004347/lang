@@ -165,10 +165,15 @@ u64 compute_sizeof_type(ast::Manager* m, ast::Node* root, context::Context* ctx)
     return sizeof(void*);
   }
 
+  if (ast::Type_Unit_Node* ty = ast::is_instance< ast::Type_Unit_Node* >(root)) {
+    return sizeof(char);
+  }
+
   if (ast::Literal_Symbol_Node* ty = ast::is_instance< ast::Literal_Symbol_Node* >(root)) {
     return compute_sizeof_type(m, context::context_get_struct_definition(ctx, m, ty), ctx);
   }
 
+  parser::print_ast(m, root);
   assert(false && "Uncaught type");
 }
 u64 set_min_rec(lib::SetNode< u64 >* b) {
@@ -277,7 +282,7 @@ void set_union(lib::Set< u64 >* a, lib::Set< u64 >* b) {
   return set_union_rec(a, b->root);
 }
 
-void push_parent_stack_argument(Stack_Frame_Data* data, ast::Manager* m, ast::Function_Literal_Node* f, u64 depth) {
+void push_parent_stack_argument(Stack_Frame_Data* data, ast::Manager* m, ast::Function_Literal_Node* f, ast::Node* decl, u64 depth) {
   ast::Literal_Symbol_Node* stack_ptr = ast::create_node_literal_symbol(m, compiler::symbol::number_to_symbol(m->symbol_table, depth, "sp"));
 
   ast::Declaration_Variable_Node* stack_ptr_decl = ast::create_variable_declaration(m, stack_ptr, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
@@ -285,6 +290,38 @@ void push_parent_stack_argument(Stack_Frame_Data* data, ast::Manager* m, ast::Fu
   lib::insert(data->stack_arguments, stack_ptr_decl);
 
   f->push_argument(m, stack_ptr_decl);
+
+  if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(decl)) {
+    ast::Type_Arrow_Node* arrow_from = ast::is_instance< ast::Type_Arrow_Node* >(var->get_type(m));
+
+    assert(arrow_from);
+
+    ast::Node* from = arrow_from->get_from_type(m);
+
+    if (ast::is_instance< ast::Type_Unit_Node* >(from)) {
+      from = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+    } else {
+      from = ast::create_node_arithmetic_mul(m, from, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+    }
+
+    arrow_from->set_from_type(m, from);
+  }
+
+  if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(decl)) {
+    ast::Type_Arrow_Node* arrow_from = ast::is_instance< ast::Type_Arrow_Node* >(var->get_type(m));
+
+    assert(arrow_from);
+
+    ast::Node* from = arrow_from->get_from_type(m);
+
+    if (ast::is_instance< ast::Type_Unit_Node* >(from)) {
+      from = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+    } else {
+      from = ast::create_node_arithmetic_mul(m, from, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+    }
+
+    arrow_from->set_from_type(m, from);
+  }
 }
 
 // TODO(marcos): refactor this function
@@ -309,12 +346,11 @@ u64 stack_allocate(
 
     set_union(function_childs_used_stacks, childs_used_stacks);
 
-    if (depth > 0) {
-      push_parent_stack_argument(data, m, f, depth);
-    }
-
     if (cps::is_continuation_closure(data->cps_data, m, f) == false) {
-      u64 frame_header_size = sizeof(void*);
+      u64 previous_frame_ptr_size = sizeof(void*);
+      u64 return_size             = compute_sizeof_type(m, f->get_return_type(m), ctx);
+
+      u64 frame_header_size = previous_frame_ptr_size + return_size;
 
       stack_size       = frame_header_size;
       data->stack_size = frame_header_size;
@@ -425,7 +461,7 @@ u64 stack_allocate(
 
       // TODO(marcos): use sizeof(any*) instead of sizeof(void*)
       ast::Literal_Natural_Node*   stack_ptr_size          = ast::create_node_literal_natural(m, compiler::symbol::number_to_symbol(m->symbol_table, data->stack_size));
-      ast::Literal_Symbol_Node*    stack_ptr_allocate_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "alloca"));
+      ast::Literal_Symbol_Node*    stack_ptr_allocate_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "push_frame"));
       ast::Declarations_List_Node* stack_ptr_allocate_args = ast::create_node_declarations_list(m, stack_ptr_size, NULL);
       ast::Function_Call_Node*     stack_ptr_allocate_call = ast::create_node_function_call(m, stack_ptr_allocate_func, stack_ptr_allocate_args);
 
@@ -507,6 +543,10 @@ u64 stack_allocate(
 
     if (ast::is_declaration_node(left)) {
       if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(right)) {
+
+        if (depth > 0) {
+          push_parent_stack_argument(data, m, lit, left, depth);
+        }
 
         if (cps::is_continuation_closure(data->cps_data, m, lit)) {
           return stack_allocate(data, m, lit, ctx, args_ctx, stack_size, depth, assignment, used_stacks, childs_used_stacks);

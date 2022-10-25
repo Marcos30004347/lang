@@ -1226,7 +1226,7 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
 
   if (n->kind == ast::AST_OP_BIN_MUL) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
-    printf(" * ");
+    printf(" × ");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->right), scope);
     return;
   }
