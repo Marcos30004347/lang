@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ast/ast_literals.hpp"
 #include "ast_kind.hpp"
 #include "ast_manager.hpp"
 #include "ast_program_point.hpp"
@@ -32,13 +33,27 @@ struct Elif_List_Node : Node {
   Elif_List_Node*    get_elif(ast::Manager* manager);
 };
 
+struct Prompt_Statement_Node : Node {
+  Literal_Symbol_Node* get_handler(ast::Manager* manager);
+};
+
+struct Bubble_Handler_Node : Node {
+  Literal_Symbol_Node* get_handler(ast::Manager* manager);
+};
+
 template <> If_Node_Statement*     is_instance<>(Node* node);
 template <> Elif_List_Node*        is_instance<>(Node* node);
 template <> Return_Node_Statement* is_instance<>(Node* node);
 template <> Resume_Node_Statement* is_instance<>(Node* node);
 template <> With_Node_Statement*   is_instance<>(Node* node);
+template <> Prompt_Statement_Node* is_instance<>(Node* node);
+template <> Bubble_Handler_Node*   is_instance<>(Node* node);
 
 b8 is_branching(Node* node);
+
+Prompt_Statement_Node* create_prompt_statement(ast::Manager* m, ast::Node* h);
+
+Bubble_Handler_Node* create_bubble_handler(ast::Manager* m, ast::Node* h);
 
 If_Node_Statement* create_node_if_statement(ast::Manager* manager, Node* condition, Node* body);
 

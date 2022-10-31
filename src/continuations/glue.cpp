@@ -112,6 +112,12 @@ void hd_example(ctx* ctx) {
   }
 }
 
+void bubble(ctx* ctx, int t, void* sp, bool is_prompt, bool own_frame, void* frame) {
+  int s = t + sizeof(continuation_t);
+
+  continuation_t* k = (continuation_t*)malloc(s);
+}
+
 int f() {}
 
 int effect0(int a, int b, continuation_t* c) {}

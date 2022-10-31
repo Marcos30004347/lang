@@ -66,17 +66,21 @@ void should_bubble_effectfull_program() {
 
   const i8* prog = "ask : unit -> i32 : () -> i32;"
                    ""
-                   // "read : handler_t : handler {"
-                   // "  ask : unit -> i32 : () -> i32 {"
-                   // "    resume(1);"
-                   // "  }"
-                   // "}"
+                   "read : handler_t : handler {"
+                   "  ask : unit -> i32 : () -> i32 {"
+                   "    resume(1);"
+                   "  }"
+                   "}"
                    ""
                    "f : unit -> i32 : () -> i32 {"
-                   "  x: i32 : ask!();"
-                   "  y: i32 : ask!();"
-                   "  z: i32 : x + y;"
-                   "  return z;"
+                   // "  x: i32 : ask!();"
+                   //"  y: i32 : ask!();"
+                   // "  z: i32 : x + y;"
+                   "  return 0;"
+                   "}"
+                   "g : unit -> i32 : () -> i32 {"
+                   "  f() with read;"
+                   "  return 0;"
                    "}";
 
   Parser* parser = parser_create(-1, prog, strlen(prog));
@@ -87,21 +91,30 @@ void should_bubble_effectfull_program() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
+  print_ast_ir(parser->ast_manager, node);
+  printf("====================================\n");
+  printf("====================================\n");
   cps::CPS_Data* info = cps::cps_data_create(hd_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
   print_ast_ir(parser->ast_manager, node);
-
+  printf("====================================\n");
+  printf("====================================\n");
   stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
 
   stackframe::allocate_stack_frame(data, parser->ast_manager, node);
 
+  print_ast_ir(parser->ast_manager, node);
+  printf("====================================\n");
+  printf("====================================\n");
   bubbling::Bubbling_Data* bubbling_data = bubbling::bubbling_data_create(data);
 
   bubbling::add_bubbling_yields(bubbling_data, parser->ast_manager, node);
 
   print_ast_ir(parser->ast_manager, node);
+  printf("====================================\n");
+  printf("====================================\n");
 
   bubbling::bubbling_data_delete(bubbling_data);
 

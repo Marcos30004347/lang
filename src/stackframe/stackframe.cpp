@@ -100,10 +100,14 @@ u64 stack_frame_get_function_depth(Stack_Frame_Data* data, ast::Function_Literal
   return 0;
 }
 
-void pass_stack_frame_paramenter(ast::Manager* m, u64 depth, ast::Function_Call_Node* call) {
-  ast::Literal_Symbol_Node* sp = build_sp_symbol(m, depth);
-
-  call->push_argument(m, sp);
+void pass_stack_frame_paramenter(ast::Manager* m, u64* depth, ast::Function_Call_Node* call) {
+  if (depth) {
+    ast::Literal_Symbol_Node* sp = build_sp_symbol(m, *depth);
+    call->push_argument(m, sp);
+  } else {
+    ast::Literal_Natural_Node* zr = ast::create_node_literal_natural(m, compiler::symbol::number_to_symbol(m->symbol_table, 0));
+    call->push_argument(m, zr);
+  }
 }
 
 ast::ProgramPoint_List_Node* stack_frame_get_function_literal_setup_end(Stack_Frame_Data* data, ast::Manager*, ast::Function_Literal_Node* lit) {
@@ -500,7 +504,9 @@ u64 stack_allocate(
   }
 
   if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(root)) {
-    context::context_declare(ctx, m, var);
+    if (!context::context_is_defined(ctx, var->get_symbol(m))) {
+      context::context_declare(ctx, m, var);
+    }
 
     if (cps::is_temporary_variable(data->cps_data, m, var) == false) {
       u64 sizeof_var = compute_sizeof_type(m, var->get_type(m), ctx);
@@ -518,7 +524,9 @@ u64 stack_allocate(
   }
 
   if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
-    context::context_declare(ctx, m, var);
+    if (!context::context_is_defined(ctx, var->get_symbol(m))) {
+      context::context_declare(ctx, m, var);
+    }
 
     if (cps::is_temporary_variable(data->cps_data, m, var) == false) {
       u64 sizeof_var = compute_sizeof_type(m, var->get_type(m), ctx);
@@ -541,14 +549,26 @@ u64 stack_allocate(
 
     data->stack_size = lib::max(data->stack_size, stack_size);
 
+    if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+      context::context_declare(ctx, m, var);
+    }
+
+    if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+      context::context_declare(ctx, m, var);
+    }
+
     if (ast::is_declaration_node(left)) {
       if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(right)) {
 
-        if (depth > 0) {
+        b8 is_prompt = handler::handler_pass_data_is_prompt_function(cps::cps_data_get_handler_data(data->cps_data), lit);
+
+        if (depth > 0 || is_prompt) {
           push_parent_stack_argument(data, m, lit, left, depth);
         }
 
-        if (cps::is_continuation_closure(data->cps_data, m, lit)) {
+        b8 is_continuation = cps::is_continuation_closure(data->cps_data, m, lit);
+
+        if (is_continuation) {
           return stack_allocate(data, m, lit, ctx, args_ctx, stack_size, depth, assignment, used_stacks, childs_used_stacks);
         }
 
@@ -665,12 +685,12 @@ u64 stack_allocate(
   if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(root)) {
     if (ast::Literal_Symbol_Node* sym = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
       if (ast::Node* decl = context::context_is_defined(ctx, sym)) {
-        u64* depth = lib::search(data->stack_depth, decl);
+        u64* decl_depth = lib::search(data->stack_depth, decl);
 
-        assert(depth);
+        b8 is_prompt = handler::handler_pass_data_is_prompt_declaration(cps::cps_data_get_handler_data(data->cps_data), decl);
 
-        if (*depth > 0) {
-          pass_stack_frame_paramenter(m, *depth, call);
+        if ((decl_depth && *decl_depth > 0) || is_prompt) {
+          pass_stack_frame_paramenter(m, decl_depth, call);
         }
       }
     }

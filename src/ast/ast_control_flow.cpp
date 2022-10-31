@@ -1,5 +1,6 @@
 #include "ast_control_flow.hpp"
 #include "ast/ast_kind.hpp"
+#include "ast/ast_literals.hpp"
 #include "ast/ast_manager.hpp"
 #include "ast/ast_program_point.hpp"
 #include "parser/parser.hpp"
@@ -26,6 +27,14 @@ template <> Resume_Node_Statement* is_instance<>(Node* node) {
 
 template <> With_Node_Statement* is_instance<>(Node* node) {
   return node && node->kind == AST_WITH_STATEMENT ? (With_Node_Statement*)node : 0;
+}
+
+template <> Prompt_Statement_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_PROMPT_HANDLER ? (Prompt_Statement_Node*)node : 0;
+}
+
+template <> Bubble_Handler_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_BUBBLE_HANDLER ? (Bubble_Handler_Node*)node : 0;
 }
 
 If_Node_Statement* create_node_if_statement(ast::Manager* manager, Node* condition, Node* body) {
@@ -78,4 +87,19 @@ Node* Return_Node_Statement::get_expression(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
+Prompt_Statement_Node* create_prompt_statement(ast::Manager* m, ast::Node* h) {
+  return as< Prompt_Statement_Node* >(ast::manager_alloc(m, AST_PROMPT_HANDLER, get_id(h), 0));
+}
+
+Bubble_Handler_Node* create_bubble_handler(ast::Manager* m, ast::Node* h) {
+  return as< Bubble_Handler_Node* >(ast::manager_alloc(m, AST_BUBBLE_HANDLER, get_id(h), 0));
+}
+
+Literal_Symbol_Node* Bubble_Handler_Node::get_handler(ast::Manager* m) {
+  return ast::is_instance< Literal_Symbol_Node* >(left_of(m, this));
+}
+
+Literal_Symbol_Node* Prompt_Statement_Node::get_handler(ast::Manager* m) {
+  return ast::is_instance< Literal_Symbol_Node* >(left_of(m, this));
+}
 } // namespace ast

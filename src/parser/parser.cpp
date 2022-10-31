@@ -1295,10 +1295,23 @@ void print_ast_ir(ast::Manager* ast_manager, ast::Node* n, u32 scope) {
     return;
   }
 
+  if (n->kind == ast::AST_PROMPT_HANDLER) {
+    printf("prompt ");
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
+    return;
+  }
+
+  if (n->kind == ast::AST_BUBBLE_HANDLER) {
+    printf("bubble handler ");
+    print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
+    return;
+  }
+
   if (n->kind == ast::AST_CTRL_FLOW_RESUME) {
     printf("resume(");
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);
     printf(")");
+    return;
   }
   if (n->kind == ast::AST_OP_MEMBER_ACCESS) {
     print_ast_ir(ast_manager, ast::manager_get_relative(ast_manager, n, n->left), scope);

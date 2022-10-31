@@ -20,10 +20,6 @@ using namespace symbol;
 
 namespace handler {
 
-const i8* HANDLE_EFFECT_MACRO  = "#HANDLE_EFFECT";
-const i8* GET_EFFECT_ARG_MACRO = "#GET_EFFECT_ARG";
-const i8* PROMPT_HANDLER_MACRO = "#PROMPT_HANDLER";
-
 struct Handler_Pass_Data {
   lib::Table< symbol::Id, u64 >* hashes;
 
@@ -34,6 +30,7 @@ struct Handler_Pass_Data {
   lib::Set< ast::Declaration_Variable_Node* >* context_declarations;
   lib::Set< ast::Function_Literal_Node* >*     effect_functions;
   lib::Set< ast::Function_Literal_Node* >*     prompt_functions;
+  lib::Set< ast::Node* >*                      prompt_declarations;
 };
 
 b8 handler_pass_data_is_effect_function(Handler_Pass_Data* data, ast::Function_Literal_Node* lit) {
@@ -44,9 +41,16 @@ b8 handler_pass_data_is_effect_function(Handler_Pass_Data* data, ast::Function_L
 }
 
 b8 handler_pass_data_is_prompt_function(Handler_Pass_Data* data, ast::Function_Literal_Node* lit) {
-  ast::Function_Literal_Node** f = lib::search(data->prompt_functions, lit);
-  if (f)
+  if (lib::search(data->prompt_functions, lit)) {
     return true;
+  }
+  return false;
+}
+
+b8 handler_pass_data_is_prompt_declaration(Handler_Pass_Data* data, ast::Node* decl) {
+  if (lib::search(data->prompt_declarations, decl)) {
+    return true;
+  }
   return false;
 }
 
@@ -68,6 +72,7 @@ Handler_Pass_Data* handler_pass_data_create() {
   h->effect_functions     = lib::set_create< ast::Function_Literal_Node* >();
   h->prompt_functions     = lib::set_create< ast::Function_Literal_Node* >();
   h->context_declarations = lib::set_create< ast::Declaration_Variable_Node* >();
+  h->prompt_declarations  = lib::set_create< ast::Node* >();
   return h;
 }
 
@@ -78,6 +83,7 @@ void handler_pass_data_destroy(Handler_Pass_Data* d) {
   lib::set_delete(d->context_declarations);
   lib::set_delete(d->prompt_functions);
   lib::set_delete(d->effect_functions);
+  lib::set_delete(d->prompt_declarations);
 
   delete d;
 }
@@ -304,13 +310,9 @@ ast::Function_Literal_Node* create_prompt_function(Handler_Pass_Data* data, ast:
     iter = iter->get_next_program_point(m);
   }
 
-  ast::Literal_Symbol_Node*    prompt      = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, PROMPT_HANDLER_MACRO));
-  ast::Declarations_List_Node* prompt_arg  = ast::create_node_declarations_list(m, ast::deep_copy(m, name), NULL);
-  ast::Function_Call_Node*     prompt_call = ast::create_node_function_call(m, prompt, prompt_arg);
+  ast::Bubble_Handler_Node* bubble = ast::create_bubble_handler(m, ast::deep_copy(m, name));
 
-  ast::ProgramPoint_List_Node* tmp = iter;
-
-  iter = iter->insert(m, prompt_call);
+  iter = iter->insert(m, bubble);
   iter = iter->insert(m, ast::create_node_return_statement(m, ast::create_node_literal_nothing(m)));
 
   ast::Literal_Symbol_Node*       is_yielding_symbol     = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "is_ctx_yielding"));
@@ -325,16 +327,44 @@ ast::Function_Literal_Node* create_prompt_function(Handler_Pass_Data* data, ast:
   ast::ProgramPoint_List_Node* prompt_body   = ast::create_node_program_point(m, elif, prompt_return);
   prompt_body                                = ast::create_node_program_point(m, is_yielding_assignment, prompt_body);
 
-  ast::Function_Literal_Node* prompt_function = ast::create_node_function_literal(m, 0, ast::create_node_type_unit(m), prompt_body);
+  ast::Literal_Symbol_Node*    ignore = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "_"));
+  ast::Declarations_List_Node* args =
+      ast::create_node_declarations_list(m, ast::create_variable_declaration(m, ignore, ast::create_node_type_pointer(m, ast::create_node_type_any(m))), NULL);
+
+  ast::Function_Literal_Node* prompt_function = ast::create_node_function_literal(m, args, ast::create_node_type_unit(m), prompt_body);
 
   lib::insert(data->prompt_functions, prompt_function);
-
   return prompt_function;
 }
 
-void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, ast::ProgramPoint_List_Node* point) {
-  if (!ast::is_semantic_node(root) || !ast::is_semantic_node(point)) {
+void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, ast::ProgramPoint_List_Node* pp_cur) {
+  if (!ast::is_semantic_node(root) || !ast::is_semantic_node(pp_cur)) {
     return;
+  }
+
+  if (ast::With_Node_Statement* with = ast::is_instance< ast::With_Node_Statement* >(root)) {
+    ast::Declarations_List_Node* list = with->get_list(m);
+    pp_cur->set_statement(m, ast::create_prompt_statement(m, list->get_declaration(m)));
+    list = list->get_next_declaration(m);
+
+    while (ast::is_semantic_node(list)) {
+      pp_cur = pp_cur->insert(m, ast::create_prompt_statement(m, list->get_declaration(m)));
+      list   = list->get_next_declaration(m);
+    }
+
+    pp_cur = pp_cur->insert(m, with->get_call(m));
+
+    list = with->get_list(m);
+
+    while (ast::is_semantic_node(list)) {
+      ast::Literal_Natural_Node*   zero = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, 0));
+      ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, zero, NULL);
+      ast::Function_Call_Node*     call = ast::create_node_function_call(m, list->get_declaration(m), args);
+
+      pp_cur = pp_cur->insert(m, call);
+
+      list = list->get_next_declaration(m);
+    }
   }
 
   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
@@ -365,16 +395,16 @@ void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m
       ast::Literal_Symbol_Node* name = NULL;
 
       if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
-        ast::Type_Unit_Node*  unit  = ast::create_node_type_unit(m);
-        ast::Type_Arrow_Node* arrow = ast::create_node_type_arrow(m, unit, ast::deep_copy(m, type));
+        ast::Type_Pointer_Node* from  = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+        ast::Type_Arrow_Node*   arrow = ast::create_node_type_arrow(m, from, ast::deep_copy(m, type));
 
         name = var->get_symbol(m);
         var->set_type(m, arrow);
       }
 
       if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
-        ast::Type_Unit_Node*  unit  = ast::create_node_type_unit(m);
-        ast::Type_Arrow_Node* arrow = ast::create_node_type_arrow(m, unit, ast::deep_copy(m, type));
+        ast::Type_Pointer_Node* from  = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+        ast::Type_Arrow_Node*   arrow = ast::create_node_type_arrow(m, from, ast::deep_copy(m, type));
 
         name = var->get_symbol(m);
         var->set_type(m, arrow);
@@ -383,6 +413,8 @@ void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m
       assert(name);
 
       assignment->set_right_operand(m, create_prompt_function(data, m, name, handler));
+
+      lib::insert(data->prompt_declarations, left);
 
       return;
     }
@@ -398,8 +430,8 @@ void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m
     return;
   }
 
-  handeler_conversion_pass_recursive(data, m, ast::left_of(m, root), point);
-  handeler_conversion_pass_recursive(data, m, ast::right_of(m, root), point);
+  handeler_conversion_pass_recursive(data, m, ast::left_of(m, root), pp_cur);
+  handeler_conversion_pass_recursive(data, m, ast::right_of(m, root), pp_cur);
 }
 
 void handeler_conversion_pass(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root) {

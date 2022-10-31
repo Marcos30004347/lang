@@ -30,6 +30,8 @@ const char* ast_kind_strs[] = {
     "AST_CTRL_FLOW_RESUME",
     "AST_CTRL_FLOW_MATCH",
     "AST_CTRL_FLOW_CASE",
+    "AST_PROMPT_HANDLER",
+    "AST_BUBBLE_HANDLER",
     "__AST_CTRL_FLOW_END",
 
     // Bindings
