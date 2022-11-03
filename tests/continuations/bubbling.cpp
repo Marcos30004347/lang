@@ -6,6 +6,7 @@
 #include "continuations/bubbling.hpp"
 
 #include "compiler/compiler.hpp"
+#include "compiler/transpiler.hpp"
 #include "parser/parser.hpp"
 
 using namespace compiler;
@@ -90,7 +91,7 @@ void should_bubble_effectfull_program() {
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
-
+  printf("/*\n");
   print_ast_ir(parser->ast_manager, node);
   printf("====================================\n");
   printf("====================================\n");
@@ -116,7 +117,10 @@ void should_bubble_effectfull_program() {
   printf("====================================\n");
   printf("====================================\n");
 
+  printf("*/\n");
   bubbling::bubbling_data_delete(bubbling_data);
+
+  compiler::transpiler::output_c_code(parser->ast_manager, node);
 
   parser_destroy(parser);
 }

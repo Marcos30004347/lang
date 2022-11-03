@@ -16,6 +16,7 @@ add_library(magic
 	src/compiler/compiler.cpp
 	src/compiler/symbol_table.cpp
 	src/compiler/file_manager.cpp
+	src/compiler/transpiler.cpp
 	src/compiler/symbol_table.cpp
 	src/parser/parser.cpp
 	src/continuations/continuations.cpp

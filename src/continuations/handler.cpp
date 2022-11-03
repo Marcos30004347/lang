@@ -147,11 +147,13 @@ void add_evidence_context_to_functions(Handler_Pass_Data* data, ast::Manager* m,
   if (!ast::is_semantic_node(root)) {
     return;
   }
+
   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
     if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(assignment->get_right_operand(m))) {
       add_context_argument(data, m, lit, assignment->get_left_operand(m));
     }
   }
+
   add_evidence_context_to_functions(data, m, ast::left_of(m, root));
   add_evidence_context_to_functions(data, m, ast::right_of(m, root));
 }
@@ -334,6 +336,7 @@ ast::Function_Literal_Node* create_prompt_function(Handler_Pass_Data* data, ast:
   ast::Function_Literal_Node* prompt_function = ast::create_node_function_literal(m, args, ast::create_node_type_unit(m), prompt_body);
 
   lib::insert(data->prompt_functions, prompt_function);
+
   return prompt_function;
 }
 

@@ -106,11 +106,11 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
 
   assert(first_arg);
 
-  ast::Cast_Type_Node* cast_out = ast::create_node_cast_type(m, lit->get_return_type(m), ast::deep_copy(m, out_symbol));
-  ast::Cast_Type_Node* cast_in  = ast::create_node_cast_type(m, first_arg->get_type(m), ast::deep_copy(m, in_symbol));
+  ast::Cast_Type_Node* cast_out = ast::create_node_cast_type(m, ast::create_node_type_pointer(m, ast::deep_copy(m, lit->get_return_type(m))), ast::deep_copy(m, out_symbol));
+  ast::Cast_Type_Node* cast_in  = ast::create_node_cast_type(m, ast::deep_copy(m, first_arg->get_type(m)), ast::deep_copy(m, in_symbol));
 
-  ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ast::deep_copy(m, ctx_symbol), NULL);
-  args                              = ast::create_node_declarations_list(m, ast::deep_copy(m, sp_symbol), args);
+  ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ast::deep_copy(m, sp_symbol), NULL);
+  args                              = ast::create_node_declarations_list(m, ast::deep_copy(m, ctx_symbol), args);
   args                              = ast::create_node_declarations_list(m, cast_in, args);
 
   ast::Function_Call_Node* call = ast::create_node_function_call(m, ast::deep_copy(m, func), args);
@@ -119,8 +119,8 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
 
   ast::ProgramPoint_List_Node* body = ast::create_node_program_point(m, assignment, NULL);
 
-  ast::Declarations_List_Node* arguments = ast::create_node_declarations_list(m, ctx_arg, NULL);
-  arguments                              = ast::create_node_declarations_list(m, sp_arg, arguments);
+  ast::Declarations_List_Node* arguments = ast::create_node_declarations_list(m, sp_arg, NULL);
+  arguments                              = ast::create_node_declarations_list(m, ctx_arg, arguments);
   arguments                              = ast::create_node_declarations_list(m, out_arg, arguments);
   arguments                              = ast::create_node_declarations_list(m, in_arg, arguments);
 
@@ -130,8 +130,8 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
 
   ast::Node* handler_args_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
   handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
+  handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   //    ast::create_node_arithmetic_mul(m, ast::create_node_type_pointer(m, ast::create_node_type_any(m)), ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::deep_copy(m, context_symbol)));
@@ -637,10 +637,7 @@ b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::Pr
 
     if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(assignment->get_right_operand(m))) {
 
-      move_declarations_to_global_context(m, lit->get_body(m), root, lit->get_body(m), lit, depth + 1);
-
       if (depth > 0) {
-
         if (ast::ProgramPoint_List_Node* p = ast::is_instance< ast::ProgramPoint_List_Node* >(parent)) {
           p->split(m);
         }
@@ -664,8 +661,10 @@ b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::Pr
           root->insert(m, assignment);
         }
 
-        return true;
+        return move_declarations_to_global_context(m, lit->get_body(m), root, lit->get_body(m), lit, depth + 1);
       }
+
+      move_declarations_to_global_context(m, lit->get_body(m), root, lit->get_body(m), lit, depth + 1);
     }
 
     return false;

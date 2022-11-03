@@ -551,10 +551,12 @@ u64 stack_allocate(
 
     if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
       context::context_declare(ctx, m, var);
+      lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
     }
 
     if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
       context::context_declare(ctx, m, var);
+      lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
     }
 
     if (ast::is_declaration_node(left)) {
@@ -684,14 +686,24 @@ u64 stack_allocate(
 
   if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(root)) {
     if (ast::Literal_Symbol_Node* sym = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
+      context::context_print(ctx, m);
       if (ast::Node* decl = context::context_is_defined(ctx, sym)) {
-        u64* decl_depth = lib::search(data->stack_depth, decl);
 
+        u64* decl_depth = lib::search(data->stack_depth, decl);
+        printf("%p\n", decl_depth);
         b8 is_prompt = handler::handler_pass_data_is_prompt_declaration(cps::cps_data_get_handler_data(data->cps_data), decl);
 
-        if ((decl_depth && *decl_depth > 0) || is_prompt) {
+        parser::print_ast_ir(m, call);
+        printf("\n");
+
+        if ((decl_depth && *decl_depth > 0)) {
           pass_stack_frame_paramenter(m, decl_depth, call);
+        } else if (is_prompt) {
+          pass_stack_frame_paramenter(m, &depth, call);
         }
+
+        parser::print_ast_ir(m, call);
+        printf("\n");
       }
     }
   }

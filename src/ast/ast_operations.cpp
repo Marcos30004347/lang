@@ -18,6 +18,9 @@ template <> Arithmetic_Operation_Sub_Node* is_instance<>(Node* node) {
 template <> Arithmetic_Operation_Div_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_OP_BIN_DIV ? (Arithmetic_Operation_Div_Node*)node : 0;
 }
+template <> Arithmetic_Operation_Mul_Node* is_instance<>(Node* node) {
+  return node && node->kind == AST_OP_BIN_MUL ? (Arithmetic_Operation_Mul_Node*)node : 0;
+}
 
 template <> Logical_Operation_Greater_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_OP_BIN_GT ? (Logical_Operation_Greater_Node*)node : 0;
@@ -76,8 +79,7 @@ Logical_Operation_Greater_Node* create_node_logical_greater_than(ast::Manager* m
   return as< Logical_Operation_Greater_Node* >(ast::manager_alloc(manager, AST_OP_BIN_GT, a->id, b->id));
 }
 
-Logical_Operation_GreaterEqual_Node*
-create_node_logical_greater_equal_than(ast::Manager* manager, Node* a, Node* b) {
+Logical_Operation_GreaterEqual_Node* create_node_logical_greater_equal_than(ast::Manager* manager, Node* a, Node* b) {
   assert(a && b);
   return as< Logical_Operation_GreaterEqual_Node* >(ast::manager_alloc(manager, AST_OP_BIN_GE, a->id, b->id));
 }

@@ -77,6 +77,7 @@ struct Member_Access_Node : Node {
 template <> Arithmetic_Operation_Add_Node*       is_instance<>(Node* node);
 template <> Arithmetic_Operation_Sub_Node*       is_instance<>(Node* node);
 template <> Arithmetic_Operation_Div_Node*       is_instance<>(Node* node);
+template <> Arithmetic_Operation_Mul_Node*       is_instance<>(Node* node);
 template <> Logical_Operation_Greater_Node*      is_instance<>(Node* node);
 template <> Logical_Operation_GreaterEqual_Node* is_instance<>(Node* node);
 template <> Logical_Operation_Less_Node*         is_instance<>(Node* node);
@@ -96,8 +97,7 @@ Arithmetic_Operation_Div_Node* create_node_arithmetic_div(ast::Manager* manager,
 
 Logical_Operation_Greater_Node* create_node_logical_greater_than(ast::Manager* manager, Node* a, Node* b);
 
-Logical_Operation_GreaterEqual_Node*
-create_node_logical_greater_equal_than(ast::Manager* manager, Node* a, Node* b);
+Logical_Operation_GreaterEqual_Node* create_node_logical_greater_equal_than(ast::Manager* manager, Node* a, Node* b);
 
 Logical_Operation_Less_Node* create_node_logical_less_than(ast::Manager* manager, Node* a, Node* b);
 
