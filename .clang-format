@@ -13,14 +13,12 @@ BinPackArguments: false
 ColumnLimit: 180
 IndentWidth: 2
 AlignArrayOfStructures: Right
-AlignConsecutiveAssignments: true
 AlignConsecutiveMacros: true
 AlignTrailingComments: true
 AllowShortBlocksOnASingleLine: Empty
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never 
 SpacesInAngles: Always
-AlignConsecutiveDeclarations: true
 BreakBeforeBinaryOperators: NonAssignment
 IndentPPDirectives: AfterHash
 AlignAfterOpenBracket: AlwaysBreak

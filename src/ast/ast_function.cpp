@@ -160,4 +160,9 @@ void Effect_Call_Node::push_argument(ast::Manager* manager, ast::Node* arg) {
   args->push(manager, arg);
 }
 
+void Function_Literal_Node::set_arguments(ast::Manager* manager, Declarations_List_Node* args) {
+	Node* signature = left_of(manager, this);
+	signature->left = args->id;
+}
+
 }; // namespace ast

@@ -1,6 +1,7 @@
 #include "compiler/compiler.hpp"
 #include "continuations/handler.hpp"
 #include "lib/set.hpp"
+#include "stackframe/stackframe.hpp"
 #include "tests.hpp"
 
 #include "continuations/continuations.hpp"
@@ -25,7 +26,11 @@ void should_cps_convert_call_programs() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
+
+  stackframe::allocate_stack_frame(sf_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(sf_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -51,7 +56,11 @@ void should_cps_convert_call_assignments_programs() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
+
+  stackframe::allocate_stack_frame(sf_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(sf_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -85,7 +94,11 @@ void should_cps_convert_branch_programs() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
+
+  stackframe::allocate_stack_frame(sf_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(sf_data);
 
   cps::convert_to_cps_style(info, parser, node);
 
@@ -131,7 +144,11 @@ void should_cps_convert_effectfull_programs() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
+  stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
+
+  stackframe::allocate_stack_frame(sf_data, parser->ast_manager, node);
+
+  cps::CPS_Data* info = cps::cps_data_create(sf_data);
 
   cps::convert_to_cps_style(info, parser, node);
 

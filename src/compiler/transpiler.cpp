@@ -101,7 +101,7 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
   }
 
   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
-    ast::Node* left  = assignment->get_left_operand(m);
+    ast::Node* left = assignment->get_left_operand(m);
     ast::Node* right = assignment->get_right_operand(m);
 
     if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(right)) {
@@ -142,6 +142,31 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
       data->emit_semicolon_after_program_point = old_emit_value;
 
       printf("}\n");
+
+      return;
+    }
+
+    if (ast::Literal_Struct_Node* structure = ast::is_instance< ast::Literal_Struct_Node* >(right)) {
+      printf("struct ");
+
+      if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+        output_c_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+
+      if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+        output_c_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+      printf(" {\n");
+
+      b8 old_emit_value = data->emit_semicolon_after_program_point;
+
+      data->emit_semicolon_after_program_point = true;
+
+      output_c_code_rec(data, m, structure->get_members(m), tabs + 2);
+
+      data->emit_semicolon_after_program_point = old_emit_value;
+
+      printf("};");
 
       return;
     }
@@ -196,6 +221,14 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
 
   if (ast::Return_Node_Statement* ret = ast::is_instance< ast::Return_Node_Statement* >(root)) {
     printf("return ");
+
+    if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(ret->get_expression(m))) {
+      if (ast::is_instance< ast::Type_Unit_Node* >(call->get_function(m))) {
+        printf("0");
+        return;
+      }
+    }
+
     output_c_code_rec(data, m, ret->get_expression(m), tabs);
     return;
   }
@@ -266,6 +299,42 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
     return;
   }
 
+  if (ast::Member_Access_Node* access = ast::is_instance< ast::Member_Access_Node* >(root)) {
+    ast::Node* object = access->get_object(m);
+
+    ast::Node* tmp = object;
+
+    u64 dereferences = 0;
+
+    while (ast::Pointer_Value_Node* ptr_val = ast::is_instance< ast::Pointer_Value_Node* >(tmp)) {
+      dereferences += 1;
+      tmp = ptr_val->get_variable(m);
+    }
+
+    u64 ptrs = 0;
+
+    if (ast::Cast_Type_Node* cast = ast::is_instance< ast::Cast_Type_Node* >(tmp)) {
+      ast::Node* type = cast->get_to_type(m);
+
+      while (ast::Type_Pointer_Node* ptr = ast::is_instance< ast::Type_Pointer_Node* >(type)) {
+        ptrs += 1;
+        type = ptr->get_pointer_type(m);
+      }
+    }
+		printf("(");
+    output_c_code_rec(data, m, object, tabs);
+		printf(")");
+
+		if (dereferences < ptrs) {
+      printf("->");
+    } else {
+      printf(".");
+    }
+
+    output_c_code_rec(data, m, ast::right_of(m, access), tabs);
+    return;
+  }
+
   if (ast::ProgramPoint_List_Node* pp = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
     while (ast::is_semantic_node(pp)) {
       output_tabs(tabs);
@@ -287,6 +356,11 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
       pp = pp->get_next_program_point(m);
     }
 
+    return;
+  }
+
+  if (ast::is_instance< ast::Literal_Nothing_Node* >(root)) {
+    printf("0");
     return;
   }
 
@@ -347,7 +421,7 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
   }
 
   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
-    ast::Node* left  = assignment->get_left_operand(m);
+    ast::Node* left = assignment->get_left_operand(m);
     ast::Node* right = assignment->get_right_operand(m);
 
     if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(right)) {
@@ -380,6 +454,30 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
       return;
     }
 
+    if (ast::Literal_Struct_Node* structure = ast::is_instance< ast::Literal_Struct_Node* >(right)) {
+      printf("typedef struct ");
+
+      if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+        output_c_function_declarations_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+
+      if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+        output_c_function_declarations_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+
+      printf(" ");
+
+      if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+        output_c_function_declarations_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+
+      if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+        output_c_function_declarations_code_rec(data, m, var->get_symbol(m), tabs);
+      }
+
+      return;
+    }
+
     return;
   }
 
@@ -408,7 +506,21 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
 
 void output_c_code(ast::Manager* m, ast::Node* root) {
   C_Transpiler_Data* data = new C_Transpiler_Data();
+
   printf("struct context_t {};\n");
+  printf("void pop_frame(int);\n");
+  printf("char* push_frame(int);\n");
+  printf("int is_yielding(context_t*);\n");
+  printf("int yielding_to_handler(int, context_t*);\n");
+  printf("char* escape_frame(char*);\n");
+  printf("void bubble(const int, int, int, char*, char*(*)(char*, char*, context_t*, char*));\n");
+  printf("void set_is_yielding_to(int, context_t*);\n");
+  printf("void ctx_set_returning(int, context_t*);\n");
+  printf("int ctx_is_yielding_to(int, context_t*);\n");
+  printf("char* ctx_get_handler_args(context_t*);\n");
+  printf("template<typename T> T resume(T, context_t*);\n");
+  printf("int ctx_is_returning(context_t*);\n");
+
   data->emit_semicolon_after_program_point = true;
   output_c_function_declarations_code_rec(data, m, root, 0);
   data->emit_semicolon_after_program_point = false;

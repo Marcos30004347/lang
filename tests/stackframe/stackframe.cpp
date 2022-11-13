@@ -35,12 +35,8 @@ void should_stack_frame_allote_program() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
-
-  cps::convert_to_cps_style(info, parser, node);
-
   print_ast_ir(parser->ast_manager, node);
-  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
+  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(hd_data);
 
   stackframe::allocate_stack_frame(data, parser->ast_manager, node);
   print_ast_ir(parser->ast_manager, node);
@@ -96,13 +92,9 @@ void should_stack_frame_allote_effectfull_program0() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
-
-  cps::convert_to_cps_style(info, parser, node);
-
   print_ast_ir(parser->ast_manager, node);
 
-  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
+  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(hd_data);
 
   stackframe::allocate_stack_frame(data, parser->ast_manager, node);
   print_ast_ir(parser->ast_manager, node);
@@ -134,11 +126,7 @@ void should_stack_frame_allote_effectfull_program1() {
 
   handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
 
-  cps::CPS_Data* info = cps::cps_data_create(hd_data);
-
-  cps::convert_to_cps_style(info, parser, node);
-
-  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(info);
+  stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(hd_data);
 
   stackframe::allocate_stack_frame(data, parser->ast_manager, node);
 

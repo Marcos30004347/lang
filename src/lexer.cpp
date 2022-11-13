@@ -288,8 +288,8 @@ Token lexer_read_token(Lexer* t) {
   if (lexer_can_read_word(t, "then", &size) && lexer_eat_next_n(t, size))
     return lexer_set_curr(t, token_create(TOKEN_KEYWORD_THEN, pos, col, row, t->file_id, size));
 
-  if (lexer_can_read_word(t, "resume", &size) && lexer_eat_next_n(t, size))
-    return lexer_set_curr(t, token_create(TOKEN_KEYWORD_RESUME, pos, col, row, t->file_id, size));
+  // if (lexer_can_read_word(t, "resume", &size) && lexer_eat_next_n(t, size))
+  //   return lexer_set_curr(t, token_create(TOKEN_KEYWORD_RESUME, pos, col, row, t->file_id, size));
 
   if (lexer_can_read_word(t, "i32", &size) && lexer_eat_next_n(t, size))
     return lexer_set_curr(t, token_create(TOKEN_I32, pos, col, row, t->file_id, size));

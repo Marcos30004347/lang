@@ -40,11 +40,6 @@ target_link_libraries(CPSConversionTests magic)
 target_include_directories(CPSConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 add_test(NAME CPSConversionTests COMMAND CPSConversionTests)
 
-add_executable(CPSClosureConversionTests continuations/closures.cpp)
-target_link_libraries(CPSClosureConversionTests magic)
-target_include_directories(CPSClosureConversionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-add_test(NAME CPSClosureConversionTests COMMAND CPSClosureConversionTests)
-
 add_executable(CPSBubblingTests continuations/bubbling.cpp)
 target_link_libraries(CPSBubblingTests magic)
 target_include_directories(CPSBubblingTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

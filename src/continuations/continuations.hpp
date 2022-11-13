@@ -8,20 +8,19 @@
 #include "ast/ast_manager.hpp"
 #include "compiler/compiler.hpp"
 
-#include "continuations/handler.hpp"
 #include "lib/set.hpp"
 #include "lib/table.hpp"
 #include "parser/parser.hpp"
-
+#include "stackframe/stackframe.hpp"
 namespace cps {
 
 typedef struct CPS_Data CPS_Data;
 
-CPS_Data* cps_data_create(handler::Handler_Pass_Data*);
+CPS_Data* cps_data_create(stackframe::Stack_Frame_Data*);
 
 void cps_data_destroy(CPS_Data* info);
 
-handler::Handler_Pass_Data* cps_data_get_handler_data(CPS_Data* data);
+stackframe::Stack_Frame_Data* cps_data_get_stack_frame_data(CPS_Data* data);
 
 void convert_to_cps_style(CPS_Data* info, parser::Parser* parser, ast::Node* root);
 

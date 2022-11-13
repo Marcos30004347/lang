@@ -83,7 +83,7 @@ ProgramPoint_List_Node* ProgramPoint_List_Node::emplace(ast::Manager* manager, P
 void ProgramPoint_List_Node::push(ast::Manager* manager, Node* node) {
   ProgramPoint_List_Node* tail = this;
 
-  while (this->right) {
+  while (ast::is_semantic_node(tail->get_next_program_point(manager))) {
     tail = tail->get_next_program_point(manager);
   }
 
@@ -94,7 +94,7 @@ void Declarations_List_Node::push(ast::Manager* manager, Node* node) {
   Declarations_List_Node* tail = this;
 
   if (this->right) {
-    tail->get_next_declaration(manager)->insert(manager, node);
+    tail->get_next_declaration(manager)->push(manager, node);
   } else {
     tail->insert(manager, node);
   }

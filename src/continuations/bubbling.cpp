@@ -24,30 +24,36 @@
 namespace bubbling {
 
 struct Bubbling_Data {
-  stackframe::Stack_Frame_Data* stack_frame_data;
+  cps::CPS_Data* cps_data;
 
-  lib::Set< ast::Function_Literal_Node* >*                                   continuations_handlers;
-  lib::Table< compiler::symbol::Id, ast::Function_Literal_Node* >*           symbol_to_literal;
+  lib::Set< ast::Function_Call_Node* >* bubblint_functions_blacklist;
+  lib::Set< ast::Effect_Call_Node* >* bubblint_effects_blacklist;
+  lib::Set< ast::Function_Literal_Node* >* continuations_handlers;
+  lib::Table< compiler::symbol::Id, ast::Function_Literal_Node* >* symbol_to_literal;
   lib::Table< ast::Function_Literal_Node*, ast::Variable_Assignment_Node* >* continuation_handler;
 };
 
-Bubbling_Data* bubbling_data_create(stackframe::Stack_Frame_Data* stack_frame_data) {
+Bubbling_Data* bubbling_data_create(cps::CPS_Data* cps_data) {
   Bubbling_Data* data = new Bubbling_Data();
 
-  data->stack_frame_data       = stack_frame_data;
-  data->continuation_handler   = lib::table_create< ast::Function_Literal_Node*, ast::Variable_Assignment_Node* >();
-  data->symbol_to_literal      = lib::table_create< compiler::symbol::Id, ast::Function_Literal_Node* >();
+  data->bubblint_functions_blacklist = lib::set_create< ast::Function_Call_Node* >();
+  data->bubblint_effects_blacklist = lib::set_create< ast::Effect_Call_Node* >();
+  data->cps_data = cps_data;
+  data->continuation_handler = lib::table_create< ast::Function_Literal_Node*, ast::Variable_Assignment_Node* >();
+  data->symbol_to_literal = lib::table_create< compiler::symbol::Id, ast::Function_Literal_Node* >();
   data->continuations_handlers = lib::set_create< ast::Function_Literal_Node* >();
 
   return data;
 }
 
 void bubbling_data_delete(Bubbling_Data* data) {
-  stackframe::destroy_stack_frame_data(data->stack_frame_data);
+  cps::cps_data_destroy(data->cps_data);
 
   lib::table_delete(data->continuation_handler);
   lib::table_delete(data->symbol_to_literal);
   lib::set_delete(data->continuations_handlers);
+  lib::set_delete(data->bubblint_functions_blacklist);
+  lib::set_delete(data->bubblint_effects_blacklist);
 
   delete data;
 }
@@ -87,19 +93,44 @@ b8 is_internal_function(ast::Manager* m, ast::Literal_Symbol_Node* symbol) {
   if (compiler::symbol::is_equal(m->symbol_table, &s, "is_yielding_to_handler")) {
     return true;
   }
+  if (compiler::symbol::is_equal(m->symbol_table, &s, "pop_frame")) {
+    return true;
+  }
+
+  if (compiler::symbol::is_equal(m->symbol_table, &s, "set_is_yielding_to")) {
+    return true;
+  }
+
+	if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_is_returning")) {
+		return true;
+	}
+	
+  if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_set_returning")) {
+    return true;
+  }
+	
+  if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_get_handler_args")) {
+    return true;
+  }
+	
+  if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_is_yielding_to")) {
+    return true;
+  }
+
+
   return false;
 }
 
 ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast::Manager* m, ast::Literal_Symbol_Node* func, ast::Function_Literal_Node* lit) {
 
-  ast::Literal_Symbol_Node* in_symbol  = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "in"));
+  ast::Literal_Symbol_Node* in_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "in"));
   ast::Literal_Symbol_Node* out_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "out"));
-  ast::Literal_Symbol_Node* sp_symbol  = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sp"));
+  ast::Literal_Symbol_Node* sp_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sp"));
   ast::Literal_Symbol_Node* ctx_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
 
-  ast::Declaration_Variable_Node* in_arg  = ast::create_variable_declaration(m, in_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+  ast::Declaration_Variable_Node* in_arg = ast::create_variable_declaration(m, in_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   ast::Declaration_Variable_Node* out_arg = ast::create_variable_declaration(m, out_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  ast::Declaration_Variable_Node* sp_arg  = ast::create_variable_declaration(m, sp_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+  ast::Declaration_Variable_Node* sp_arg = ast::create_variable_declaration(m, sp_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   ast::Declaration_Variable_Node* ctx_arg = ast::create_variable_declaration(m, ctx_symbol, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
 
   ast::Declaration_Variable_Node* first_arg = ast::as< ast::Declaration_Variable_Node* >(lit->get_arguments(m)->get_declaration(m));
@@ -107,11 +138,11 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
   assert(first_arg);
 
   ast::Cast_Type_Node* cast_out = ast::create_node_cast_type(m, ast::create_node_type_pointer(m, ast::deep_copy(m, lit->get_return_type(m))), ast::deep_copy(m, out_symbol));
-  ast::Cast_Type_Node* cast_in  = ast::create_node_cast_type(m, ast::deep_copy(m, first_arg->get_type(m)), ast::deep_copy(m, in_symbol));
+  ast::Cast_Type_Node* cast_in = ast::create_node_cast_type(m, ast::deep_copy(m, first_arg->get_type(m)), ast::deep_copy(m, in_symbol));
 
   ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ast::deep_copy(m, sp_symbol), NULL);
-  args                              = ast::create_node_declarations_list(m, ast::deep_copy(m, ctx_symbol), args);
-  args                              = ast::create_node_declarations_list(m, cast_in, args);
+  args = ast::create_node_declarations_list(m, ast::deep_copy(m, ctx_symbol), args);
+  args = ast::create_node_declarations_list(m, cast_in, args);
 
   ast::Function_Call_Node* call = ast::create_node_function_call(m, ast::deep_copy(m, func), args);
 
@@ -120,18 +151,18 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
   ast::ProgramPoint_List_Node* body = ast::create_node_program_point(m, assignment, NULL);
 
   ast::Declarations_List_Node* arguments = ast::create_node_declarations_list(m, sp_arg, NULL);
-  arguments                              = ast::create_node_declarations_list(m, ctx_arg, arguments);
-  arguments                              = ast::create_node_declarations_list(m, out_arg, arguments);
-  arguments                              = ast::create_node_declarations_list(m, in_arg, arguments);
+  arguments = ast::create_node_declarations_list(m, ctx_arg, arguments);
+  arguments = ast::create_node_declarations_list(m, out_arg, arguments);
+  arguments = ast::create_node_declarations_list(m, in_arg, arguments);
 
   ast::Function_Literal_Node* handler = ast::create_node_function_literal(m, arguments, ast::create_node_type_unit(m), body);
 
   ast::Literal_Symbol_Node* handler_declaration_symbol = ast::create_node_literal_symbol(m, compiler::symbol::symbol_with_prefix(m->symbol_table, func->get_symbol(m), "handler_"));
 
   ast::Node* handler_args_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
-  handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
-  handler_args_type            = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+  handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+  handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
+  handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   //    ast::create_node_arithmetic_mul(m, ast::create_node_type_pointer(m, ast::create_node_type_any(m)), ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::deep_copy(m, context_symbol)));
@@ -153,10 +184,10 @@ ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return
   ast::Literal_Symbol_Node* bubble_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "bubble"));
 
   ast::Declarations_List_Node* bubble_args = ast::create_node_declarations_list(m, handler, NULL);
-  bubble_args                              = ast::create_node_declarations_list(m, frame, bubble_args);
-  bubble_args                              = ast::create_node_declarations_list(m, own_frame, bubble_args);
-  bubble_args                              = ast::create_node_declarations_list(m, is_prompt, bubble_args);
-  bubble_args                              = ast::create_node_declarations_list(m, return_size, bubble_args);
+  bubble_args = ast::create_node_declarations_list(m, frame, bubble_args);
+  bubble_args = ast::create_node_declarations_list(m, own_frame, bubble_args);
+  bubble_args = ast::create_node_declarations_list(m, is_prompt, bubble_args);
+  bubble_args = ast::create_node_declarations_list(m, return_size, bubble_args);
 
   ast::Function_Call_Node* call = ast::create_node_function_call(m, bubble_symbol, bubble_args);
 
@@ -166,7 +197,7 @@ ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return
 }
 
 void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* func, ast::ProgramPoint_List_Node* pp, ast::ProgramPoint_List_Node* parent, context::Context* ctx) {
-  ast::Node*                     type       = 0;
+  ast::Node* type = 0;
   ast::Variable_Assignment_Node* stackframe = 0;
 
   ast::Variable_Assignment_Node* stackframe_assignment = NULL;
@@ -177,16 +208,22 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
   if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(func)) {
     type = lit->get_return_type(m);
 
-    stackframe_assignment = stackframe::stack_frame_get_function_local_stack_frame_allocation(data->stack_frame_data, lit);
+    stackframe::Stack_Frame_Data* sf_data = cps::cps_data_get_stack_frame_data(data->cps_data);
+
+    stackframe_assignment = stackframe::stack_frame_get_function_local_stack_frame_allocation(sf_data, lit);
   }
 
   assert(type);
 
-  ast::Literal_Symbol_Node*    default_value_symbol    = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "unitialized"));
-  ast::Declarations_List_Node* default_value_arguments = ast::create_node_declarations_list(m, type, NULL);
-  ast::Function_Call_Node*     default_value           = ast::create_node_function_call(m, default_value_symbol, default_value_arguments);
+  // ast::Literal_Symbol_Node*    default_value_symbol    = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "unitialized"));
+  // ast::Declarations_List_Node* default_value_arguments = ast::create_node_declarations_list(m, type, NULL);
+  ast::Return_Node_Statement* return_devault_value = NULL;
 
-  ast::Return_Node_Statement* return_devault_value = ast::create_node_return_statement(m, default_value);
+  if (ast::is_instance< ast::Type_Pointer_Node* >(type)) {
+    return_devault_value = ast::create_node_return_statement(m, ast::create_node_literal_natural(m, compiler::symbol::number_to_symbol(m->symbol_table, 0)));
+  } else {
+    return_devault_value = ast::create_node_return_statement(m, ast::create_node_function_call(m, ast::deep_copy(m, type), NULL));
+  }
 
   ast::ProgramPoint_List_Node* if_body = ast::create_node_program_point(m, return_devault_value, NULL);
 
@@ -214,7 +251,7 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
 
               assert(sf_decl);
 
-              ast::Literal_Symbol_Node*    alloc_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "escape_frame"));
+              ast::Literal_Symbol_Node* alloc_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "escape_frame"));
               ast::Declarations_List_Node* alloc_args = ast::create_node_declarations_list(m, ast::deep_copy(m, sf_decl->get_symbol(m)), NULL);
 
               stack_frame_allocation = ast::create_node_function_call(m, alloc_func, alloc_args);
@@ -222,16 +259,17 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
               owner = true;
 
             } else {
-              stack_frame_allocation = ast::deep_copy(m, stackframe::build_sp_symbol(m, stackframe::stack_frame_get_function_depth(data->stack_frame_data, lit)));
+              stackframe::Stack_Frame_Data* sf_data = cps::cps_data_get_stack_frame_data(data->cps_data);
+              stack_frame_allocation = ast::deep_copy(m, stackframe::build_sp_symbol(m, stackframe::stack_frame_get_function_depth(sf_data, lit)));
             }
 
-            ast::Literal_Symbol_Node*    sizeof_symbol      = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "tsize"));
-            ast::Literal_Symbol_Node*    sizeof_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
-            ast::Declarations_List_Node* sizeof_type_args   = ast::create_node_declarations_list(m, ast::deep_copy(m, lit->get_return_type(m)), NULL);
-            ast::Function_Call_Node*     sizeof_type_call   = ast::create_node_function_call(m, sizeof_type_symbol, sizeof_type_args);
+            ast::Literal_Symbol_Node* sizeof_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "tsize"));
+            ast::Literal_Symbol_Node* sizeof_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
+            ast::Declarations_List_Node* sizeof_type_args = ast::create_node_declarations_list(m, ast::deep_copy(m, lit->get_return_type(m)), NULL);
+            ast::Function_Call_Node* sizeof_type_call = ast::create_node_function_call(m, sizeof_type_symbol, sizeof_type_args);
 
-            ast::Declaration_Constant_Node* sizeof_type_decl   = ast::create_constant_declaration(m, sizeof_symbol, ast::create_node_type_i32(m));
-            ast::Variable_Assignment_Node*  sizeof_type_assign = ast::create_node_assignment(m, sizeof_type_decl, sizeof_type_call);
+            ast::Declaration_Constant_Node* sizeof_type_decl = ast::create_constant_declaration(m, sizeof_symbol, ast::create_node_type_i32(m));
+            ast::Variable_Assignment_Node* sizeof_type_assign = ast::create_node_assignment(m, sizeof_type_decl, sizeof_type_call);
 
             ast::Node* is_owner = NULL;
 
@@ -241,7 +279,7 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
               is_owner = ast::create_node_literal_false(m);
             }
 
-            ast::Literal_Symbol_Node*       closure_frame_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "frame"));
+            ast::Literal_Symbol_Node* closure_frame_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "frame"));
             ast::Declaration_Variable_Node* closure_frame_decl =
                 ast::create_variable_declaration(m, closure_frame_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
             ast::Variable_Assignment_Node* closure_frame_assignment = ast::create_node_assignment(m, closure_frame_decl, stack_frame_allocation);
@@ -269,28 +307,28 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
 
   assert(if_body);
 
-  ast::Literal_Symbol_Node*    ctx_symbol         = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
-  ast::Literal_Symbol_Node*    is_yielding_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "is_yielding"));
-  ast::Declarations_List_Node* arguments          = ast::create_node_declarations_list(m, ctx_symbol, NULL);
+  ast::Literal_Symbol_Node* ctx_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
+  ast::Literal_Symbol_Node* is_yielding_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "is_yielding"));
+  ast::Declarations_List_Node* arguments = ast::create_node_declarations_list(m, ctx_symbol, NULL);
 
-  ast::Function_Call_Node*        is_yielding            = ast::create_node_function_call(m, is_yielding_symbol, arguments);
-  ast::Literal_Symbol_Node*       yield_symbol           = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "yielding"));
-  ast::Declaration_Constant_Node* is_yielding_decl       = ast::create_constant_declaration(m, yield_symbol, ast::create_node_type_i32(m));
-  ast::Variable_Assignment_Node*  is_yielding_assignment = ast::create_node_assignment(m, is_yielding_decl, is_yielding);
+  ast::Function_Call_Node* is_yielding = ast::create_node_function_call(m, is_yielding_symbol, arguments);
+  ast::Literal_Symbol_Node* yield_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "yielding"));
+  ast::Declaration_Constant_Node* is_yielding_decl = ast::create_constant_declaration(m, yield_symbol, ast::create_node_type_i32(m));
+  ast::Variable_Assignment_Node* is_yielding_assignment = ast::create_node_assignment(m, is_yielding_decl, is_yielding);
 
   pp = pp->insert(m, is_yielding_assignment);
   pp = pp->insert(m, ast::create_node_if_statement(m, ast::deep_copy(m, yield_symbol), if_body));
 }
 
 void insert_bubble_handler(
-    Bubbling_Data*               data,
-    ast::Manager*                m,
-    ast::Function_Literal_Node*  fun,
-    ast::Literal_Symbol_Node*    handler,
+    Bubbling_Data* data,
+    ast::Manager* m,
+    ast::Function_Literal_Node* fun,
+    ast::Literal_Symbol_Node* handler,
     ast::ProgramPoint_List_Node* pp,
     ast::ProgramPoint_List_Node* parent,
-    context::Context*            ctx) {
-  ast::Variable_Assignment_Node* stackframe            = 0;
+    context::Context* ctx) {
+  ast::Variable_Assignment_Node* stackframe = 0;
   ast::Variable_Assignment_Node* stackframe_assignment = NULL;
 
   // ast::ProgramPoint_List_Node* if_body = ast::create_node_program_point(m, return_devault_value, NULL);
@@ -299,16 +337,17 @@ void insert_bubble_handler(
 
   b8 owner = false;
 
-  ast::Node* stack_frame_allocation = stack_frame_allocation =
-      ast::deep_copy(m, stackframe::build_sp_symbol(m, stackframe::stack_frame_get_function_depth(data->stack_frame_data, fun)));
+  stackframe::Stack_Frame_Data* sf_data = cps::cps_data_get_stack_frame_data(data->cps_data);
 
-  ast::Literal_Symbol_Node*    sizeof_symbol      = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "tsize"));
-  ast::Literal_Symbol_Node*    sizeof_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
-  ast::Declarations_List_Node* sizeof_type_args   = ast::create_node_declarations_list(m, ast::deep_copy(m, fun->get_return_type(m)), NULL);
-  ast::Function_Call_Node*     sizeof_type_call   = ast::create_node_function_call(m, sizeof_type_symbol, sizeof_type_args);
+  ast::Node* stack_frame_allocation = stack_frame_allocation = ast::deep_copy(m, stackframe::build_sp_symbol(m, stackframe::stack_frame_get_function_depth(sf_data, fun)));
 
-  ast::Declaration_Constant_Node* sizeof_type_decl   = ast::create_constant_declaration(m, sizeof_symbol, ast::create_node_type_i32(m));
-  ast::Variable_Assignment_Node*  sizeof_type_assign = ast::create_node_assignment(m, sizeof_type_decl, sizeof_type_call);
+  ast::Literal_Symbol_Node* sizeof_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "tsize"));
+  ast::Literal_Symbol_Node* sizeof_type_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "sizeof"));
+  ast::Declarations_List_Node* sizeof_type_args = ast::create_node_declarations_list(m, ast::deep_copy(m, fun->get_return_type(m)), NULL);
+  ast::Function_Call_Node* sizeof_type_call = ast::create_node_function_call(m, sizeof_type_symbol, sizeof_type_args);
+
+  ast::Declaration_Constant_Node* sizeof_type_decl = ast::create_constant_declaration(m, sizeof_symbol, ast::create_node_type_i32(m));
+  ast::Variable_Assignment_Node* sizeof_type_assign = ast::create_node_assignment(m, sizeof_type_decl, sizeof_type_call);
 
   ast::Node* is_owner = NULL;
 
@@ -318,9 +357,9 @@ void insert_bubble_handler(
     is_owner = ast::create_node_literal_false(m);
   }
 
-  ast::Literal_Symbol_Node*       closure_frame_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "frame"));
-  ast::Declaration_Variable_Node* closure_frame_decl   = ast::create_variable_declaration(m, closure_frame_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  ast::Variable_Assignment_Node*  closure_frame_assignment = ast::create_node_assignment(m, closure_frame_decl, stack_frame_allocation);
+  ast::Literal_Symbol_Node* closure_frame_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "frame"));
+  ast::Declaration_Variable_Node* closure_frame_decl = ast::create_variable_declaration(m, closure_frame_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+  ast::Variable_Assignment_Node* closure_frame_assignment = ast::create_node_assignment(m, closure_frame_decl, stack_frame_allocation);
 
   ast::ProgramPoint_List_Node* bubble_pp = create_bubble_pp(m, sizeof_symbol, ast::create_node_literal_false(m), is_owner, closure_frame_symbol, ast::deep_copy(m, handler));
 
@@ -352,9 +391,11 @@ b8 insert_handlers(Bubbling_Data* data, ast::Manager* m, ast::Node* root, ast::P
 
       insert_handlers(data, m, literal->get_body(m), literal->get_body(m));
 
-      if (cps::is_continuation_closure(stackframe::stack_frame_data_get_cps_data(data->stack_frame_data), m, symbol)) {
-        ast::Variable_Assignment_Node* assignment = create_handler_function(data, m, symbol, literal);
+      stackframe::Stack_Frame_Data* sf_data = cps::cps_data_get_stack_frame_data(data->cps_data);
+      handler::Handler_Pass_Data* hdata = stackframe::stack_frame_data_get_handler_pass_data(sf_data);
 
+      if (cps::is_continuation_closure(data->cps_data, m, symbol)) {
+        ast::Variable_Assignment_Node* assignment = create_handler_function(data, m, symbol, literal);
         point->insert(m, assignment);
 
         return true;
@@ -387,13 +428,13 @@ b8 is_handler_function(Bubbling_Data* data, ast::Function_Literal_Node* lit) {
 }
 
 void bubbling_yields_rec(
-    Bubbling_Data*               data,
-    ast::Manager*                m,
-    ast::Node*                   root,
-    ast::Function_Literal_Node*  func,
+    Bubbling_Data* data,
+    ast::Manager* m,
+    ast::Node* root,
+    ast::Function_Literal_Node* func,
     ast::ProgramPoint_List_Node* pp,
     ast::ProgramPoint_List_Node* parent,
-    context::Context*            ctx) {
+    context::Context* ctx) {
   if (!ast::is_semantic_node(root) || !ast::is_semantic_node(pp)) {
     return;
   }
@@ -401,6 +442,56 @@ void bubbling_yields_rec(
   if (ast::is_instance< ast::Return_Node_Statement* >(root)) {
     return;
   }
+
+  // if (ast::With_Node_Statement* with = ast::is_instance< ast::With_Node_Statement* >(root)) {
+  //   ast::Declarations_List_Node* list = with->get_list(m);
+  //   pp->set_statement(m, ast::create_prompt_statement(m, list->get_declaration(m)));
+
+  //   list = list->get_next_declaration(m);
+
+  //   while (ast::is_semantic_node(list)) {
+  //     pp   = pp->insert(m, ast::create_prompt_statement(m, list->get_declaration(m)));
+  //     list = list->get_next_declaration(m);
+  //   }
+
+  //   if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(with->get_call(m))) {
+  //     lib::insert(data->bubblint_functions_blacklist, call);
+  //   }
+
+  //   if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(with->get_call(m))) {
+  //     lib::insert(data->bubblint_effects_blacklist, call);
+  //   }
+
+  //   pp = pp->insert(m, with->get_call(m));
+
+  //   list = with->get_list(m);
+
+  //   while (ast::is_semantic_node(list)) {
+
+  //     ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, 0)), NULL);
+  //     args                              = ast::create_node_declarations_list(m, ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, 0)), args);
+
+  //     ast::Function_Call_Node* call = ast::create_node_function_call(m, list->get_declaration(m), args);
+
+  //     stackframe::Stack_Frame_Data* sf_data = cps::cps_data_get_stack_frame_data(data->cps_data);
+
+  //     handler::Handler_Pass_Data* hd_data = stackframe::stack_frame_data_get_handler_pass_data(sf_data);
+
+  //     u64 depth = stackframe::stack_frame_get_function_depth(sf_data, func);
+  //     handler::pass_context_argument(hd_data, m, call);
+  //     stackframe::stackframe_pass_stack_frame_paramenter(m, &depth, call);
+
+  //     pp = pp->insert(m, call);
+
+  //     list = list->get_next_declaration(m);
+
+  //     if (ast::is_semantic_node(list)) {
+  //       lib::insert(data->bubblint_functions_blacklist, call);
+  //     }
+  //   }
+
+  //   return;
+  // }
 
   if (ast::If_Node_Statement* if_stmt = ast::is_instance< ast::If_Node_Statement* >(root)) {
     if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(if_stmt->get_condition(m))) {
@@ -445,12 +536,20 @@ void bubbling_yields_rec(
       }
     }
 
+    if (lib::search(data->bubblint_functions_blacklist, call)) {
+      return;
+    }
+
     insert_is_yielding_check(data, m, func, pp, parent, ctx);
 
     return;
   }
 
   if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(root)) {
+    if (lib::search(data->bubblint_effects_blacklist, call)) {
+      return;
+    }
+
     insert_is_yielding_check(data, m, func, pp, parent, ctx);
 
     return;
@@ -477,7 +576,7 @@ void add_context_argument(Bubbling_Data* data, ast::Manager* m, ast::Node* root)
 
   if (ast::Function_Literal_Node* fun = ast::is_instance< ast::Function_Literal_Node* >(root)) {
     ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
-    ast::Type_Pointer_Node*   type   = ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m));
+    ast::Type_Pointer_Node* type = ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m));
 
     ast::Declaration_Variable_Node* argument = ast::create_variable_declaration(m, symbol, type);
 
@@ -527,7 +626,7 @@ struct Move_Global_Data {
 
 Move_Global_Data* move_global_data_create() {
   Move_Global_Data* m = new Move_Global_Data();
-  m->symbol_map       = lib::table_create< ast::Node*, compiler::symbol::Id >();
+  m->symbol_map = lib::table_create< ast::Node*, compiler::symbol::Id >();
   return m;
 }
 
@@ -547,16 +646,19 @@ void rename_local_functions(ast::Manager* m, ast::Node* node, context::Context* 
     ast::Node* left = assignment->get_left_operand(m);
 
     ast::Literal_Symbol_Node* symbol = NULL;
+		ast::Node* type = NULL;
 
-    if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+		if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
       context::context_declare(ctx, m, var);
 
+			type = var->get_type(m);
       symbol = var->get_symbol(m);
     }
 
     if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
       context::context_declare(ctx, m, var);
 
+			type = var->get_type(m);
       symbol = var->get_symbol(m);
     }
 
@@ -577,6 +679,7 @@ void rename_local_functions(ast::Manager* m, ast::Node* node, context::Context* 
 
         context::Context* closure_ctx = context::context_create(ctx);
 
+        rename_local_functions(m, type, closure_ctx, prefix);
         rename_local_functions(m, literal->get_arguments(m), closure_ctx, prefix);
         rename_local_functions(m, literal->get_return_type(m), closure_ctx, prefix);
         rename_local_functions(m, literal->get_body(m), closure_ctx, s);
@@ -586,6 +689,25 @@ void rename_local_functions(ast::Manager* m, ast::Node* node, context::Context* 
         return;
       }
     }
+		
+    if (ast::Literal_Struct_Node* literal = ast::is_instance< ast::Literal_Struct_Node* >(assignment->get_right_operand(m))) {
+      if (symbol) {
+        compiler::symbol::Symbol s;
+
+        if (prefix.id) {
+          compiler::symbol::Symbol u = compiler::symbol::set_entry(m->symbol_table, "_");
+          compiler::symbol::Symbol p = compiler::symbol::symbol_with_prefix(m->symbol_table, u, prefix);
+
+          s = compiler::symbol::symbol_with_prefix(m->symbol_table, symbol->get_symbol(m), p);
+        } else {
+          s = symbol->get_symbol(m);
+        }
+
+        symbol->set_symbol_id(s.id);
+      }
+			
+			return rename_local_functions(m, literal->get_members(m), ctx, prefix);
+		}
 
     rename_local_functions(m, ast::left_of(m, node), ctx, prefix);
     rename_local_functions(m, ast::right_of(m, node), ctx, prefix);
@@ -666,6 +788,38 @@ b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::Pr
 
       move_declarations_to_global_context(m, lit->get_body(m), root, lit->get_body(m), lit, depth + 1);
     }
+		
+    if (ast::Literal_Struct_Node* structure = ast::is_instance< ast::Literal_Struct_Node* >(assignment->get_right_operand(m))) {
+
+      if (depth > 0) {
+        if (ast::ProgramPoint_List_Node* p = ast::is_instance< ast::ProgramPoint_List_Node* >(parent)) {
+          p->split(m);
+        }
+
+        ast::ProgramPoint_List_Node* cont1 = point->split(m);
+
+        if (ast::is_semantic_node(cont1)) {
+
+          if (ast::ProgramPoint_List_Node* p = ast::is_instance< ast::ProgramPoint_List_Node* >(parent)) {
+            p->emplace(m, cont1);
+          }
+
+          if (ast::Function_Literal_Node* f = ast::is_instance< ast::Function_Literal_Node* >(parent)) {
+            f->set_body(m, cont1);
+          }
+
+          move_declarations_to_global_context(m, cont1, root, cont1, parent, depth);
+        }
+
+        if (ast::is_semantic_node(point)) {
+          root->insert(m, assignment);
+        }
+
+        return move_declarations_to_global_context(m, structure->get_members(m), root, NULL, structure, depth + 1);
+      }
+
+			move_declarations_to_global_context(m, structure->get_members(m), root, NULL, structure, depth + 1);
+    }
 
     return false;
   }
@@ -695,6 +849,20 @@ b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::Pr
 
   return false;
 }
+
+// void add_effect_yields(ast::Manager* m, ast::Node* root) {
+// 	if(ast::ProgramPoint_List_Node* point = ast::is_instance<ast::ProgramPoint_List_Node*>(root)) {
+// 		while(ast::is_semantic_node(point)) {
+// 			if(ast::Variable_Assignment_Node* assignment = ast::is_instance<ast::Variable_Assignment_Node*>(root)) {
+// 				ast::Node* right = assignment->get_right_operand(m);
+// 				if(ast::Effect_Call_Node* call = ast::is_instance<ast::Effect_Call_Node*>(right)) {
+
+// 				}
+// 			}
+// 		}
+// 	}
+
+// }
 
 void add_bubbling_yields(Bubbling_Data* data, ast::Manager* m, ast::Node* root) {
   build_functions_map(data, m, root);

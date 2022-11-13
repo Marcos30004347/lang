@@ -208,6 +208,8 @@ ast::Node* parser_parse_lit(Parser* p) {
     return ast::create_node_type_struct(p->ast_manager);
   }
 
+  debug_print_token(p, parser_curr_tok(p));
+
   parser_error(p, parser_curr_tok(p), "invalid literal declaration");
 
   return 0;
@@ -729,17 +731,17 @@ ast::Node* parser_parse_statement(Parser* p) {
     return root;
   }
 
-  if (parser_curr_tok(p).type == TOKEN_KEYWORD_RESUME) {
-    ast::Node* root = parser_parse_resume_statement(p);
+  // if (parser_curr_tok(p).type == TOKEN_KEYWORD_RESUME) {
+  //   ast::Node* root = parser_parse_resume_statement(p);
 
-    parser_read_token(p, TOKEN_SEMI_COLON);
+  //   parser_read_token(p, TOKEN_SEMI_COLON);
 
-    while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
-      parser_read_token(p, TOKEN_SEMI_COLON);
-    }
+  //   while (parser_curr_tok(p).type == TOKEN_SEMI_COLON) {
+  //     parser_read_token(p, TOKEN_SEMI_COLON);
+  //   }
 
-    return root;
-  }
+  //   return root;
+  // }
 
   ast::Node* expr = parser_parse_expr(p);
 
