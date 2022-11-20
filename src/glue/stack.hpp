@@ -180,39 +180,3 @@ inline void deallocate(slice_t* s) {
 	}
 }
 
-
-int use0() {
-  u8* start = sp;
-
-  push(16);
-
-  u8* ptr = sp;
-
-  push(16);
-
-  slice_t* slice = allocate(ptr);
-
-  push(32);
-
-  pop(32);
-
-  pop(16);
-
-  push(32);
-
-  pop(32);
-
-  deallocate(slice);
-
-  return 0;
-}
-
-int use1() {
-
-  return 0;
-}
-
-int main() {
-  init();
-  use0();
-}

@@ -32,6 +32,7 @@ struct Declarations_List_Node : Node {
   void insert(ast::Manager* manager, Node* node);
 
   void push(ast::Manager* parsre, Node* node);
+	void set_declaration(ast::Manager* m, ast::Node* n);
 };
 
 template <> ProgramPoint_List_Node* is_instance<>(Node* node);

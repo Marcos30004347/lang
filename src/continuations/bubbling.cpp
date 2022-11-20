@@ -96,27 +96,24 @@ b8 is_internal_function(ast::Manager* m, ast::Literal_Symbol_Node* symbol) {
   if (compiler::symbol::is_equal(m->symbol_table, &s, "pop_frame")) {
     return true;
   }
-
   if (compiler::symbol::is_equal(m->symbol_table, &s, "set_is_yielding_to")) {
     return true;
   }
-
 	if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_is_returning")) {
 		return true;
 	}
-	
+	if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_allocate_args")) {
+		return true;
+	}
   if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_set_returning")) {
     return true;
   }
-	
   if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_get_handler_args")) {
     return true;
   }
-	
   if (compiler::symbol::is_equal(m->symbol_table, &s, "ctx_is_yielding_to")) {
     return true;
   }
-
 
   return false;
 }
@@ -163,9 +160,6 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
   handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_evidence_context(m)));
   handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  //    ast::create_node_arithmetic_mul(m, ast::create_node_type_pointer(m, ast::create_node_type_any(m)), ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  // handler_args_type = ast::create_node_arithmetic_mul(m, handler_args_type, ast::create_node_type_pointer(m, ast::deep_copy(m, context_symbol)));
 
   ast::Type_Arrow_Node* handler_type = ast::create_node_type_arrow(m, handler_args_type, ast::create_node_type_unit(m));
 
@@ -179,15 +173,16 @@ ast::Variable_Assignment_Node* create_handler_function(Bubbling_Data* data, ast:
   return handler_assignment;
 }
 
-ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return_size, ast::Node* is_prompt, ast::Node* own_frame, ast::Node* frame, ast::Node* handler) {
+ast::ProgramPoint_List_Node* create_bubble_pp(ast::Manager* m, ast::Node* return_size, ast::Node* own_frame, ast::Node* frame, ast::Node* handler) {
 
   ast::Literal_Symbol_Node* bubble_symbol = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "bubble"));
-
+	ast::Literal_Symbol_Node * ctx_symbol =  ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "ctx"));
   ast::Declarations_List_Node* bubble_args = ast::create_node_declarations_list(m, handler, NULL);
+	
   bubble_args = ast::create_node_declarations_list(m, frame, bubble_args);
   bubble_args = ast::create_node_declarations_list(m, own_frame, bubble_args);
-  bubble_args = ast::create_node_declarations_list(m, is_prompt, bubble_args);
   bubble_args = ast::create_node_declarations_list(m, return_size, bubble_args);
+  bubble_args = ast::create_node_declarations_list(m, ctx_symbol, bubble_args);
 
   ast::Function_Call_Node* call = ast::create_node_function_call(m, bubble_symbol, bubble_args);
 
@@ -287,7 +282,7 @@ void insert_is_yielding_check(Bubbling_Data* data, ast::Manager* m, ast::Node* f
             // ast::Variable_Assignment_Node*  closure_assign = ast::create_node_assignment(m, closure_decl, closure_alloc_call);
 
             ast::ProgramPoint_List_Node* bubble_pp =
-                create_bubble_pp(m, sizeof_symbol, ast::create_node_literal_false(m), is_owner, closure_frame_symbol, handler_decl->get_symbol(m));
+                create_bubble_pp(m, sizeof_symbol, is_owner, closure_frame_symbol, handler_decl->get_symbol(m));
 
             bubble_pp->concat(m, if_body);
 
@@ -361,7 +356,7 @@ void insert_bubble_handler(
   ast::Declaration_Variable_Node* closure_frame_decl = ast::create_variable_declaration(m, closure_frame_symbol, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
   ast::Variable_Assignment_Node* closure_frame_assignment = ast::create_node_assignment(m, closure_frame_decl, stack_frame_allocation);
 
-  ast::ProgramPoint_List_Node* bubble_pp = create_bubble_pp(m, sizeof_symbol, ast::create_node_literal_false(m), is_owner, closure_frame_symbol, ast::deep_copy(m, handler));
+  ast::ProgramPoint_List_Node* bubble_pp = create_bubble_pp(m, sizeof_symbol, is_owner, closure_frame_symbol, ast::deep_copy(m, handler));
 
   pp->emplace(m, bubble_pp);
   pp->insert(m, sizeof_type_assign);
@@ -749,7 +744,7 @@ void rename_local_functions(ast::Manager* m, ast::Node* node, context::Context* 
   rename_local_functions(m, ast::right_of(m, node), ctx, prefix);
 }
 
-b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::ProgramPoint_List_Node* root, ast::ProgramPoint_List_Node* point, ast::Node* parent, u64 depth = 0) {
+	b8 move_declarations_to_global_context(ast::Manager* m, ast::Node* node, ast::ProgramPoint_List_Node* root, ast::ProgramPoint_List_Node* point, ast::Node* parent, u64 depth = 0) {
   if (!ast::is_semantic_node(node)) {
     return false;
   }

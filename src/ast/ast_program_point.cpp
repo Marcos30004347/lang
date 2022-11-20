@@ -90,6 +90,10 @@ void ProgramPoint_List_Node::push(ast::Manager* manager, Node* node) {
   tail->insert(manager, node);
 }
 
+void Declarations_List_Node::set_declaration(ast::Manager* m, ast::Node* n) {
+  set_left(m, this, n);
+}
+
 void Declarations_List_Node::push(ast::Manager* manager, Node* node) {
   Declarations_List_Node* tail = this;
 

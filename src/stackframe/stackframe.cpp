@@ -537,9 +537,9 @@ u64 stack_allocate(
 
     lib::insert< ast::Node*, u64 >(data->stack_address, var, stack_size);
 
-    //stack_allocate(data, m, var->get_symbol(m), ctx, args_ctx, stack_size, depth, var, used_stacks, childs_used_stacks);
+    // stack_allocate(data, m, var->get_symbol(m), ctx, args_ctx, stack_size, depth, var, used_stacks, childs_used_stacks);
 
-		return stack_size + sizeof_var;
+    return stack_size + sizeof_var;
   }
 
   if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(root)) {
@@ -555,9 +555,9 @@ u64 stack_allocate(
 
     lib::insert< ast::Node*, u64 >(data->stack_address, var, stack_size);
 
-    //stack_allocate(data, m, var->get_symbol(m), ctx, args_ctx, stack_size, depth, var, used_stacks, childs_used_stacks);
+    // stack_allocate(data, m, var->get_symbol(m), ctx, args_ctx, stack_size, depth, var, used_stacks, childs_used_stacks);
 
-		return stack_size + sizeof_var;
+    return stack_size + sizeof_var;
   }
 
   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
@@ -715,9 +715,11 @@ u64 stack_allocate(
     }
   }
 
-  // if(ast::Member_Access_Node* access = ast::is_instance<ast::Member_Access_Node*>(root)) {
-
-  // }
+  if (ast::Member_Access_Node* access = ast::is_instance< ast::Member_Access_Node* >(root)) {
+    stack_size = stack_allocate(data, m, ast::left_of(m, root), ctx, args_ctx, stack_size, depth, root, used_stacks, childs_used_stacks);
+    data->stack_size = lib::max(data->stack_size, stack_size);
+    return stack_size;
+  }
 
   if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(root)) {
     ast::Node* type = context::context_type_of(ctx, m, symbol);

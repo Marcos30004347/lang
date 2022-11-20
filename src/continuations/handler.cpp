@@ -2,6 +2,7 @@
 #include "ast/ast_control_flow.hpp"
 #include "ast/ast_declaration.hpp"
 #include "ast/ast_function.hpp"
+#include "ast/ast_kind.hpp"
 #include "ast/ast_literals.hpp"
 #include "ast/ast_manager.hpp"
 #include "ast/ast_operations.hpp"
@@ -16,6 +17,7 @@
 #include "parser/parser.hpp"
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 
 using namespace compiler;
 using namespace symbol;
@@ -24,35 +26,13 @@ namespace handler {
 
 struct Handler_Pass_Data {
   u64 yielding_calls;
+  u64 temporaries;
   lib::Table< symbol::Id, u64 >* hashes;
   lib::Set< ast::Declaration_Variable_Node* >* context_declarations;
   lib::Table< ast::Function_Literal_Node*, ast::Literal_Symbol_Node* >* ret_var_map;
-  // lib::Set< ast::Function_Literal_Node* >* effect_functions;
-  // lib::Set< ast::Function_Literal_Node* >* prompt_functions;
-  // lib::Set< ast::Node* >* prompt_declarations;
   lib::Table< symbol::Id, ast::Literal_Handler_Node* >* symbol_to_handler;
+  lib::Table< symbol::Id, ast::Variable_Assignment_Node* >* symbol_to_struct_arguments;
 };
-
-// b8 handler_pass_data_is_effect_function(Handler_Pass_Data* data, ast::Function_Literal_Node* lit) {
-//   ast::Function_Literal_Node** f = lib::search(data->effect_functions, lit);
-//   if (f)
-//     return true;
-//   return false;
-// }
-
-// b8 handler_pass_data_is_prompt_function(Handler_Pass_Data* data, ast::Function_Literal_Node* lit) {
-//   if (lib::search(data->prompt_functions, lit)) {
-//     return true;
-//   }
-//   return false;
-// }
-
-// b8 handler_pass_data_is_prompt_declaration(Handler_Pass_Data* data, ast::Node* decl) {
-//   if (lib::search(data->prompt_declarations, decl)) {
-//     return true;
-//   }
-//   return false;
-// }
 
 b8 handler_pass_data_is_context_argument(Handler_Pass_Data* data, ast::Declaration_Variable_Node* decl) {
   return lib::search(data->context_declarations, decl) != NULL;
@@ -65,16 +45,12 @@ b8 handler_pass_data_is_context_argument(Handler_Pass_Data* data, ast::Declarati
 Handler_Pass_Data* handler_pass_data_create() {
   Handler_Pass_Data* h = new Handler_Pass_Data();
   h->yielding_calls = 0;
+  h->temporaries = 0;
   h->hashes = lib::table_create< symbol::Id, u64 >();
   h->ret_var_map = lib::table_create< ast::Function_Literal_Node*, ast::Literal_Symbol_Node* >();
-  // h->handler_prompt = lib::table_create< symbol::Id, ast::Variable_Assignment_Node* >();
-  // h->effect_handlers_assignments = lib::set_create< ast::Variable_Assignment_Node* >();
-  // h->prompt_handlers_assignments = lib::set_create< ast::Variable_Assignment_Node* >();
-  // h->effect_functions = lib::set_create< ast::Function_Literal_Node* >();
-  // h->prompt_functions = lib::set_create< ast::Function_Literal_Node* >();
   h->context_declarations = lib::set_create< ast::Declaration_Variable_Node* >();
-  // h->prompt_declarations = lib::set_create< ast::Node* >();
   h->symbol_to_handler = lib::table_create< symbol::Id, ast::Literal_Handler_Node* >();
+  h->symbol_to_struct_arguments = lib::table_create< symbol::Id, ast::Variable_Assignment_Node* >();
   return h;
 }
 
@@ -82,10 +58,8 @@ void handler_pass_data_destroy(Handler_Pass_Data* d) {
   lib::table_delete(d->hashes);
   lib::table_delete(d->ret_var_map);
   lib::set_delete(d->context_declarations);
-  // lib::set_delete(d->prompt_functions);
-  // lib::set_delete(d->effect_functions);
-  // lib::set_delete(d->prompt_declarations);
   lib::table_delete(d->symbol_to_handler);
+  lib::table_delete(d->symbol_to_struct_arguments);
 
   delete d;
 }
@@ -137,15 +111,19 @@ void pass_context_argument(Handler_Pass_Data* data, ast::Manager* m, ast::Functi
   if (ast::is_instance< ast::Type_Int32_Node* >(f->get_function(m))) {
     return;
   }
+
   if (ast::is_instance< ast::Type_Pointer_Node* >(f->get_function(m))) {
     return;
   }
+
   if (ast::is_instance< ast::Type_Unit_Node* >(f->get_function(m))) {
     return;
   }
+
   if (ast::is_instance< ast::Type_Arrow_Node* >(f->get_function(m))) {
     return;
   }
+
   if (ast::is_instance< ast::Type_Any_Node* >(f->get_function(m))) {
     return;
   }
@@ -182,12 +160,15 @@ void add_evidence_context_to_calls(Handler_Pass_Data* data, ast::Manager* m, ast
   }
 
   if (ast::Function_Call_Node* lit = ast::is_instance< ast::Function_Call_Node* >(root)) {
-    pass_context_argument(data, m, lit);
+    if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(lit->get_function(m))) {
+      Symbol s = symbol->get_symbol(m);
+      if (is_equal(m->symbol_table, &s, "sizeof") == false) {
+        pass_context_argument(data, m, lit);
+      }
+    } else {
+      pass_context_argument(data, m, lit);
+    }
   }
-
-  // if (ast::Effect_Call_Node* lit = ast::is_instance< ast::Effect_Call_Node* >(root)) {
-  //   pass_context_argument(data, m, lit);
-  // }
 
   add_evidence_context_to_calls(data, m, ast::left_of(m, root));
   add_evidence_context_to_calls(data, m, ast::right_of(m, root));
@@ -206,324 +187,8 @@ ast::Function_Call_Node* create_yielding_to(ast::Manager* m, u64 hash) {
 
 ast::Function_Call_Node* create_is_yielding(ast::Manager* m) {
   ast::Literal_Symbol_Node* symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "is_yielding"));
-  // ast::Literal_Symbol_Node* ctx    = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
-
-  // ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ctx, NULL);
-
   return ast::create_node_function_call(m, symbol, NULL);
 }
-
-// ast::ProgramPoint_List_Node* create_handler_effect_if_stmt(ast::Manager* m, u64 hash, ast::Literal_Symbol_Node* effect, ast::Function_Literal_Node* literal) {
-
-//   ast::Declarations_List_Node* args      = literal->get_arguments(m);
-//   ast::Declarations_List_Node* call_args = NULL;
-
-//   u64 i = 0;
-
-//   ast::Node* size_acc = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, 0));
-
-//   ast::ProgramPoint_List_Node* get_sizes_pp  = NULL;
-//   ast::ProgramPoint_List_Node* get_stride_pp = NULL;
-
-//   while (ast::is_semantic_node(args)) {
-//     ast::Declaration_Variable_Node* arg = ast::is_instance< ast::Declaration_Variable_Node* >(args->get_declaration(m));
-
-//     assert(arg);
-
-//     ast::Literal_Symbol_Node* ctx = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "ctx"));
-
-//     ast::Literal_Symbol_Node*       sizeof_symbol        = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "sizeof"));
-//     ast::Declarations_List_Node*    sizeof_arg           = ast::create_node_declarations_list(m, ast::deep_copy(m, arg->get_type(m)), NULL);
-//     ast::Function_Call_Node*        sizeof_call          = ast::create_node_function_call(m, sizeof_symbol, sizeof_arg);
-//     ast::Literal_Symbol_Node*       type_size_symbol     = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, i, "type_size"));
-//     ast::Declaration_Constant_Node* type_size_decl       = ast::create_constant_declaration(m, type_size_symbol, ast::create_node_type_i32(m));
-//     ast::Variable_Assignment_Node*  type_size_assignment = ast::create_node_assignment(m, type_size_decl, sizeof_call);
-
-//     get_sizes_pp = ast::create_node_program_point(m, type_size_assignment, get_sizes_pp);
-
-//     ast::Literal_Symbol_Node*       arg_stride_symbol = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, i, "arg_stride"));
-//     ast::Declaration_Constant_Node* arg_stride_decl   = ast::create_constant_declaration(m, arg_stride_symbol, ast::create_node_type_i32(m));
-//     ast::Variable_Assignment_Node*  arg_stride_assignment =
-//         ast::create_node_assignment(m, arg_stride_decl, ast::create_node_arithmetic_add(m, size_acc, ast::deep_copy(m, type_size_symbol)));
-
-//     get_stride_pp = ast::create_node_program_point(m, arg_stride_assignment, get_stride_pp);
-
-//     size_acc = ast::deep_copy(m, arg_stride_symbol);
-
-//     ast::Literal_Symbol_Node*    yielding_args_symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "yielding_arguments_buffer"));
-//     ast::Declarations_List_Node* yielding_args_args   = ast::create_node_declarations_list(m, ctx, NULL);
-//     ast::Function_Call_Node*     yielding_args_call   = ast::create_node_function_call(m, yielding_args_symbol, yielding_args_args);
-
-//     ast::Arithmetic_Operation_Add_Node* arg_ptr    = ast::create_node_arithmetic_add(m, yielding_args_call, ast::deep_copy(m, arg_stride_symbol));
-//     ast::Cast_Type_Node*                arg_cast   = ast::create_node_cast_type(m, ast::create_node_type_pointer(m, ast::deep_copy(m, arg->get_type(m))), arg_ptr);
-//     ast::Pointer_Value_Node*            effect_arg = ast::create_node_pointer_value(m, arg_cast);
-
-//     call_args = ast::create_node_declarations_list(m, effect_arg, call_args);
-
-//     i = i + 1;
-
-//     args = args->get_next_declaration(m);
-//   }
-
-//   ast::Function_Call_Node* effect_call = ast::create_node_function_call(m, ast::deep_copy(m, effect), call_args);
-
-//   ast::ProgramPoint_List_Node* body = NULL;
-
-//   if (get_sizes_pp) {
-//     body = get_sizes_pp->concat(m, get_stride_pp);
-
-//     body->push(m, ast::create_node_return_statement(m, effect_call));
-//   } else {
-//     body = ast::create_node_program_point(m, ast::create_node_return_statement(m, effect_call), NULL);
-//   }
-
-//   ast::Literal_Symbol_Node*       is_yielding_symbol     = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, hash, "is_yielding_to_handler"));
-//   ast::Declaration_Variable_Node* is_yielding_decl       = ast::create_variable_declaration(m, is_yielding_symbol, ast::create_node_type_i32(m));
-//   ast::Variable_Assignment_Node*  is_yielding_assignment = ast::create_node_assignment(m, is_yielding_decl, create_yielding_to(m, hash));
-
-//   ast::Elif_List_Node*         elif = ast::create_node_elif_list(m, ast::create_node_if_statement(m, ast::deep_copy(m, is_yielding_symbol), body), NULL);
-//   ast::ProgramPoint_List_Node* pp   = ast::create_node_program_point(m, elif, NULL);
-
-//   return ast::create_node_program_point(m, is_yielding_assignment, pp);
-// }
-
-// ast::Function_Literal_Node* create_prompt_function(Handler_Pass_Data* data, ast::Manager* m, ast::Literal_Symbol_Node* name, ast::Literal_Handler_Node* handler) {
-//   ast::Declarations_List_Node* prompt_arguments = ast::create_node_declarations_list(m, 0, 0);
-
-//   ast::ProgramPoint_List_Node* body = handler->get_body(m);
-//   ast::ProgramPoint_List_Node* iter = body;
-
-//   while (ast::is_semantic_node(body)) {
-//     ast::Node* statement = body->get_statement(m);
-
-//     if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(statement)) {
-//       if (ast::Function_Literal_Node* literal = ast::is_instance< ast::Function_Literal_Node* >(assignment->get_right_operand(m))) {
-
-//         lib::insert(data->effect_functions, literal);
-
-//         ast::Literal_Symbol_Node* symbol = NULL;
-
-//         ast::Node* left = assignment->get_left_operand(m);
-
-//         if (ast::Declaration_Constant_Node* decl = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
-//           symbol = decl->get_symbol(m);
-//         }
-
-//         if (ast::Declaration_Variable_Node* decl = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
-//           symbol = decl->get_symbol(m);
-//         }
-
-//         assert(symbol);
-
-//         u64* hash = lib::search(data->hashes, symbol->get_symbol_id());
-
-//         assert(hash);
-
-//         body->emplace(m, create_handler_effect_if_stmt(m, *hash, symbol, literal));
-//       }
-//     }
-
-//     body = body->get_next_program_point(m);
-//   }
-
-//   while (ast::is_semantic_node(iter->get_next_program_point(m))) {
-//     iter = iter->get_next_program_point(m);
-//   }
-
-//   ast::Bubble_Handler_Node* bubble = ast::create_bubble_handler(m, ast::deep_copy(m, name));
-
-//   iter = iter->insert(m, bubble);
-//   iter = iter->insert(m, ast::create_node_return_statement(m, ast::create_node_literal_nothing(m)));
-
-//   ast::Literal_Symbol_Node*       is_yielding_symbol     = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "is_ctx_yielding"));
-//   ast::Declaration_Variable_Node* is_yielding_decl       = ast::create_variable_declaration(m, is_yielding_symbol, ast::create_node_type_i32(m));
-//   ast::Variable_Assignment_Node*  is_yielding_assignment = ast::create_node_assignment(m, is_yielding_decl, create_is_yielding(m));
-
-//   ast::If_Node_Statement* if_is_yielding = ast::create_node_if_statement(m, ast::deep_copy(m, is_yielding_symbol), handler->get_body(m));
-
-//   ast::Elif_List_Node* elif = ast::create_node_elif_list(m, if_is_yielding, NULL);
-
-//   ast::ProgramPoint_List_Node* prompt_return = ast::create_node_program_point(m, ast::create_node_return_statement(m, ast::create_node_literal_nothing(m)), NULL);
-//   ast::ProgramPoint_List_Node* prompt_body   = ast::create_node_program_point(m, elif, prompt_return);
-//   prompt_body                                = ast::create_node_program_point(m, is_yielding_assignment, prompt_body);
-
-//   ast::Literal_Symbol_Node* ignore0 = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "_"));
-//   ast::Literal_Symbol_Node* ignore1 = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "__"));
-
-//   ast::Declarations_List_Node* args =
-//       ast::create_node_declarations_list(m, ast::create_variable_declaration(m, ignore0, ast::create_node_type_pointer(m, ast::create_node_type_any(m))), NULL);
-//   args = ast::create_node_declarations_list(m, ast::create_variable_declaration(m, ignore1, ast::create_node_type_pointer(m, ast::create_node_type_any(m))), args);
-
-//   ast::Function_Literal_Node* prompt_function = ast::create_node_function_literal(m, args, ast::create_node_type_unit(m), prompt_body);
-
-//   lib::insert(data->prompt_functions, prompt_function);
-
-//   return prompt_function;
-// }
-
-// void handeler_conversion_pass_recursive(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, ast::ProgramPoint_List_Node* pp_cur) {
-//   if (!ast::is_semantic_node(root) || !ast::is_semantic_node(pp_cur)) {
-//     return;
-//   }
-
-//   // if (ast::With_Node_Statement* with = ast::is_instance< ast::With_Node_Statement* >(root)) {
-//   //   ast::Declarations_List_Node* list = with->get_list(m);
-//   //   pp_cur->set_statement(m, ast::create_prompt_statement(m, list->get_declaration(m)));
-//   //   list = list->get_next_declaration(m);
-
-//   //   while (ast::is_semantic_node(list)) {
-//   //     pp_cur = pp_cur->insert(m, ast::create_prompt_statement(m, list->get_declaration(m)));
-//   //     list   = list->get_next_declaration(m);
-//   //   }
-
-//   //   pp_cur = pp_cur->insert(m, with->get_call(m));
-
-//   //   list = with->get_list(m);
-
-//   //   while (ast::is_semantic_node(list)) {
-//   //     ast::Literal_Natural_Node*   zero = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, 0));
-//   //     ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, zero, NULL);
-//   //     ast::Function_Call_Node*     call = ast::create_node_function_call(m, list->get_declaration(m), args);
-
-//   //     pp_cur = pp_cur->insert(m, call);
-
-//   //     list = list->get_next_declaration(m);
-//   //   }
-//   // }
-
-//   if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
-//     ast::Node* right = assignment->get_right_operand(m);
-//     ast::Node* left  = assignment->get_left_operand(m);
-
-//     if (ast::Effect_Declaration_Node* effect = ast::is_instance< ast::Effect_Declaration_Node* >(right)) {
-//       symbol::Id id = 0;
-
-//       if (ast::Declaration_Constant_Node* decl = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
-//         id = decl->get_symbol(m)->get_symbol_id();
-//       }
-
-//       if (ast::Declaration_Variable_Node* decl = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
-//         id = decl->get_symbol(m)->get_symbol_id();
-//       }
-
-//       assert(id);
-
-//       lib::insert(data->hashes, id, lib::size(data->hashes) + 1);
-//     }
-
-//     if (ast::Literal_Handler_Node* handler = ast::is_instance< ast::Literal_Handler_Node* >(right)) {
-//       ast::Node* type = ast::create_node_type_any(m); // TODO(marcos): get return type
-
-//       ast::Node* left = assignment->get_left_operand(m);
-
-//       ast::Literal_Symbol_Node* name = NULL;
-
-//       if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
-//         ast::Type_Pointer_Node* from  = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
-//         ast::Type_Arrow_Node*   arrow = ast::create_node_type_arrow(m, from, ast::deep_copy(m, type));
-
-//         name = var->get_symbol(m);
-//         var->set_type(m, arrow);
-//       }
-
-//       if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
-//         ast::Type_Pointer_Node* from  = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
-//         ast::Type_Arrow_Node*   arrow = ast::create_node_type_arrow(m, from, ast::deep_copy(m, type));
-
-//         name = var->get_symbol(m);
-//         var->set_type(m, arrow);
-//       }
-
-//       assert(name);
-
-//       assignment->set_right_operand(m, create_prompt_function(data, m, name, handler));
-
-//       lib::insert(data->prompt_declarations, left);
-
-//       return;
-//     }
-//   }
-
-//   if (ast::ProgramPoint_List_Node* pp = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
-//     ast::Node*                   left  = pp->get_statement(m);
-//     ast::ProgramPoint_List_Node* right = pp->get_next_program_point(m);
-
-//     handeler_conversion_pass_recursive(data, m, left, pp);
-//     handeler_conversion_pass_recursive(data, m, right, right);
-
-//     return;
-//   }
-
-//   handeler_conversion_pass_recursive(data, m, ast::left_of(m, root), pp_cur);
-//   handeler_conversion_pass_recursive(data, m, ast::right_of(m, root), pp_cur);
-// }
-
-// void convert_effect_declarations(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root) {
-//   if (!ast::is_semantic_node(root)) {
-//     return;
-//   }
-
-//   if (ast::ProgramPoint_List_Node* point = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
-//     while (ast::is_semantic_node(point)) {
-//       if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(point->get_statement(m))) {
-
-//         if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(assignment->get_right_operand(m))) {
-//           ast::Declarations_List_Node* arguments = call->get_arguments(m);
-
-//           assignment->set_right_operand(m, ast::create_node_function_call(m, call->get_effect(m), arguments));
-//         }
-
-//         if (ast::Effect_Declaration_Node* decl = ast::is_instance< ast::Effect_Declaration_Node* >(assignment->get_right_operand(m))) {
-
-//           ast::Literal_Symbol_Node* symbol = NULL;
-//           if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(assignment->get_left_operand(m))) {
-//             symbol = var->get_symbol(m);
-//           }
-
-//           if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(assignment->get_left_operand(m))) {
-//             symbol = var->get_symbol(m);
-//           }
-
-//           ast::Node* arguments = decl->get_arguments(m);
-
-//           ast::Literal_Symbol_Node* set_yielding_to = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "set_is_yielding_to"));
-
-//           u64* hash = lib::search(data->hashes, symbol->get_symbol_id());
-
-//           assert(hash);
-
-//           ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, *hash)), NULL);
-
-//           ast::Function_Call_Node* call = ast::create_node_function_call(m, set_yielding_to, args);
-
-//           ast::Return_Node_Statement* return_devault_value = NULL;
-
-//           if (ast::is_instance< ast::Type_Pointer_Node* >(decl->get_return_type(m))) {
-//             return_devault_value = ast::create_node_return_statement(m, ast::create_node_literal_natural(m, compiler::symbol::number_to_symbol(m->symbol_table, 0)));
-//           } else {
-//             return_devault_value = ast::create_node_return_statement(m, ast::create_node_function_call(m, ast::deep_copy(m, decl->get_return_type(m)), NULL));
-//           }
-
-//           ast::ProgramPoint_List_Node* body = ast::create_node_program_point(m, return_devault_value, NULL);
-//           body                              = ast::create_node_program_point(m, call, body);
-
-//           ast::Function_Literal_Node* literal = ast::create_node_function_literal(m, arguments, decl->get_return_type(m), body);
-//           assignment->set_right_operand(m, literal);
-//         }
-//       }
-//       if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(point->get_statement(m))) {
-//         ast::Declarations_List_Node* arguments = call->get_arguments(m);
-
-//         point->set_statement(m, ast::create_node_function_call(m, call->get_effect(m), arguments));
-//       }
-
-//       point = point->get_next_program_point(m);
-//     }
-//   }
-
-//   convert_effect_declarations(data, m, ast::left_of(m, root));
-//   convert_effect_declarations(data, m, ast::right_of(m, root));
-// }
 
 void handler_rewrite(
     lib::Set< ast::Return_Node_Statement* >* ignore, Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, ast::ProgramPoint_List_Node* pp, ast::Literal_Symbol_Node* var) {
@@ -545,9 +210,6 @@ void handler_rewrite(
     ast::Return_Node_Statement* new_return = ast::create_node_return_statement(m, zero);
 
     lib::insert(ignore, new_return);
-
-    parser::print_ast(m, new_return);
-    parser::print_ast(m, pp);
 
     pp->insert(m, new_return);
 
@@ -609,6 +271,22 @@ void populate_handler_pass_data(Handler_Pass_Data* data, ast::Manager* m, ast::N
 
   populate_handler_pass_data(data, m, ast::left_of(m, node));
   populate_handler_pass_data(data, m, ast::right_of(m, node));
+}
+ast::Literal_Symbol_Node* get_symbol(ast::Manager* m, ast::Node* n) {
+  if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(n)) {
+    return var->get_symbol(m);
+  }
+
+  if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(n)) {
+    return var->get_symbol(m);
+  }
+
+  if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(n)) {
+    return symbol;
+  }
+
+  assert(false && "unknow type");
+  return 0;
 }
 
 void replace_var_with_access(
@@ -683,9 +361,7 @@ void replace_var_with_access(
   replace_var_with_access(data, m, structure, ast::right_of(m, root), root, members, ctx);
 }
 
-ast::Literal_Struct_Node* create_effect_agruments_struct(Handler_Pass_Data* data, ast::Manager* m, ast::Function_Literal_Node* lit) {
-  ast::Declarations_List_Node* arguments = lit->get_arguments(m);
-
+ast::Literal_Struct_Node* create_effect_agruments_struct(Handler_Pass_Data* data, ast::Manager* m, ast::Declarations_List_Node* arguments) {
   ast::ProgramPoint_List_Node* members = NULL;
 
   while (ast::is_semantic_node(arguments)) {
@@ -753,15 +429,23 @@ void handler_rewrite_pass(Handler_Pass_Data* data, ast::Manager* m, ast::Node* n
             arguments = arguments->get_next_declaration(m);
           }
 
-          ast::Literal_Struct_Node* structure_literal = create_effect_agruments_struct(data, m, literal);
+          // ast::Literal_Struct_Node* structure_literal = create_effect_agruments_struct(data, m, literal);
 
-          ast::Literal_Symbol_Node* structure_symbol = ast::create_node_literal_symbol(m, symbol_with_prefix(m->symbol_table, literal_name->get_symbol(m), "args_"));
-          ast::Declaration_Constant_Node* strucuture_decl = ast::create_constant_declaration(m, structure_symbol, ast::create_node_type_struct(m));
-          ast::Variable_Assignment_Node* structure_assignment = ast::create_node_assignment(m, strucuture_decl, structure_literal);
+          // ast::Literal_Symbol_Node* structure_symbol = ast::create_node_literal_symbol(m, symbol_with_prefix(m->symbol_table, literal_name->get_symbol(m), "args_"));
+          //  ast::Declaration_Constant_Node* strucuture_decl = ast::create_constant_declaration(m, structure_symbol, ast::create_node_type_struct(m));
+          ast::Variable_Assignment_Node** structure_assign_ref = lib::search(data->symbol_to_struct_arguments, literal_name->get_symbol_id());
 
-          body->set_statement(m, structure_assignment);
-          body->insert(m, statement);
-          body = body->get_next_program_point(m);
+          assert(structure_assign_ref);
+
+          ast::Variable_Assignment_Node* structure_assignment = *structure_assign_ref;
+
+          ast::Literal_Symbol_Node* structure_symbol = get_symbol(m, structure_assignment->get_left_operand(m));
+
+          lib::insert(data->symbol_to_struct_arguments, literal_name->get_symbol_id(), structure_assignment);
+
+          // body->set_statement(m, structure_assignment);
+          // body->insert(m, statement);
+          // body = body->get_next_program_point(m);
 
           ast::Literal_Symbol_Node* argument_symbol = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "args"));
           ast::Declaration_Variable_Node* argument = ast::create_variable_declaration(m, argument_symbol, ast::create_node_type_pointer(m, ast::deep_copy(m, structure_symbol)));
@@ -1078,15 +762,263 @@ void inline_handlers(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, 
   inline_handlers(data, m, ast::right_of(m, root), root);
 }
 
+ast::Node* get_typeof(ast::Manager* m, context::Context* ctx, ast::Node* node) {
+  if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(node)) {
+    return var->get_type(m);
+  }
+  if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(node)) {
+    return var->get_type(m);
+  }
+
+  if (ast::Cast_Type_Node* cast = ast::is_instance< ast::Cast_Type_Node* >(node)) {
+    return cast->get_to_type(m);
+  }
+
+  if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(node)) {
+    return context::context_type_of(ctx, m, symbol->get_symbol_id());
+  }
+
+  assert(false && "Unknow node type");
+}
+
+void resume_convert_pass(
+    Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, context::Context* ctx, ast::ProgramPoint_List_Node* parent, ast::ProgramPoint_List_Node* current) {
+  if (ast::is_semantic_node(root) == false) {
+    return;
+  }
+
+  if (ast::Function_Literal_Node* lit = ast::is_instance< ast::Function_Literal_Node* >(root)) {
+    context::Context* _ctx = context::context_from_declarations_list(m, lit->get_arguments(m), ctx);
+
+    resume_convert_pass(data, m, lit->get_body(m), _ctx, parent, lit->get_body(m));
+
+    context::context_destroy(_ctx);
+
+    return;
+  }
+
+  if (ast::Elif_List_Node* elif = ast::is_instance< ast::Elif_List_Node* >(root)) {
+    while (ast::is_semantic_node(elif)) {
+      context::context_push_scope(ctx);
+
+      resume_convert_pass(data, m, elif->get_if(m)->get_body(m), ctx, parent, elif->get_if(m)->get_body(m));
+
+      context::context_pop_scope(ctx);
+
+      elif = elif->get_elif(m);
+    }
+
+    return;
+  }
+
+  if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
+    if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(assignment->get_right_operand(m))) {
+      if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
+        Symbol s = symbol->get_symbol(m);
+
+        if (symbol::is_equal(m->symbol_table, &s, "resume")) {
+          ast::Node* left = assignment->get_left_operand(m);
+
+          ast::Literal_Symbol_Node* var_sym = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, data->temporaries++, "t"));
+          ast::Type_Pointer_Node* var_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+          ast::Declaration_Variable_Node* var_decl = ast::create_variable_declaration(m, var_sym, var_type);
+
+          assignment->set_left_operand(m, var_decl);
+
+          ast::Cast_Type_Node* var_cast = ast::create_node_cast_type(m, ast::create_node_type_pointer(m, get_typeof(m, ctx, left)), var_sym);
+          ast::Variable_Assignment_Node* assign = ast::create_node_assignment(m, left, ast::create_node_pointer_value(m, var_cast));
+
+          ast::Literal_Symbol_Node* deallocate = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, "deallocate"));
+          current->insert(m, ast::create_node_function_call(m, deallocate, ast::create_node_declarations_list(m, var_sym, NULL)));
+          current->insert(m, assign);
+        }
+      }
+    }
+  }
+
+  if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(root)) {
+    if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
+      Symbol s = symbol->get_symbol(m);
+
+      if (symbol::is_equal(m->symbol_table, &s, "resume")) {
+        ast::Declarations_List_Node* args = call->get_arguments(m);
+
+        ast::Node* arg = args->get_declaration(m);
+
+        if (ast::is_semantic_node(arg) == false) {
+          return;
+        }
+
+        if (ast::Literal_Symbol_Node* arg_sym = ast::is_instance< ast::Literal_Symbol_Node* >(arg)) {
+          Symbol s = arg_sym->get_symbol(m);
+
+          if (!symbol::is_equal(m->symbol_table, &s, "ctx")) {
+            ast::Literal_Symbol_Node* var_sym = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, data->temporaries++, "t"));
+            ast::Type_Pointer_Node* var_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+            ast::Cast_Type_Node* var_cast = ast::create_node_cast_type(m, var_type, ast::create_node_value_address(m, arg_sym));
+            ast::Declaration_Variable_Node* var_decl = ast::create_variable_declaration(m, var_sym, var_type);
+            ast::Variable_Assignment_Node* var_assign = ast::create_node_assignment(m, var_decl, var_cast);
+
+            parent->insert(m, var_assign);
+
+            args->set_declaration(m, var_sym);
+          }
+
+        } else {
+          assert(false && "TODO: implement type inference for value");
+        }
+      }
+    }
+
+    return;
+  }
+
+  if (ast::ProgramPoint_List_Node* pp = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
+    resume_convert_pass(data, m, pp->get_statement(m), ctx, parent, pp);
+    resume_convert_pass(data, m, pp->get_next_program_point(m), ctx, pp, pp);
+    return;
+  }
+
+  resume_convert_pass(data, m, ast::left_of(m, root), ctx, parent, current);
+  resume_convert_pass(data, m, ast::right_of(m, root), ctx, parent, current);
+}
+
+u64 get_hash(Handler_Pass_Data* data, ast::Manager* m, ast::Node* n) {
+  if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(n)) {
+    if (u64* hash = lib::search(data->hashes, var->get_symbol(m)->get_symbol_id())) {
+      return *hash;
+    }
+  }
+
+  if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(n)) {
+    if (u64* hash = lib::search(data->hashes, var->get_symbol(m)->get_symbol_id())) {
+      return *hash;
+    }
+  }
+
+  if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(n)) {
+    if (u64* hash = lib::search(data->hashes, symbol->get_symbol_id())) {
+      return *hash;
+    }
+  }
+
+  assert(false && "unknow type");
+  return 0;
+}
+
+ast::Function_Call_Node* create_call(ast::Manager* m, const char* name, ast::Node* argA) {
+  ast::Literal_Symbol_Node* s = ast::create_node_literal_symbol(m, set_entry(m->symbol_table, name));
+  ast::Declarations_List_Node* args = ast::create_node_declarations_list(m, argA, NULL);
+  return ast::create_node_function_call(m, s, args);
+}
+
+	void handler_declaration_conversion_pass(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root, ast::ProgramPoint_List_Node* pp) {
+  if (ast::is_semantic_node(root) == false) {
+    return;
+  }
+
+	if(ast::ProgramPoint_List_Node* pp = ast::is_instance<ast::ProgramPoint_List_Node*>(root)) {
+		handler_declaration_conversion_pass(data, m, pp->get_statement(m), pp);
+		handler_declaration_conversion_pass(data, m, pp->get_next_program_point(m), pp->get_next_program_point(m));
+	}
+	
+  if (ast::Effect_Call_Node* call = ast::is_instance< ast::Effect_Call_Node* >(root)) {
+    ast::change_kind(call, ast::AST_FUNCTION_CALL);
+  }
+
+  if (ast::Variable_Assignment_Node* assignment = ast::is_instance< ast::Variable_Assignment_Node* >(root)) {
+
+    if (ast::Effect_Declaration_Node* effect = ast::is_instance< ast::Effect_Declaration_Node* >(assignment->get_right_operand(m))) {
+      printf("asdsadasds\n");
+
+      ast::Literal_Natural_Node* hash = ast::create_node_literal_natural(m, number_to_symbol(m->symbol_table, get_hash(data, m, assignment->get_left_operand(m))));
+
+      ast::Function_Call_Node* set_is_yielding_to_call = create_call(m, "set_is_yielding_to", hash);
+
+      ast::ProgramPoint_List_Node* body = NULL;
+
+      ast::Literal_Struct_Node* structure = create_effect_agruments_struct(data, m, effect->get_arguments(m));
+
+      ast::Literal_Symbol_Node* structure_symbol =
+          ast::create_node_literal_symbol(m, symbol_with_prefix(m->symbol_table, get_symbol(m, assignment->get_left_operand(m))->get_symbol(m), "args_"));
+      ast::Declaration_Constant_Node* strucuture_decl = ast::create_constant_declaration(m, structure_symbol, ast::create_node_type_struct(m));
+      ast::Variable_Assignment_Node* structure_assignment = ast::create_node_assignment(m, strucuture_decl, structure);
+
+      lib::insert(data->symbol_to_struct_arguments, get_symbol(m, assignment->get_left_operand(m))->get_symbol_id(), structure_assignment);
+
+      // TODO: define argument structure here and not on handler rewrite pass
+
+      // ast::Variable_Assignment_Node* assignment = structure_assignment;
+
+      assert(structure);
+
+      ast::ProgramPoint_List_Node* members = structure->get_members(m);
+      ast::Declarations_List_Node* arguments = effect->get_arguments(m);
+
+      ast::Function_Call_Node* allocate_args_call = create_call(m, "ctx_allocate_args", create_call(m, "sizeof", get_symbol(m, structure_assignment->get_left_operand(m))));
+      ast::Literal_Symbol_Node* allocate_args_sym = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, data->temporaries++, "t"));
+      ast::Declaration_Constant_Node* allocate_args_decl = ast::create_constant_declaration(m, allocate_args_sym, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+      ast::Variable_Assignment_Node* allocate_args_assign = ast::create_node_assignment(m, allocate_args_decl, allocate_args_call);
+
+      ast::Type_Pointer_Node* type = ast::create_node_type_pointer(m, get_symbol(m, structure_assignment->get_left_operand(m)));
+      ast::Cast_Type_Node* allocate_args_cast = ast::create_node_cast_type(m, type, allocate_args_sym);
+      ast::Literal_Symbol_Node* args_sym = ast::create_node_literal_symbol(m, number_to_symbol(m->symbol_table, data->temporaries++, "t"));
+      ast::Declaration_Constant_Node* args_decl = ast::create_constant_declaration(m, args_sym, type);
+      ast::Variable_Assignment_Node* args_assignment = ast::create_node_assignment(m, args_decl, allocate_args_cast);
+
+      while (ast::is_semantic_node(members)) {
+        assert(members);
+        assert(arguments);
+
+        ast::Literal_Symbol_Node* member_symbol = get_symbol(m, members->get_statement(m));
+
+        ast::Member_Access_Node* access = ast::create_node_member_access(m, args_sym, member_symbol);
+
+        body = ast::create_node_program_point(m, ast::create_node_assignment(m, access, get_symbol(m, arguments->get_declaration(m))), body);
+
+        arguments->get_next_declaration(m);
+        members = members->get_next_program_point(m);
+      }
+
+      body = ast::create_node_program_point(m, args_assignment, body);
+      body = ast::create_node_program_point(m, allocate_args_assign, body);
+      body = ast::create_node_program_point(m, set_is_yielding_to_call, body);
+      //body = ast::create_node_program_point(m, structure_assignment, body);
+
+			ast::Node* statement = pp->get_statement(m);
+
+			pp->set_statement(m, structure_assignment);
+
+			pp = pp->insert(m, statement);
+			root = pp->get_statement(m);
+			
+      ast::Function_Literal_Node* literal = ast::create_node_function_literal(m, effect->get_arguments(m), effect->get_return_type(m), body);
+      assignment->set_right_operand(m, literal);
+    }
+  }
+
+  handler_declaration_conversion_pass(data, m, ast::left_of(m, root), pp);
+  handler_declaration_conversion_pass(data, m, ast::right_of(m, root), pp);
+}
+
 void handeler_conversion_pass(Handler_Pass_Data* data, ast::Manager* m, ast::Node* root) {
   // handeler_conversion_pass_recursive(data, m, root, ast::is_instance< ast::ProgramPoint_List_Node* >(root));
   // convert_effect_declarations(data, m, root);
   populate_handler_pass_data(data, m, root);
 
+  handler_declaration_conversion_pass(data, m, root, NULL);
+
   handler_rewrite_pass(data, m, root, NULL);
+
   convert_with_statements(data, m, root, NULL, NULL);
+
   inline_handlers(data, m, root, NULL);
 
+  context::Context* ctx = context::context_create(NULL);
+
+  resume_convert_pass(data, m, root, ctx, NULL, NULL);
+
+  context::context_destroy(ctx);
   add_evidence_context_to_functions(data, m, root);
   add_evidence_context_to_calls(data, m, root);
 }

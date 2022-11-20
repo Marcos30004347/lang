@@ -15,7 +15,7 @@ using namespace parser;
 
 void should_bubble_effectfull_program() {
 
-  const i8* prog = "ask : unit -> i32 : () -> i32;\n"
+  const i8* prog = "ask : i32 -> i32 : (a: i32) -> i32;\n"
                    "f : unit -> i32 : () -> i32 {\n"
                    "  x: i32 : ask!(4);\n"
                    "  return x;\n"
@@ -24,8 +24,9 @@ void should_bubble_effectfull_program() {
                    "  w : i32 = 0;"
                    "  read_handler : handler_t : handler {\n"
                    "    ask : unit -> i32 : (a: i32) -> i32 {\n"
-                   "      x : i32 = resume(1);\n"
-                   "      y : i32 = resume(2);\n"
+                   "      one : i32 = 1;\n"
+                   "      x : i32 = resume(one);\n"
+                   "      y : i32 = resume(one);\n"
                    "      z : i32 = x + y + w + a;\n"
                    "			return z;\n"
                    "    }\n"

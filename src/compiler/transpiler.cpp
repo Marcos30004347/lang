@@ -50,7 +50,7 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
   }
 
   if (ast::Type_Unit_Node* unit = ast::is_instance< ast::Type_Unit_Node* >(root)) {
-    printf("char*");
+    printf("unsigned char*");
     return;
   }
 
@@ -60,7 +60,7 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
   }
 
   if (ast::Type_Any_Node* any = ast::is_instance< ast::Type_Any_Node* >(root)) {
-    printf("char");
+    printf("unsigned char");
     return;
   }
 
@@ -380,7 +380,7 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
   }
 
   if (ast::Type_Unit_Node* unit = ast::is_instance< ast::Type_Unit_Node* >(root)) {
-    printf("char*");
+    printf("unsigned char*");
     return;
   }
 
@@ -390,7 +390,7 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
   }
 
   if (ast::Type_Any_Node* any = ast::is_instance< ast::Type_Any_Node* >(root)) {
-    printf("char");
+    printf("unsigned char");
     return;
   }
 
@@ -509,18 +509,19 @@ void output_c_code(ast::Manager* m, ast::Node* root) {
 
   printf("struct context_t {};\n");
   printf("void pop_frame(int);\n");
-  printf("char* push_frame(int);\n");
+  printf("unsigned char* push_frame(int);\n");
   printf("int is_yielding(context_t*);\n");
   printf("int yielding_to_handler(int, context_t*);\n");
-  printf("char* escape_frame(char*);\n");
-  printf("void bubble(const int, int, int, char*, char*(*)(char*, char*, context_t*, char*));\n");
+  printf("unsigned char* escape_frame(unsigned char*);\n");
+  printf("void bubble(context_t*, const int, int, unsigned char*, unsigned char*(*)(unsigned char*, unsigned char*, context_t*, unsigned char*));\n");
   printf("void set_is_yielding_to(int, context_t*);\n");
   printf("void ctx_set_returning(int, context_t*);\n");
   printf("int ctx_is_yielding_to(int, context_t*);\n");
   printf("char* ctx_get_handler_args(context_t*);\n");
-  printf("template<typename T> T resume(T, context_t*);\n");
+  printf("unsigned char*resume(unsigned char*, context_t*);\n");
   printf("int ctx_is_returning(context_t*);\n");
-
+	printf("void deallocate(unsigned char*, context_t*);\n");
+	printf("unsigned char* ctx_allocate_args(unsigned int, context_t*);\n");
   data->emit_semicolon_after_program_point = true;
   output_c_function_declarations_code_rec(data, m, root, 0);
   data->emit_semicolon_after_program_point = false;

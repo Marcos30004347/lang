@@ -129,7 +129,10 @@ b8 is_blacklisted(ast::Manager* m, ast::Node* call) {
     if (compiler::symbol::is_equal(m->symbol_table, &sym, "ctx_is_returning")) {
       return true;
     }
-    if (compiler::symbol::is_equal(m->symbol_table, &sym, "ctx_set_returning")) {
+    if (compiler::symbol::is_equal(m->symbol_table, &sym, "ctx_allocate_args")) {
+      return true;
+    }
+		if (compiler::symbol::is_equal(m->symbol_table, &sym, "ctx_set_returning")) {
       return true;
     }
     if (compiler::symbol::is_equal(m->symbol_table, &sym, "ctx_get_handler_args")) {
@@ -188,32 +191,33 @@ ast::Variable_Assignment_Node* create_continuation_function(
     arguments = ast::create_node_declarations_list(m, v, NULL);
   }
 
-  ast::Function_Literal_Node* function = ast::create_node_function_literal(m, arguments, return_type, body);
 
   u64 stack_depth = stackframe::stack_frame_get_function_depth(info->stackframe_pass_data, parent);
 
-	ast::ProgramPoint_List_Node* stack_frame_allocations = body;
-	for(u64 i = stack_depth - 1; i > 0; i--) {
-		ast::Literal_Symbol_Node* stack_frame_sym = ast::create_node_literal_symbol(m, symbol::number_to_symbol(m->symbol_table, i, "sp"));
-		ast::Type_Pointer_Node* stack_frame_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
-		ast::Declaration_Constant_Node* stack_frame_decl = ast::create_constant_declaration(m, stack_frame_sym, stack_frame_type);
 
+  for (u64 i = stack_depth - 1; i > 0; i--) {
+    ast::Literal_Symbol_Node* stack_frame_sym = ast::create_node_literal_symbol(m, symbol::number_to_symbol(m->symbol_table, i, "sp"));
+    ast::Type_Pointer_Node* stack_frame_type = ast::create_node_type_pointer(m, ast::create_node_type_any(m));
+    ast::Declaration_Constant_Node* stack_frame_decl = ast::create_constant_declaration(m, stack_frame_sym, stack_frame_type);
 
-  ast::Literal_Symbol_Node* stack_ptr_parent = ast::create_node_literal_symbol(m, compiler::symbol::number_to_symbol(m->symbol_table, i + 1, "sp"));
+    ast::Literal_Symbol_Node* stack_ptr_parent = ast::create_node_literal_symbol(m, compiler::symbol::number_to_symbol(m->symbol_table, i + 1, "sp"));
 
-	ast::Type_Pointer_Node* cast_type = ast::create_node_type_pointer(m, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
-  ast::Cast_Type_Node* cast_parent = ast::create_node_cast_type(m,cast_type, stack_ptr_parent);
+    ast::Type_Pointer_Node* cast_type = ast::create_node_type_pointer(m, ast::create_node_type_pointer(m, ast::create_node_type_any(m)));
+    ast::Cast_Type_Node* cast_parent = ast::create_node_cast_type(m, cast_type, stack_ptr_parent);
 
-	ast::Variable_Assignment_Node* stack_frame_assign = ast::create_node_assignment(m, stack_frame_decl, ast::create_node_pointer_value(m, cast_parent));
+	  ast::Variable_Assignment_Node* stack_frame_assign = ast::create_node_assignment(m, stack_frame_decl, ast::create_node_pointer_value(m, cast_parent));
 
-		stack_frame_allocations = stack_frame_allocations->insert(m, stack_frame_assign);
-	}
+		
+    body = ast::create_node_program_point(m, stack_frame_assign, body);
+		//stack_frame_allocations->insert(m, stack_frame_assign);
+  }
 	
-  stackframe::stack_frame_set_function_depth(info->stackframe_pass_data, function, stack_depth);
+  ast::Function_Literal_Node* function = ast::create_node_function_literal(m, arguments, return_type, body);
 
-  ast::Variable_Assignment_Node* frame_allocation = stackframe::stack_frame_get_function_local_stack_frame_allocation(info->stackframe_pass_data, parent);
+	stackframe::stack_frame_set_function_depth(info->stackframe_pass_data, function, stack_depth);
 
-  stackframe::stack_frame_set_function_local_stack_frame_allocation(info->stackframe_pass_data, function, frame_allocation);
+  // ast::Variable_Assignment_Node* frame_allocation = stackframe::stack_frame_get_function_local_stack_frame_allocation(info->stackframe_pass_data, parent);
+  // stackframe::stack_frame_set_function_local_stack_frame_allocation(info->stackframe_pass_data, function, frame_allocation);
 
   symbol::Symbol sym = symbol::number_to_symbol(m->symbol_table, lib::size(info->continuation_literals), "c");
 
