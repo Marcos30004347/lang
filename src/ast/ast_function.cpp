@@ -26,7 +26,7 @@ template <> Effect_Call_Node* is_instance<>(Node* node) {
   return node && node->kind == AST_EFFECT_CALL ? as< Effect_Call_Node* >(node) : 0;
 }
 
-Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint_List_Node* body) {
+Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint* body) {
 
   assert(!arguments || ast::is_instance< Literal_Nothing_Node* >(arguments) || ast::is_instance< Declarations_List_Node* >(arguments));
 
@@ -60,16 +60,16 @@ Effect_Call_Node* create_node_effect_call(ast::Manager* manager, Node* function,
   return as< Effect_Call_Node* >(ast::manager_alloc(manager, AST_EFFECT_CALL, get_id(function), get_id(arguments)));
 }
 
-ProgramPoint_List_Node* Function_Literal_Node::get_body(ast::Manager* manager) {
-  return is_instance< ProgramPoint_List_Node* >(right_of(manager, this));
+ProgramPoint* Function_Literal_Node::get_body(ast::Manager* manager) {
+  return is_instance< ProgramPoint* >(right_of(manager, this));
 }
 
-void Function_Literal_Node::set_body(ast::Manager* manager, ProgramPoint_List_Node* pp) {
+void Function_Literal_Node::set_body(ast::Manager* manager, ProgramPoint* pp) {
   set_right(manager, this, pp);
 }
 
-ProgramPoint_List_Node* Effect_Declaration_Node::get_body(ast::Manager* manager) {
-  return is_instance< ProgramPoint_List_Node* >(right_of(manager, this));
+ProgramPoint* Effect_Declaration_Node::get_body(ast::Manager* manager) {
+  return is_instance< ProgramPoint* >(right_of(manager, this));
 }
 
 Node* Function_Literal_Node::get_return_type(ast::Manager* manager) {

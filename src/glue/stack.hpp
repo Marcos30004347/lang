@@ -9,14 +9,14 @@ typedef unsigned int u32;
 typedef unsigned char u8;
 typedef int i32;
 
-enum slice_info_t {
+enum buffer_info_enum {
   NONE = 0,
   FREED = 1 << 0,
 };
 
-struct slice_t {
-  slice_t* next;
-  slice_t* prev;
+struct buffer_header_t {
+  buffer_header_t* next;
+  buffer_header_t* prev;
   i32 fragment;
   u32 size;
   u8 flags;
@@ -27,23 +27,23 @@ struct slice_t {
 u8 data[STACK_SIZE];
 u8* sp;
 
-slice_t* upper_bound;
-slice_t* lower_bound;
+buffer_header_t* upper_bound;
+buffer_header_t* lower_bound;
 
 u8* upper_bound_limit;
 u8* lower_bound_limit;
 
-inline u8* get_slice_start(slice_t* slice) {
+inline u8* get_slice_start(buffer_header_t* slice) {
   return (u8*)slice - slice->size;
 }
 
-inline u8* get_slice_end(slice_t* slice) {
-  return (u8*)slice + sizeof(slice_t);
+inline u8* get_slice_end(buffer_header_t* slice) {
+  return (u8*)slice + sizeof(buffer_header_t);
 }
 
 inline void init() {
-  slice_t* f = (slice_t*)(data);
-  slice_t* l = (slice_t*)(data + STACK_SIZE - sizeof(slice_t));
+  buffer_header_t* f = (buffer_header_t*)(data);
+  buffer_header_t* l = (buffer_header_t*)(data + STACK_SIZE - sizeof(buffer_header_t));
 
   f->next = l;
   f->prev = f;
@@ -53,10 +53,10 @@ inline void init() {
   l->prev = f;
   l->size = 0;
 
-  f->fragment = -1 * (i32)sizeof(slice_t);
+  f->fragment = -1 * (i32)sizeof(buffer_header_t);
   l->fragment = 0;
 
-  sp = data + sizeof(slice_t);
+  sp = data + sizeof(buffer_header_t);
 
   upper_bound = f;
   lower_bound = l;
@@ -131,7 +131,7 @@ inline void pop(u32 size) {
     return pop(size);
   }
 
-  while (unlikely(sp == upper_bound_limit && sp != data + sizeof(slice_t))) {
+  while (unlikely(sp == upper_bound_limit && sp != data + sizeof(buffer_header_t))) {
      sp = get_slice_start(upper_bound) - upper_bound->fragment;
 
      lower_bound = upper_bound;
@@ -144,15 +144,15 @@ inline void pop(u32 size) {
   debug();
 }
 
-inline slice_t* allocate(u8* buffer) {
-  slice_t* i = (slice_t*)push(sizeof(slice_t));
+inline buffer_header_t* allocate(u8* buffer) {
+  buffer_header_t* i = (buffer_header_t*)push(sizeof(buffer_header_t));
 
 	i->flags = NONE;
 	
 	i->size = (u32)((u8*)i - (u8*)buffer);
 
-  slice_t* n = lower_bound;
-  slice_t* p = n->prev;
+  buffer_header_t* n = lower_bound;
+  buffer_header_t* p = n->prev;
 
   p->next = i;
   i->prev = p;
@@ -166,7 +166,7 @@ inline slice_t* allocate(u8* buffer) {
 	return i;
 }
 
-inline void deallocate(slice_t* s) {
+inline void deallocate(buffer_header_t* s) {
   s->flags |= FREED;
 
 	if(s == upper_bound) {

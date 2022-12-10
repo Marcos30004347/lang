@@ -37,10 +37,10 @@ void debug_print_token(Parser* p, Token t) {
   printf("%s\n", buf);
 }
 
-ast::Node*                   parser_parse_expr(Parser* p);
-ast::ProgramPoint_List_Node* parser_parse_statements(Parser* p);
-ast::Node*                   parser_parse_decl(Parser* p);
-ast::Node*                   parser_parse_arrow(Parser* p);
+ast::Node* parser_parse_expr(Parser* p);
+ast::ProgramPoint* parser_parse_statements(Parser* p);
+ast::Node* parser_parse_decl(Parser* p);
+ast::Node* parser_parse_arrow(Parser* p);
 
 Parser* parser_create(u64 id, const i8* buffer, u64 size) {
   Parser* p = new Parser();
@@ -114,7 +114,7 @@ ast::Node* parser_parse_struct(Parser* p) {
 
   parser_read_token(p, TOKEN_KEYWORD_STRUCT);
 
-  ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
+  ast::ProgramPoint* body = parser_parse_statements(p);
 
   return ast::create_node_literal_struct(p->ast_manager, body);
 }
@@ -124,7 +124,7 @@ ast::Node* parser_parse_handler(Parser* p) {
 
   parser_read_token(p, TOKEN_KEYWORD_HANDLER);
 
-  ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
+  ast::ProgramPoint* body = parser_parse_statements(p);
 
   return ast::create_node_literal_handler(p->ast_manager, body);
 }
@@ -254,7 +254,7 @@ ast::Node* parser_parse_primary(Parser* p) {
       }
 
       if (parser_curr_tok(p).type == TOKEN_OPEN_CURLY_BRACE) {
-        ast::ProgramPoint_List_Node* body = parser_parse_statements(p);
+        ast::ProgramPoint* body = parser_parse_statements(p);
 
         return ast::create_node_function_literal(p->ast_manager, arguments, type, body);
       }
@@ -756,12 +756,12 @@ ast::Node* parser_parse_statement(Parser* p) {
   return expr;
 }
 
-ast::ProgramPoint_List_Node* parser_parse_statements(Parser* p) {
+ast::ProgramPoint* parser_parse_statements(Parser* p) {
   parser_read_token(p, TOKEN_OPEN_CURLY_BRACE);
 
-  ast::ProgramPoint_List_Node* root = ast::create_node_program_point(p->ast_manager, NULL, NULL);
+  ast::ProgramPoint* root = ast::create_node_program_point(p->ast_manager, NULL, NULL);
 
-  ast::ProgramPoint_List_Node* iterator = root;
+  ast::ProgramPoint* iterator = root;
 
   while (parser_curr_tok(p).type != TOKEN_CLOSE_CURLY_BRACE) {
     ast::Node* statement = parser_parse_statement(p);
@@ -772,10 +772,10 @@ ast::ProgramPoint_List_Node* parser_parse_statements(Parser* p) {
       break;
     }
 
-    ast::ProgramPoint_List_Node* r = ast::create_node_program_point(p->ast_manager, NULL, NULL);
+    ast::ProgramPoint* r = ast::create_node_program_point(p->ast_manager, NULL, NULL);
 
     iterator->right = r->id;
-    iterator        = r;
+    iterator = r;
   }
 
   parser_read_token(p, TOKEN_CLOSE_CURLY_BRACE);

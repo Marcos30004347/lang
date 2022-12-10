@@ -3,7 +3,7 @@
 #include "ast_kind.hpp"
 #include "compiler/compiler.hpp"
 #include "compiler/symbol_table.hpp"
-#include "utils.hpp"
+#include "../utils.hpp"
 
 #include "assert.h"
 #include "stdlib.h"

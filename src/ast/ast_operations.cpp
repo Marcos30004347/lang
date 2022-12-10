@@ -180,6 +180,14 @@ Node* Logical_Operation_Equal_Node::get_left_operand(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
+Node* Logical_Operation_Equal_Node::get_right_operand(ast::Manager* manager) {
+  return right_of(manager, this);
+}
+
+Node* Logical_Operation_NotEqual_Node::get_left_operand(ast::Manager* manager) {
+  return left_of(manager, this);
+}
+
 Node* Logical_Operation_NotEqual_Node::get_right_operand(ast::Manager* manager) {
   return right_of(manager, this);
 }

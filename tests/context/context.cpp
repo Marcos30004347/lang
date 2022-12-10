@@ -43,17 +43,17 @@ void should_register_declarations_in_context() {
 
   ast::Node* root = parser::parser_parse(parser);
 
-  ast::ProgramPoint_List_Node* program = ast::is_instance< ast::ProgramPoint_List_Node* >(root);
+  ast::ProgramPoint* program = ast::is_instance< ast::ProgramPoint* >(root);
 
   assert(program);
 
-  ast::Variable_Assignment_Node*  decl      = NULL;
-  ast::Declaration_Variable_Node* var       = NULL;
-  ast::Declaration_Constant_Node* con       = NULL;
-  ast::Function_Literal_Node*     f         = NULL;
-  ast::Member_Access_Node*        access    = NULL;
-  ast::Literal_Struct_Node*       structure = NULL;
-  ast::Literal_Symbol_Node*       symbol    = NULL;
+  ast::Variable_Assignment_Node* decl = NULL;
+  ast::Declaration_Variable_Node* var = NULL;
+  ast::Declaration_Constant_Node* con = NULL;
+  ast::Function_Literal_Node* f = NULL;
+  ast::Member_Access_Node* access = NULL;
+  ast::Literal_Struct_Node* structure = NULL;
+  ast::Literal_Symbol_Node* symbol = NULL;
 
   // A :: struct { ... }
   decl = ast::is_instance< ast::Variable_Assignment_Node* >(program->get_statement(parser->ast_manager));
@@ -139,7 +139,7 @@ void should_register_declarations_in_context() {
 
   // t
   program = program->get_next_program_point(parser->ast_manager);
-  symbol  = ast::is_instance< ast::Literal_Symbol_Node* >(program->get_statement(parser->ast_manager));
+  symbol = ast::is_instance< ast::Literal_Symbol_Node* >(program->get_statement(parser->ast_manager));
   assert(symbol);
   ast::Node* type0 = context::context_type_of(f_ctx, parser->ast_manager, symbol);
 
@@ -147,7 +147,7 @@ void should_register_declarations_in_context() {
 
   // j.x
   program = program->get_next_program_point(parser->ast_manager);
-  access  = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
+  access = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
   assert(access);
   ast::Node* type1 = context::context_type_of(f_ctx, parser->ast_manager, access);
 
@@ -155,17 +155,17 @@ void should_register_declarations_in_context() {
 
   // j.a
   program = program->get_next_program_point(parser->ast_manager);
-  access  = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
+  access = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
   assert(access);
-  ast::Node* type2            = context::context_type_of(f_ctx, parser->ast_manager, access);
-  symbol                      = ast::is_instance< ast::Literal_Symbol_Node* >(type2);
+  ast::Node* type2 = context::context_type_of(f_ctx, parser->ast_manager, access);
+  symbol = ast::is_instance< ast::Literal_Symbol_Node* >(type2);
   compiler::symbol::Symbol id = symbol->get_symbol(parser->ast_manager);
 
   assert(symbol && compiler::symbol::is_equal(parser->ast_manager->symbol_table, &id, "A"));
 
   // j.a
   program = program->get_next_program_point(parser->ast_manager);
-  access  = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
+  access = ast::is_instance< ast::Member_Access_Node* >(program->get_statement(parser->ast_manager));
   assert(access);
   ast::Node* type3 = context::context_type_of(f_ctx, parser->ast_manager, access);
 

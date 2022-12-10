@@ -22,16 +22,16 @@ void should_bubble_effectfull_program() {
                    "}\n"
                    "g : unit -> i32 : () -> i32 {\n"
                    "  w : i32 = 0;"
-                   "  read_handler : handler_t : handler {\n"
+                   "  read : handler_t : handler {\n"
                    "    ask : unit -> i32 : (a: i32) -> i32 {\n"
                    "      one : i32 = 1;\n"
                    "      x : i32 = resume(one);\n"
                    "      y : i32 = resume(one);\n"
-                   "      z : i32 = x + y + w + a;\n"
+                   "      z : i32 = x + w + y + a;\n"
                    "			return z;\n"
                    "    }\n"
                    "  }\n"
-                   "  f() with read_handler;\n"
+                   "  f() with read;\n"
                    "  return 0;\n"
                    "}\n";
 
@@ -41,7 +41,7 @@ void should_bubble_effectfull_program() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
   printf("/*\n");
   print_ast_ir(parser->ast_manager, node);
   printf("====================================\n");

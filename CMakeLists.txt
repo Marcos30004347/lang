@@ -13,6 +13,7 @@ add_library(magic
 	src/ast/ast_function.cpp
 	src/ast/ast_pointer.cpp
 	src/ast/ast_kind.cpp
+	src/ast/utils.cpp
 	src/compiler/compiler.cpp
 	src/compiler/symbol_table.cpp
 	src/compiler/file_manager.cpp

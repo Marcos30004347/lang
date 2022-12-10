@@ -43,7 +43,7 @@ void should_cps_convert_effectfull_programs() {
 
   handler::Handler_Pass_Data* info = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(info, parser->ast_manager, node);
+  handler::handler_conversion_pass(info, parser->ast_manager, node);
 
   print_ast_ir(parser->ast_manager, node);
 

@@ -71,7 +71,7 @@ u8* resume(u8* arg, context_t* ctx) {
 	} else {
 	  ctx->k = k->next;
 
-	  slice_t* input = (slice_t*)resume(arg, ctx);
+	  buffer_header_t* input = (buffer_header_t*)resume(arg, ctx);
 
 		u8* out = push(k->retsize);
 
@@ -96,5 +96,5 @@ u8* escape_frame(u8* frame) {
 }
 
 void deallocate(unsigned char* buffer, context_t* ctx) {
-	deallocate((slice_t*)buffer);
+	deallocate((buffer_header_t*)buffer);
 }

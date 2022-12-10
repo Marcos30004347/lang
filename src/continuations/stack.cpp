@@ -76,7 +76,7 @@ void debug() {
 
 inline void remove_upper_bound() {
   upper_bound = upper_bound->prev;
-	upper_bound_limit = get_slice_end(upper_bound);
+  upper_bound_limit = get_slice_end(upper_bound);
   lower_bound->prev = upper_bound;
 }
 
@@ -89,10 +89,10 @@ inline void remove_lower_bound() {
 inline u8* push(u64 size) {
   sp = sp + size;
 
-	while(sp >= lower_bound_limit && lower_bound->flags & FREED) {
-		remove_lower_bound();
-	}
-	
+  while (sp >= lower_bound_limit && lower_bound->flags & FREED) {
+    remove_lower_bound();
+  }
+
   if (unlikely(sp > lower_bound_limit)) {
     lower_bound->fragment = get_slice_start(lower_bound) - (sp - size);
 
@@ -107,18 +107,18 @@ inline u8* push(u64 size) {
     return push(size);
   }
 
-  debug();
-	
-	return sp - size;
+  // debug();
+
+  return sp - size;
 }
 
 inline void pop(u32 size) {
   sp = sp - size;
 
-	while(sp <= upper_bound_limit && upper_bound->flags & FREED) {
-		remove_upper_bound();
-	}
-	
+  while (sp <= upper_bound_limit && upper_bound->flags & FREED) {
+    remove_upper_bound();
+  }
+
   if (unlikely(sp < upper_bound_limit)) {
     sp = get_slice_start(upper_bound) - upper_bound->fragment;
 
@@ -132,24 +132,24 @@ inline void pop(u32 size) {
   }
 
   while (unlikely(sp == upper_bound_limit && sp != data + sizeof(slice_t))) {
-     sp = get_slice_start(upper_bound) - upper_bound->fragment;
+    sp = get_slice_start(upper_bound) - upper_bound->fragment;
 
-     lower_bound = upper_bound;
-     upper_bound = upper_bound->prev;
+    lower_bound = upper_bound;
+    upper_bound = upper_bound->prev;
 
-     lower_bound_limit = get_slice_start(lower_bound);
-     upper_bound_limit = get_slice_end(upper_bound);
+    lower_bound_limit = get_slice_start(lower_bound);
+    upper_bound_limit = get_slice_end(upper_bound);
   }
 
-  debug();
+  // debug();
 }
 
 inline slice_t* allocate(u8* buffer) {
   slice_t* i = (slice_t*)push(sizeof(slice_t));
 
-	i->flags = NONE;
-	
-	i->size = (u32)((u8*)i - (u8*)buffer);
+  i->flags = NONE;
+
+  i->size = (u32)((u8*)i - (u8*)buffer);
 
   slice_t* n = lower_bound;
   slice_t* p = n->prev;
@@ -162,24 +162,23 @@ inline slice_t* allocate(u8* buffer) {
   upper_bound = i;
 
   upper_bound_limit = get_slice_end(i);
-	
-	return i;
+
+  return i;
 }
 
 inline void deallocate(slice_t* s) {
   s->flags |= FREED;
 
-	if(s == upper_bound) {
-		remove_upper_bound();
-		pop(0);
-	}
+  if (s == upper_bound) {
+    remove_upper_bound();
+    pop(0);
+  }
 
-	if(s == lower_bound) {
-		remove_lower_bound();
-		push(0);
-	}
+  if (s == lower_bound) {
+    remove_lower_bound();
+    push(0);
+  }
 }
-
 
 int use0() {
   u8* start = sp;
@@ -190,7 +189,7 @@ int use0() {
 
   push(16);
 
-  slice_t* slice = allocate(ptr);
+	// slice_t* slice = allocate(ptr);
 
   push(32);
 
@@ -202,17 +201,53 @@ int use0() {
 
   pop(32);
 
-  deallocate(slice);
+  //deallocate(slice);
 
   return 0;
 }
 
-int use1() {
+#include <stdlib.h>
 
-  return 0;
+void* a() {
+  return alloca(16);
 }
+
+void* b() {
+  return alloca(16);
+}
+
+void* c() {
+  return alloca(32);
+}
+
+void* d() {
+  return alloca(32);
+}
+
+unsigned long use1() {
+  unsigned long z = 0;
+  z += (unsigned long)a();
+  z += (unsigned long)b();
+  z += (unsigned long)c();
+  z += (unsigned long)d();
+  return z;
+}
+
+#include <chrono>
+#include <iostream>
 
 int main() {
   init();
+
+  std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
   use0();
+  std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+  std::cout << "Time difference = " << std::chrono::duration_cast< std::chrono::microseconds >(end - begin).count() << "[µs]" << std::endl;
+  std::cout << "Time difference = " << std::chrono::duration_cast< std::chrono::nanoseconds >(end - begin).count() << "[ns]" << std::endl;
+  begin = std::chrono::steady_clock::now();
+  use1();
+  end = std::chrono::steady_clock::now();
+
+  std::cout << "Time difference = " << std::chrono::duration_cast< std::chrono::microseconds >(end - begin).count() << "[µs]" << std::endl;
+  std::cout << "Time difference = " << std::chrono::duration_cast< std::chrono::nanoseconds >(end - begin).count() << "[ns]" << std::endl;
 }

@@ -12,7 +12,7 @@ namespace ast {
 
 struct If_Node_Statement : Node {
   Node*                   get_condition(ast::Manager* manager);
-  ProgramPoint_List_Node* get_body(ast::Manager* manager);
+  ProgramPoint* get_body(ast::Manager* manager);
 };
 
 struct Return_Node_Statement : Node {

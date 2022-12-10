@@ -8,6 +8,8 @@
 #include "ast/ast_pointer.hpp"
 #include "ast/ast_program_point.hpp"
 #include "ast/ast_types.hpp"
+#include "ast/utils.hpp"
+
 #include "compiler/symbol_table.hpp"
 #include "continuations/handler.hpp"
 #include "lib/set.hpp"
@@ -40,7 +42,7 @@ struct Stack_Frame_Data {
   lib::Table< ast::Function_Literal_Node*, ast::Variable_Assignment_Node* >* function_stackframe_allocation;
   lib::Table< ast::Function_Literal_Node*, ast::Declaration_Variable_Node* >* function_stackframe_argument;
 
-  lib::Table< ast::Function_Literal_Node*, ast::ProgramPoint_List_Node* >* setup_end;
+  lib::Table< ast::Function_Literal_Node*, ast::ProgramPoint* >* setup_end;
 };
 
 Stack_Frame_Data* create_stack_frame_data(handler::Handler_Pass_Data* data) {
@@ -50,7 +52,7 @@ Stack_Frame_Data* create_stack_frame_data(handler::Handler_Pass_Data* data) {
 
   d->stack_address = lib::table_create< ast::Node*, u64 >();
   d->stack_depth = lib::table_create< ast::Node*, u64 >();
-  d->setup_end = lib::table_create< ast::Function_Literal_Node*, ast::ProgramPoint_List_Node* >();
+  d->setup_end = lib::table_create< ast::Function_Literal_Node*, ast::ProgramPoint* >();
   d->function_depth = lib::table_create< ast::Function_Literal_Node*, u64 >();
   d->function_stackframe_allocation = lib::table_create< ast::Function_Literal_Node*, ast::Variable_Assignment_Node* >();
   d->stack_arguments = lib::set_create< ast::Declaration_Variable_Node* >();
@@ -112,8 +114,8 @@ void stackframe_pass_stack_frame_paramenter(ast::Manager* m, u64* depth, ast::Fu
   }
 }
 
-ast::ProgramPoint_List_Node* stack_frame_get_function_literal_setup_end(Stack_Frame_Data* data, ast::Manager*, ast::Function_Literal_Node* lit) {
-  ast::ProgramPoint_List_Node** pp = lib::search< ast::Function_Literal_Node*, ast::ProgramPoint_List_Node* >(data->setup_end, lit);
+ast::ProgramPoint* stack_frame_get_function_literal_setup_end(Stack_Frame_Data* data, ast::Manager*, ast::Function_Literal_Node* lit) {
+  ast::ProgramPoint** pp = lib::search< ast::Function_Literal_Node*, ast::ProgramPoint* >(data->setup_end, lit);
 
   if (pp) {
     return *pp;
@@ -140,7 +142,7 @@ u64 compute_sizeof_type(ast::Manager* m, ast::Node* root, context::Context* ctx)
   assert(ast::is_semantic_node(root));
 
   if (ast::Literal_Struct_Node* ty = ast::is_instance< ast::Literal_Struct_Node* >(root)) {
-    ast::ProgramPoint_List_Node* members = ty->get_members(m);
+    ast::ProgramPoint* members = ty->get_members(m);
 
     u64 size = 0;
 
@@ -216,7 +218,7 @@ u64 set_max(lib::Set< u64 >* b) {
   return set_max_rec(b->root);
 }
 
-ast::ProgramPoint_List_Node* create_used_stacks_accesses(ast::Manager* m, u64 depth, ast::ProgramPoint_List_Node* head, lib::Set< u64 >* stack) {
+ast::ProgramPoint* create_used_stacks_accesses(ast::Manager* m, u64 depth, ast::ProgramPoint* head, lib::Set< u64 >* stack) {
   u64 min = lib::min(depth, set_min(stack));
 
   if (depth <= 1) {
@@ -240,7 +242,7 @@ ast::ProgramPoint_List_Node* create_used_stacks_accesses(ast::Manager* m, u64 de
   return head;
 }
 
-ast::ProgramPoint_List_Node* create_used_stacks_assignments(ast::Manager* m, u64 depth, ast::ProgramPoint_List_Node* head, lib::Set< u64 >* stack) {
+ast::ProgramPoint* create_used_stacks_assignments(ast::Manager* m, u64 depth, ast::ProgramPoint* head, lib::Set< u64 >* stack) {
   if (stack == NULL) {
     return head;
   }
@@ -334,13 +336,11 @@ void stackframe_push_frame_pointer_argument(Stack_Frame_Data* data, ast::Manager
   }
 }
 
-void add_pop_frame_call(ast::Manager* m, ast::ProgramPoint_List_Node* point, ast::Node* frame_size) {
-  ast::Literal_Symbol_Node* stack_ptr_pop_func = ast::create_node_literal_symbol(m, compiler::symbol::set_entry(m->symbol_table, "pop_frame"));
-  ast::Declarations_List_Node* stack_ptr_pop_args = ast::create_node_declarations_list(m, ast::deep_copy(m, frame_size), NULL);
-  ast::Function_Call_Node* stack_ptr_pop_call = ast::create_node_function_call(m, stack_ptr_pop_func, stack_ptr_pop_args);
+void add_pop_frame_call(ast::Manager* m, ast::ProgramPoint* point, ast::Literal_Symbol_Node* stack_sym, ast::Node* frame_size) {
+  ast::Function_Call_Node* stack_ptr_pop_call = ast::utils::call(m, "pop_frame", stack_sym, frame_size);
 
   while (ast::is_semantic_node(point)) {
-    ast::ProgramPoint_List_Node* next = point->get_next_program_point(m);
+    ast::ProgramPoint* next = point->get_next_program_point(m);
 
     if (ast::is_semantic_node(next)) {
       if (ast::Return_Node_Statement* ret = ast::is_instance< ast::Return_Node_Statement* >(next->get_statement(m))) {
@@ -352,7 +352,7 @@ void add_pop_frame_call(ast::Manager* m, ast::ProgramPoint_List_Node* point, ast
       while (ast::is_semantic_node(elif)) {
         ast::If_Node_Statement* if_stmt = elif->get_if(m);
 
-        add_pop_frame_call(m, if_stmt->get_body(m), frame_size);
+        add_pop_frame_call(m, if_stmt->get_body(m), stack_sym, frame_size);
 
         elif = elif->get_elif(m);
       }
@@ -386,8 +386,8 @@ u64 stack_allocate(
 
     u64 previous_frame_ptr_size = sizeof(void*);
 
-    u64 return_size = compute_sizeof_type(m, f->get_return_type(m), ctx);
-    u64 frame_header_size = previous_frame_ptr_size + return_size;
+    //u64 return_size = compute_sizeof_type(m, f->get_return_type(m), ctx);
+    u64 frame_header_size = previous_frame_ptr_size; // + return_size;
 
     stack_size = frame_header_size;
     data->stack_size = frame_header_size;
@@ -403,7 +403,7 @@ u64 stack_allocate(
     context::Context* context = context::context_create(ctx);
     context::Context* arguments_ctx = context::context_create(NULL);
 
-    ast::ProgramPoint_List_Node* assign_arguments = NULL;
+    ast::ProgramPoint* assign_arguments = NULL;
     ast::Type_Pointer_Node* stack_type = NULL;
 
     while (arguments) {
@@ -505,11 +505,11 @@ u64 stack_allocate(
 
     lib::insert(data->setup_end, f, f->get_body(m));
 
-    ast::ProgramPoint_List_Node* stack_ptr_assigment_pp = ast::create_node_program_point(m, stack_ptr_assignment, assign_arguments);
+    ast::ProgramPoint* stack_ptr_assigment_pp = ast::create_node_program_point(m, stack_ptr_assignment, assign_arguments);
 
     f->set_body(m, stack_ptr_assigment_pp);
 
-    add_pop_frame_call(m, f->get_body(m), stack_ptr_size);
+    add_pop_frame_call(m, f->get_body(m), stack_ptr, stack_ptr_size);
 
     context::context_destroy(context);
     context::context_destroy(arguments_ctx);
@@ -529,6 +529,14 @@ u64 stack_allocate(
       context::context_declare(ctx, m, var);
     }
 
+    if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "ret")) {
+      return stack_size;
+    }
+
+    // if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "prompt_ret")) {
+    //   return stack_size;
+    // }
+
     u64 sizeof_var = compute_sizeof_type(m, var->get_type(m), ctx);
 
     lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
@@ -547,6 +555,13 @@ u64 stack_allocate(
       context::context_declare(ctx, m, var);
     }
 
+    if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "ret")) {
+      return stack_size;
+    }
+
+    // if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "prompt_ret")) {
+    //   return stack_size;
+    // }
     u64 sizeof_var = compute_sizeof_type(m, var->get_type(m), ctx);
 
     lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
@@ -567,7 +582,7 @@ u64 stack_allocate(
     data->stack_size = lib::max(data->stack_size, stack_size);
 
     if (ast::Literal_Handler_Node* handler = ast::is_instance< ast::Literal_Handler_Node* >(right)) {
-      ast::ProgramPoint_List_Node* body = handler->get_body(m);
+      ast::ProgramPoint* body = handler->get_body(m);
 
       // TODO(marcos): this fail is handler have member variables
       while (ast::is_semantic_node(body)) {
@@ -579,11 +594,25 @@ u64 stack_allocate(
     }
 
     if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(left)) {
+      if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "ret")) {
+        return stack_size;
+      }
+
+      // if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "prompt_ret")) {
+      //   return stack_size;
+      // }
       context::context_declare(ctx, m, var);
       lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
     }
 
     if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(left)) {
+      if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "ret")) {
+        return stack_size;
+      }
+
+      // if (compiler::symbol::is_equal(m->symbol_table, var->get_symbol(m)->get_symbol(m), "prompt_ret")) {
+      //   return stack_size;
+      // }
       context::context_declare(ctx, m, var);
       lib::insert< ast::Node*, u64 >(data->stack_depth, var, depth);
     }
@@ -704,11 +733,11 @@ u64 stack_allocate(
   if (ast::Function_Call_Node* call = ast::is_instance< ast::Function_Call_Node* >(root)) {
     if (ast::Literal_Symbol_Node* sym = ast::is_instance< ast::Literal_Symbol_Node* >(call->get_function(m))) {
       if (ast::Node* decl = context::context_is_defined(ctx, sym)) {
-
         u64* decl_depth = lib::search(data->stack_depth, decl);
         //  b8 is_prompt = handler::handler_pass_data_is_prompt_declaration(cps::cps_data_get_handler_data(data->cps_data), decl);
 
         if ((decl_depth && *decl_depth > 0)) {
+          stack_allocate(data, m, sym, ctx, args_ctx, stack_size, depth, parent, used_stacks, childs_used_stacks);
           stackframe_pass_stack_frame_paramenter(m, decl_depth, call);
         }
       }
@@ -724,16 +753,22 @@ u64 stack_allocate(
   if (ast::Literal_Symbol_Node* symbol = ast::is_instance< ast::Literal_Symbol_Node* >(root)) {
     ast::Node* type = context::context_type_of(ctx, m, symbol);
 
-    if (ast::is_instance< ast::Type_Arrow_Node* >(type)) {
+    if (compiler::symbol::is_equal(m->symbol_table, symbol->get_symbol(m), "ret")) {
       return stack_size;
     }
 
+    // if (compiler::symbol::is_equal(m->symbol_table, symbol->get_symbol(m), "prompt_ret")) {
+    //   return stack_size;
+    // }
     if (type) {
       ast::Node* decl = context::context_is_defined(ctx, symbol);
       u64* stack_address = lib::search(data->stack_address, decl);
 
       if (stack_address) {
         u64* var_depth = lib::search(data->stack_depth, decl);
+        if (ast::is_instance< ast::Type_Arrow_Node* >(type) && *var_depth <= 1) {
+          return stack_size;
+        }
 
         assert(var_depth);
 
@@ -769,6 +804,9 @@ u64 stack_allocate(
       if (stack_address) {
         u64* var_depth = lib::search(data->stack_depth, decl);
 
+        if (ast::is_instance< ast::Type_Arrow_Node* >(type) && *var_depth <= 1) {
+          return stack_size;
+        }
         assert(var_depth);
 
         lib::insert(used_stacks, *var_depth);

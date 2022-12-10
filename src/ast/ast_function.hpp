@@ -20,8 +20,8 @@ struct Function_Literal_Node : Node {
   Declarations_List_Node* get_arguments(ast::Manager* manager);
   void set_arguments(ast::Manager* manager, Declarations_List_Node* args);
 
-  ProgramPoint_List_Node* get_body(ast::Manager* manager);
-  void set_body(ast::Manager* manager, ProgramPoint_List_Node* pp);
+  ProgramPoint* get_body(ast::Manager* manager);
+  void set_body(ast::Manager* manager, ProgramPoint* pp);
   void set_return_type(ast::Manager* manager, Node* ty);
 };
 
@@ -48,7 +48,7 @@ struct Effect_Declaration_Node : Node {
 
   Declarations_List_Node* get_arguments(ast::Manager* manager);
 
-  ProgramPoint_List_Node* get_body(ast::Manager* manager);
+  ProgramPoint* get_body(ast::Manager* manager);
 };
 
 template <> Function_Literal_Node* is_instance<>(Node* node);
@@ -56,7 +56,7 @@ template <> Function_Call_Node* is_instance<>(Node* node);
 template <> Effect_Declaration_Node* is_instance<>(Node* node);
 template <> Effect_Call_Node* is_instance<>(Node* node);
 
-Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint_List_Node* body);
+Function_Literal_Node* create_node_function_literal(ast::Manager* manager, Node* arguments, Node* return_type, ProgramPoint* body);
 
 Function_Call_Node* create_node_function_call(ast::Manager* manager, Node* function, Node* arguments);
 

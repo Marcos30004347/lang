@@ -24,7 +24,7 @@ void should_cps_convert_call_programs() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
 
@@ -54,7 +54,7 @@ void should_cps_convert_call_assignments_programs() {
   ast::Node*                  node    = parser_parse(parser);
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
 
@@ -92,7 +92,7 @@ void should_cps_convert_branch_programs() {
   ast::Node*                  node    = parser_parse(parser);
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
 
@@ -142,7 +142,7 @@ void should_cps_convert_effectfull_programs() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* sf_data = stackframe::create_stack_frame_data(hd_data);
 

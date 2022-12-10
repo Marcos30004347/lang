@@ -29,11 +29,11 @@ struct Literal_False_Node : Node {};
 struct Literal_True_Node : Node {};
 
 struct Literal_Struct_Node : Node {
-  ProgramPoint_List_Node* get_members(ast::Manager* manager);
+  ProgramPoint* get_members(ast::Manager* manager);
 };
 
 struct Literal_Handler_Node : Node {
-  ProgramPoint_List_Node* get_body(ast::Manager* managet);
+  ProgramPoint* get_body(ast::Manager* managet);
 };
 
 template <> Literal_Undefined_Node* is_instance<>(Node* node);
@@ -59,9 +59,9 @@ Literal_Natural_Node* create_node_literal_natural(ast::Manager* manager, compile
 
 Literal_Symbol_Node* create_node_literal_symbol(ast::Manager* manager, compiler::symbol::Symbol val);
 
-Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint_List_Node* members);
+Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint* members);
 
-Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, ProgramPoint_List_Node* statements);
+Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, ProgramPoint* statements);
 
 void replace_ocurrences(ast::Manager* manager, ast::Node* node, ast::Literal_Symbol_Node* from, ast::Literal_Symbol_Node* to);
 void replace_ocurrences(ast::Manager* manager, ast::Node* node, compiler::symbol::Symbol from, compiler::symbol::Symbol to);

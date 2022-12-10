@@ -33,7 +33,7 @@ void should_stack_frame_allote_program() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   print_ast_ir(parser->ast_manager, node);
   stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(hd_data);
@@ -90,7 +90,7 @@ void should_stack_frame_allote_effectfull_program0() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   print_ast_ir(parser->ast_manager, node);
 
@@ -124,7 +124,7 @@ void should_stack_frame_allote_effectfull_program1() {
 
   handler::Handler_Pass_Data* hd_data = handler::handler_pass_data_create();
 
-  handler::handeler_conversion_pass(hd_data, parser->ast_manager, node);
+  handler::handler_conversion_pass(hd_data, parser->ast_manager, node);
 
   stackframe::Stack_Frame_Data* data = stackframe::create_stack_frame_data(hd_data);
 

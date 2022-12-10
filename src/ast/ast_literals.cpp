@@ -89,24 +89,24 @@ compiler::symbol::Symbol Literal_Natural_Node::get_symbol(ast::Manager* manager)
   return sym;
 }
 
-Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint_List_Node* members) {
+Literal_Struct_Node* create_node_literal_struct(ast::Manager* manager, ProgramPoint* members) {
   return as< Literal_Struct_Node* >(ast::manager_alloc(manager, AST_STRUCT_LITERAL, get_id(members), 0));
 }
 
-Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, ProgramPoint_List_Node* statements) {
+Literal_Handler_Node* create_node_literal_handler(ast::Manager* manager, ProgramPoint* statements) {
   return as< Literal_Handler_Node* >(ast::manager_alloc(manager, AST_HANDLER_LITERAL, get_id(statements), 0));
 }
 
-ProgramPoint_List_Node* Literal_Handler_Node::get_body(ast::Manager* m) {
-  return ast::as< ProgramPoint_List_Node* >(left_of(m, this));
+ProgramPoint* Literal_Handler_Node::get_body(ast::Manager* m) {
+  return ast::as< ProgramPoint* >(left_of(m, this));
 }
 
-ProgramPoint_List_Node* Literal_Struct_Node::get_members(ast::Manager* manager) {
+ProgramPoint* Literal_Struct_Node::get_members(ast::Manager* manager) {
   if (this->left == 0) {
     return NULL;
   }
 
-  ProgramPoint_List_Node* members = is_instance< ProgramPoint_List_Node* >(left_of(manager, this));
+  ProgramPoint* members = is_instance< ProgramPoint* >(left_of(manager, this));
 
   assert(members);
 

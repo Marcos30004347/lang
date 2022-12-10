@@ -71,8 +71,8 @@ Node* If_Node_Statement::get_condition(ast::Manager* manager) {
   return left_of(manager, this);
 }
 
-ProgramPoint_List_Node* If_Node_Statement::get_body(ast::Manager* manager) {
-  return is_instance< ProgramPoint_List_Node* >(right_of(manager, this));
+ProgramPoint* If_Node_Statement::get_body(ast::Manager* manager) {
+  return is_instance< ProgramPoint* >(right_of(manager, this));
 }
 
 If_Node_Statement* Elif_List_Node::get_if(ast::Manager* manager) {

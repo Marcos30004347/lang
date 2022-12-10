@@ -97,6 +97,13 @@ b8 is_equal(Symbol_Table* m, Symbol* a, const i8* b) {
 
   return is_equal(m, a, b, n);
 }
+	
+b8 is_equal(Symbol_Table* m, Symbol a, const i8* b) {
+  u64 n = strlen(b);
+
+  return is_equal(m, &a, b, n);
+}
+
 
 b8 is_equal(Symbol_Table* table, Symbol* a, Symbol* b) {
   if (a->crc64 != b->crc64 || a->size != b->size)
@@ -104,6 +111,18 @@ b8 is_equal(Symbol_Table* table, Symbol* a, Symbol* b) {
 
   for (u64 i = 0; i < a->size; i++) {
     if (char_at(a, i) - char_at(b, i) != 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+b8 is_equal(Symbol_Table* table, Symbol a, Symbol b) {
+  if (a.crc64 != b.crc64 || a.size != b.size)
+    return false;
+
+  for (u64 i = 0; i < a.size; i++) {
+    if (char_at(&a, i) - char_at(&b, i) != 0) {
       return false;
     }
   }

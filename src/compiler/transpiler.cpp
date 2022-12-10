@@ -12,11 +12,15 @@
 #include "stdio.h"
 #include <cstdio>
 
+#include "header.hpp"
+
 namespace compiler {
 namespace transpiler {
 
 struct C_Transpiler_Data {
   b8 emit_semicolon_after_program_point;
+  b8 emiting_function_types;
+  b8 emiting_function_ptr;
 };
 
 void output_tabs(u64 tabs) {
@@ -46,6 +50,22 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
       printf("%c", symbol::char_at(&s, i));
     }
 
+    return;
+  }
+
+  if (ast::Type_Arrow_Node* arrow = ast::is_instance< ast::Type_Arrow_Node* >(root)) {
+    b8 o = data->emiting_function_types;
+    data->emiting_function_types = true;
+    output_c_code_rec(data, m, arrow->get_to_type(m), tabs);
+    if (data->emiting_function_ptr) {
+      printf("(**)");
+    } else {
+      printf("(*)");
+    }
+    printf("(");
+    output_c_code_rec(data, m, arrow->get_from_type(m), tabs);
+    printf(")");
+    data->emiting_function_types = o;
     return;
   }
 
@@ -81,7 +101,10 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
 
   if (ast::Type_Pointer_Node* ptr = ast::is_instance< ast::Type_Pointer_Node* >(root)) {
     output_c_code_rec(data, m, ptr->get_pointer_type(m), tabs);
-    printf("*");
+
+    if (ast::is_instance< ast::Type_Arrow_Node* >(ptr->get_pointer_type(m)) == false) {
+      printf("*");
+    }
     return;
   }
 
@@ -133,7 +156,13 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
 
       printf("{\n");
 
-      b8 old_emit_value = data->emit_semicolon_after_program_point;
+			for(int i = 0; i < tabs + 2; i++) {
+				printf(" ");
+			}
+			
+			printf("DEBUG_FUNCTION_HEADER\n");
+
+			b8 old_emit_value = data->emit_semicolon_after_program_point;
 
       data->emit_semicolon_after_program_point = true;
 
@@ -185,9 +214,64 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
   }
 
   if (ast::Pointer_Value_Node* val = ast::is_instance< ast::Pointer_Value_Node* >(root)) {
-    printf("*(");
+    b8 old = data->emiting_function_ptr;
+
+    if (ast::Cast_Type_Node* cast = ast::is_instance< ast::Cast_Type_Node* >(val->get_variable(m))) {
+      if (ast::Type_Pointer_Node* ptr = ast::is_instance< ast::Type_Pointer_Node* >(cast->get_to_type(m))) {
+        if (ast::Type_Arrow_Node* arrow = ast::is_instance< ast::Type_Arrow_Node* >(ptr->get_pointer_type(m))) {
+          data->emiting_function_ptr = true;
+        }
+      }
+    }
+
+    printf("(*(");
+
     output_c_code_rec(data, m, val->get_variable(m), tabs);
-    printf(")");
+    printf("))");
+
+    data->emiting_function_ptr = old;
+    return;
+  }
+	
+  if (ast::Logical_Operation_Equal_Node* op = ast::is_instance< ast::Logical_Operation_Equal_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" == ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
+    return;
+  }
+	
+  if (ast::Logical_Operation_NotEqual_Node* op = ast::is_instance< ast::Logical_Operation_NotEqual_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" != ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
+    return;
+  }
+
+  if (ast::Logical_Operation_GreaterEqual_Node* op = ast::is_instance< ast::Logical_Operation_GreaterEqual_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" >= ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
+    return;
+  }
+
+  if (ast::Logical_Operation_LessEqual_Node* op = ast::is_instance< ast::Logical_Operation_LessEqual_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" <= ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
+    return;
+  }
+
+	if (ast::Logical_Operation_Greater_Node* op = ast::is_instance< ast::Logical_Operation_Greater_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" > ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
+    return;
+  }
+
+  if (ast::Logical_Operation_Less_Node* op = ast::is_instance< ast::Logical_Operation_Less_Node* >(root)) {
+    output_c_code_rec(data, m, op->get_left_operand(m), tabs);
+    printf(" < ");
+    output_c_code_rec(data, m, op->get_right_operand(m), tabs);
     return;
   }
 
@@ -207,7 +291,11 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
 
   if (ast::Arithmetic_Operation_Mul_Node* op = ast::is_instance< ast::Arithmetic_Operation_Mul_Node* >(root)) {
     output_c_code_rec(data, m, op->get_left_operand(m), tabs);
-    printf(" * ");
+    if (data->emiting_function_types) {
+      printf(" , ");
+    } else {
+      printf(" * ");
+    }
     output_c_code_rec(data, m, op->get_right_operand(m), tabs);
     return;
   }
@@ -271,10 +359,12 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
 
   if (ast::Cast_Type_Node* cast = ast::is_instance< ast::Cast_Type_Node* >(root)) {
     printf("(");
+    printf("(");
     output_c_code_rec(data, m, cast->get_to_type(m), tabs);
     printf(")");
     printf("(");
     output_c_code_rec(data, m, cast->get_expr(m), tabs);
+    printf(")");
     printf(")");
     return;
   }
@@ -321,11 +411,11 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
         type = ptr->get_pointer_type(m);
       }
     }
-		printf("(");
+    printf("(");
     output_c_code_rec(data, m, object, tabs);
-		printf(")");
+    printf(")");
 
-		if (dereferences < ptrs) {
+    if (dereferences < ptrs) {
       printf("->");
     } else {
       printf(".");
@@ -335,7 +425,7 @@ void output_c_code_rec(C_Transpiler_Data* data, ast::Manager* m, ast::Node* root
     return;
   }
 
-  if (ast::ProgramPoint_List_Node* pp = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
+  if (ast::ProgramPoint* pp = ast::is_instance< ast::ProgramPoint* >(root)) {
     while (ast::is_semantic_node(pp)) {
       output_tabs(tabs);
 
@@ -481,7 +571,7 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
     return;
   }
 
-  if (ast::ProgramPoint_List_Node* pp = ast::is_instance< ast::ProgramPoint_List_Node* >(root)) {
+  if (ast::ProgramPoint* pp = ast::is_instance< ast::ProgramPoint* >(root)) {
     while (ast::is_semantic_node(pp)) {
       output_tabs(tabs);
 
@@ -504,27 +594,33 @@ void output_c_function_declarations_code_rec(C_Transpiler_Data* data, ast::Manag
   printf("/*TODO*/");
 }
 
+	
 void output_c_code(ast::Manager* m, ast::Node* root) {
   C_Transpiler_Data* data = new C_Transpiler_Data();
 
-  printf("struct context_t {};\n");
-  printf("void pop_frame(int);\n");
-  printf("unsigned char* push_frame(int);\n");
-  printf("int is_yielding(context_t*);\n");
-  printf("int yielding_to_handler(int, context_t*);\n");
-  printf("unsigned char* escape_frame(unsigned char*);\n");
-  printf("void bubble(context_t*, const int, int, unsigned char*, unsigned char*(*)(unsigned char*, unsigned char*, context_t*, unsigned char*));\n");
-  printf("void set_is_yielding_to(int, context_t*);\n");
-  printf("void ctx_set_returning(int, context_t*);\n");
-  printf("int ctx_is_yielding_to(int, context_t*);\n");
-  printf("char* ctx_get_handler_args(context_t*);\n");
-  printf("unsigned char*resume(unsigned char*, context_t*);\n");
-  printf("int ctx_is_returning(context_t*);\n");
-	printf("void deallocate(unsigned char*, context_t*);\n");
-	printf("unsigned char* ctx_allocate_args(unsigned int, context_t*);\n");
+  // printf("struct context_t {};\n");
+  // printf("void pop_frame(int);\n");
+  // printf("unsigned char* push_frame(int);\n");
+  // printf("int is_yielding(context_t*);\n");
+  // printf("int yielding_to_handler(int, context_t*);\n");
+  // printf("unsigned char* escape_frame(unsigned char*);\n");
+  // printf("void bubble(context_t*, const int, int, unsigned char*, unsigned char*(*)(unsigned char*, unsigned char*, context_t*, unsigned char*));\n");
+  // printf("void set_is_yielding_to(int, context_t*);\n");
+  // printf("void ctx_set_returning(int, context_t*);\n");
+  // printf("int ctx_is_yielding_to(int, context_t*);\n");
+  // printf("char* ctx_get_handler_args(context_t*);\n");
+  // printf("unsigned char*resume(unsigned char*, context_t*);\n");
+  // printf("int ctx_is_returning(context_t*);\n");
+  // printf("void deallocate(unsigned char*, context_t*);\n");
+  // printf("unsigned char* ctx_allocate_args(unsigned int, context_t*);\n");
+	printf("%s\n", header_h);
+	
   data->emit_semicolon_after_program_point = true;
   output_c_function_declarations_code_rec(data, m, root, 0);
   data->emit_semicolon_after_program_point = false;
+  data->emiting_function_types = false;
+  data->emiting_function_ptr = false;
+
   output_c_code_rec(data, m, root, 0);
   delete data;
 }

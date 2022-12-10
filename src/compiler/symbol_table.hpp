@@ -60,8 +60,10 @@ void          symbol_table_destroy(Symbol_Table* table);
 i8 char_at(Symbol* it, u64 i);
 
 b8 is_equal(Symbol_Table* t, Symbol* a, Symbol* b);
+b8 is_equal(Symbol_Table* t, Symbol a, Symbol b);
 b8 is_equal(Symbol_Table* m, Symbol* a, const i8* b, u64 n);
 b8 is_equal(Symbol_Table* m, Symbol* a, const i8* b);
+b8 is_equal(Symbol_Table* m, Symbol a, const i8* b);
 
 b8 exist_entry(Symbol_Table* table, const i8* c_str, u64 n);
 b8 exist_entry(Symbol_Table* table, const i8* c_str);

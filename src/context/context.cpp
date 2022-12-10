@@ -32,15 +32,15 @@ struct Scope {
 };
 
 struct Context {
-  Scope*   scope;
+  Scope* scope;
   Context* parent;
 };
 
 Scope* scope_create(Scope* parent) {
   Scope* scope = new Scope();
 
-  scope->scope      = lib::table_create< compiler::symbol::Id, Declaration* >();
-  scope->parent     = parent;
+  scope->scope = lib::table_create< compiler::symbol::Id, Declaration* >();
+  scope->parent = parent;
   scope->structures = lib::table_create< compiler::symbol::Id, ast::Literal_Struct_Node* >();
 
   return scope;
@@ -69,9 +69,9 @@ Declaration* declaration_create(ast::Node* declaration, ast::Literal_Symbol_Node
 
   Declaration* data = new Declaration();
 
-  data->bind   = declaration;
+  data->bind = declaration;
   data->symbol = symbol;
-  data->type   = type;
+  data->type = type;
 
   data->constant = ast::is_instance< ast::Declaration_Constant_Node* >(declaration);
 
@@ -109,7 +109,7 @@ void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Constant_No
 void context_declare(Context* ctx, ast::Manager* m, ast::Declaration_Variable_Node* declaration) {
 
   ast::Literal_Symbol_Node* symbol = declaration->get_symbol(m);
-  ast::Node*                type   = declaration->get_type(m);
+  ast::Node* type = declaration->get_type(m);
 
   Declaration* data = declaration_create(declaration, symbol, type);
 
@@ -227,7 +227,7 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Nod
 
     ast::Literal_Struct_Node* structure = ast::as< ast::Literal_Struct_Node* >(type);
 
-    ast::ProgramPoint_List_Node* members = structure->get_members(m);
+    ast::ProgramPoint* members = structure->get_members(m);
 
     ast::Literal_Symbol_Node* symbol = ast::as< ast::Literal_Symbol_Node* >(access->get_access(m));
 
@@ -263,12 +263,12 @@ ast::Node* context_type_of(Context* ctx, ast::Manager* m, ast::Member_Access_Nod
 
     if (ast::Declaration_Constant_Node* var = ast::is_instance< ast::Declaration_Constant_Node* >(accessed)) {
       object = var->get_symbol(m);
-      type   = var->get_type(m);
+      type = var->get_type(m);
     }
 
     if (ast::Declaration_Variable_Node* var = ast::is_instance< ast::Declaration_Variable_Node* >(accessed)) {
       object = var->get_symbol(m);
-      type   = var->get_type(m);
+      type = var->get_type(m);
     }
 
     access = access->get_next_accesses(m);
