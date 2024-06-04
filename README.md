@@ -108,12 +108,6 @@ Calls are made like normal function calls in any imperative language
 
 \<Call\> = \<Name\>'(' \<CallArguments\> ')'
 
-### Effect:
-TODO: write syntax rules and examples for effects
-
-### Handler:
-TODO: write syntax rules and examples for handlers
-
 ### Effect Calls:
 Effects are called like normal functions but with a '!' appended at the end of the function name:
 
