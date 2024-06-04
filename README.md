@@ -1,7 +1,7 @@
-# Some Programming Language (TODO: name to be defined)
+# Compiler Project
 
 ## Overview
-This is the implementation of a simple imperative programming language that supports Algebraic Effects'ish control flow mechanisms.
+This is the implementation of a simple programming language that supports Algebraic Effects'ish control flow mechanisms.
 
 ## Dependencies
 
