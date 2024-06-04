@@ -29,17 +29,6 @@ This is going to run the test under /tests/continuations/closures.cpp
 
 If you want to see what executable each tests creates take a look at the tests/CMakeLists.txt from the root of the repository.
 
-## Status:
-- TODO: Add parsing for effects calls
-- TODO: Add parsing for handler definitions
-- TODO: Right now we are spliting continuations using function calls, we need to do that only for effect calls
-- TODO: Return Continuation Closures capturing local environment on a buffer
-- TODO: Yield Continuations Closures
-- TODO: Bubble those Closures to a handler throught composition
-- TODO: Add generalized evidence passing to capture handlers
-- TODO: Add logic to suport Yielding to the closest handler
-- TODO: Review Lanaguage Syntax
-
 ## Syntax
 
 ### Declaractions:
@@ -61,8 +50,6 @@ id :: 0
 index : i32 : 2
 ```
 
-### Functions(likelly to change soon):
-
 #### Function
 Functions can be defined with the syntax:
 
@@ -79,7 +66,7 @@ add :: (x:i32, y:i32) -> i32 {
 
 Any function declaration needs to be assigned to a constant.
 
-#### Closures(likelly to be removed)
+#### Closures
 Closures can be declared with the syntax:
 
 \<ClosureArguments\> = ((\<ClosureArguments\> ';')* \<ClosureArguments\>)*
@@ -144,4 +131,4 @@ Some of the semantics of algebraic effects are not planned to be suported, sinse
 
 ## Compilation pipeline:
 
-Parsing -> Type Checking(TODO) -> Simplification(TODO) -> Continuation Capturing -> Continuation Closure Conversion -> Generalized Evidence Passing -> Bubbling Yields -> Transpilation to C
+Parsing -> Continuation Capturing -> Continuation Closure Conversion -> Generalized Evidence Passing -> Bubbling Yields -> Transpilation to C
